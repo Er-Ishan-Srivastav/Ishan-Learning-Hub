@@ -1,0 +1,2723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Upgrading Cassandra - Safely upgrade to newer versions with zero downtime!">
+    <title>Upgrading Cassandra | myPathshala</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6d28d9 50%, #5b21b6 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #8b5cf6;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '⬆️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        table {
+            width: 100%;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+
+        td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(71, 85, 105, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">⬆️</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">Upgrading Cassandra</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search upgrade topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+         <!-- ENHANCED Learning Path with DETAILED Subsections -->
+
+         
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html" class="active">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-level-up-alt"></i>
+                        Stay Current & Secure
+                    </span>
+                    <h1><span class="gradient-text">Upgrading Cassandra</span></h1>
+                    <p>Safely upgrade to newer versions with zero downtime!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="#operations">Operations</a>
+                <span class="separator">›</span>
+                <span class="current">Upgrading</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Maria's Story</a></li>
+                            <li><a href="#why-upgrade">🎯 Why Upgrade?</a></li>
+                            <li><a href="#upgrade-paths">🛣️ Upgrade Paths</a></li>
+                            <li><a href="#preparation">📋 Preparation</a></li>
+                            <li><a href="#process">⬆️ Upgrade Process</a></li>
+                            <li><a href="#major-vs-minor">🔄 Major vs Minor</a></li>
+                            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+                            <li><a href="#best-practices">💡 Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-left-color: #dc2626;">
+        <h2 style="color: #dc2626;">📖 The Story: Maria's Upgrade Disaster</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Maria ran Cassandra 2.1 for 3 years. Security team finally demanded upgrade. She jumped straight to 4.0 without testing. Incompatible SSTable format. Cluster wouldn't start. 8-hour outage. Lost $1M in revenue. All because she skipped major → major upgrade rules.</p>
+
+            <div style="background: rgba(220, 38, 38, 0.2); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">😱 What Maria Did Wrong</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">The Fatal Jump:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Maria's cluster (6 nodes running 2.1.20):</span>
+$ nodetool version
+ReleaseVersion: <span class="number">2.1</span>.<span class="number">20</span>
+
+<span class="comment">-- Security audit: "You MUST upgrade! 2.1 has vulnerabilities!"</span>
+
+<span class="comment">-- Maria: "Let's jump to latest! 4.0 is out!"</span>
+
+<span class="comment">-- Maria's fatal mistake:</span>
+$ sudo apt install cassandra=<span class="number">4.0</span>.<span class="number">0</span>
+$ sudo systemctl restart cassandra
+
+<span class="comment">-- Node tries to start...</span>
+ERROR: Cannot read SSTable format version <span class="string">'ja'</span>
+ERROR: SSTable created by incompatible version
+FATAL: Unable to start Cassandra
+
+<span class="comment">-- Node won't start! 💥</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Cascade:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>💥 <strong>Hour 1:</strong> Upgraded all 6 nodes to 4.0</li>
+                    <li>💥 <strong>Hour 1:15:</strong> None would start (SSTable incompatible)</li>
+                    <li>😱 <strong>Hour 2:</strong> Panic - entire cluster down!</li>
+                    <li>📞 <strong>Hour 3:</strong> Called DataStax support ($$$)</li>
+                    <li>⬇️ <strong>Hour 4-6:</strong> Downgrading all nodes back to 2.1</li>
+                    <li>🔄 <strong>Hour 7:</strong> Running `nodetool upgradesstables`</li>
+                    <li>✅ <strong>Hour 8:</strong> Finally back online</li>
+                </ul>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Total Damage:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>💰 <strong>$1M:</strong> Lost revenue (8 hours)</li>
+                    <li>💸 <strong>$50K:</strong> Emergency support fees</li>
+                    <li>😡 <strong>5,000:</strong> Angry customers</li>
+                    <li>📰 <strong>Press:</strong> "Major Outage Due to Failed Upgrade"</li>
+                    <li>💼 <strong>Maria:</strong> Put on probation</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The Right Way (Incremental Upgrades)</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">What Maria Should Have Done:</strong></p>
+
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Rule: Can only upgrade ONE MAJOR version at a time!</span>
+
+<span class="comment">-- Starting point:</span>
+Version: <span class="number">2.1</span>.<span class="number">20</span>
+
+<span class="comment">-- Correct upgrade path:</span>
+<span class="number">2.1</span>.<span class="number">20</span> → <span class="number">2.2</span>.<span class="number">19</span> → <span class="number">3.0</span>.<span class="number">28</span> → <span class="number">3.11</span>.<span class="number">14</span> → <span class="number">4.0</span>.<span class="number">0</span>
+     ↓        ↓        ↓         ↓
+  Patch   Patch    Patch    Finally!
+
+<span class="comment">-- Process for EACH upgrade:</span>
+<span class="number">1</span>. Test in staging environment
+<span class="number">2</span>. Take full snapshot
+<span class="number">3</span>. Upgrade ONE node
+<span class="number">4</span>. Verify it works
+<span class="number">5</span>. Rolling upgrade remaining nodes
+<span class="number">6</span>. Run <span class="keyword">upgradesstables</span>
+<span class="number">7</span>. Wait <span class="number">24</span> hours for stability
+<span class="number">8</span>. THEN start next upgrade
+
+<span class="comment">-- Timeline:</span>
+<span class="comment"># 4 major upgrades × 2 days each = 8 days total</span>
+<span class="comment"># BUT: Zero downtime! ✅</span>
+                </div>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Safe Result:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>✅ <strong>8 days:</strong> Incremental upgrades</li>
+                        <li>✅ <strong>Zero downtime:</strong> Rolling upgrades</li>
+                        <li>✅ <strong>$0 lost:</strong> No revenue impact</li>
+                        <li>✅ <strong>Tested:</strong> Each step validated</li>
+                        <li>✅ <strong>Maria promoted:</strong> "Excellent planning!"</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Patience = Success: One major version at a time! 🎯</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="why-upgrade" data-aos="fade-up">
+    <h2>🎯 Why Upgrade Cassandra?</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The business case for staying current!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">🔒</div>
+            <h3>Security Patches</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Critical vulnerabilities fixed</li>
+                <li>CVE patches</li>
+                <li>Prevent exploits</li>
+                <li>Compliance requirements</li>
+                <li>Avoid breaches</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Most important reason!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">🐛</div>
+            <h3>Bug Fixes</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Data corruption fixes</li>
+                <li>Stability improvements</li>
+                <li>Memory leak fixes</li>
+                <li>GC improvements</li>
+                <li>Crash prevention</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #f59e0b; font-weight: 700;">Reliability!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">🚀</div>
+            <h3>Performance</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Faster queries</li>
+                <li>Better compaction</li>
+                <li>Improved caching</li>
+                <li>Reduced latency</li>
+                <li>Higher throughput</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #8b5cf6; font-weight: 700;">Speed boost!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #0d9488;">
+            <div class="comparison-icon">✨</div>
+            <h3>New Features</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Better data types</li>
+                <li>Improved CQL</li>
+                <li>New compaction strategies</li>
+                <li>Enhanced security</li>
+                <li>Better monitoring</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #0d9488; font-weight: 700;">Modern capabilities!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">📚</div>
+            <h3>Support</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Old versions EOL</li>
+                <li>No security updates</li>
+                <li>Limited community help</li>
+                <li>Driver incompatibility</li>
+                <li>Integration issues</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #059669; font-weight: 700;">Stay supported!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #3b82f6;">
+            <div class="comparison-icon">⚖️</div>
+            <h3>Compliance</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>PCI-DSS requirements</li>
+                <li>HIPAA compliance</li>
+                <li>SOX audits</li>
+                <li>Security policies</li>
+                <li>Vendor requirements</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #3b82f6; font-weight: 700;">Legal requirements!</p>
+        </div>
+    </div>
+
+    <div class="info-box danger" data-aos="fade-up">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i> Cost of NOT Upgrading</h4>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Risk</th>
+                    <th>Example</th>
+                    <th>Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Security Breach</strong></td>
+                    <td>Known CVE exploited</td>
+                    <td>$5M+ fine, reputation damage</td>
+                </tr>
+                <tr>
+                    <td><strong>Data Corruption</strong></td>
+                    <td>Known bug corrupts data</td>
+                    <td>Lost data, customer churn</td>
+                </tr>
+                <tr>
+                    <td><strong>No Support</strong></td>
+                    <td>Critical issue, EOL version</td>
+                    <td>Extended downtime, no help</td>
+                </tr>
+                <tr>
+                    <td><strong>Failed Audit</strong></td>
+                    <td>Compliance requires latest</td>
+                    <td>Operations halted</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section id="upgrade-paths" data-aos="fade-up">
+    <h2>🛣️ Cassandra Upgrade Paths</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Know your route!</p>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-map" style="color: #059669;"></i> The Golden Rule</h4>
+        <p style="font-size: 1.2rem; color: #059669; font-weight: 700; text-align: center; margin: 1.5rem 0;">
+            ⚠️ You can ONLY upgrade ONE MAJOR version at a time! ⚠️
+        </p>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- CORRECT: Incremental upgrades</span>
+<span class="number">2.1</span> → <span class="number">2.2</span> → <span class="number">3.0</span> → <span class="number">3.11</span> → <span class="number">4.0</span>  <span class="comment">✅</span>
+
+<span class="comment">-- WRONG: Skip major versions</span>
+<span class="number">2.1</span> → <span class="number">4.0</span>  <span class="comment">❌ WILL BREAK!</span>
+<span class="number">3.0</span> → <span class="number">4.1</span>  <span class="comment">❌ WILL BREAK!</span>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Version Upgrade Matrix</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>From Version</th>
+                <th>To Version</th>
+                <th>Direct?</th>
+                <th>Path Required</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>2.1.x</strong></td>
+                <td>2.2.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+            <tr>
+                <td><strong>2.1.x</strong></td>
+                <td>3.0.x</td>
+                <td>❌ No</td>
+                <td>2.1 → 2.2 → 3.0</td>
+            </tr>
+            <tr>
+                <td><strong>2.2.x</strong></td>
+                <td>3.0.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+            <tr>
+                <td><strong>3.0.x</strong></td>
+                <td>3.11.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+            <tr>
+                <td><strong>3.0.x</strong></td>
+                <td>4.0.x</td>
+                <td>❌ No</td>
+                <td>3.0 → 3.11 → 4.0</td>
+            </tr>
+            <tr>
+                <td><strong>3.11.x</strong></td>
+                <td>4.0.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+            <tr>
+                <td><strong>4.0.x</strong></td>
+                <td>4.1.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+            <tr>
+                <td><strong>4.1.x</strong></td>
+                <td>5.0.x</td>
+                <td>✅ Yes</td>
+                <td>Direct upgrade</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Common Upgrade Paths</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Path 1: Legacy (2.1) to Modern (4.0)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Complete path (4 upgrades):</span>
+<span class="number">2.1</span>.<span class="number">20</span> → <span class="number">2.2</span>.<span class="number">19</span> → <span class="number">3.0</span>.<span class="number">28</span> → <span class="number">3.11</span>.<span class="number">14</span> → <span class="number">4.0</span>.<span class="number">11</span>
+
+<span class="comment">-- Timeline: ~8-10 days total</span>
+<span class="comment"># Each upgrade: 1-2 days</span>
+<span class="comment"># Validation between: 1 day</span>
+
+<span class="comment">-- Why can't skip?</span>
+<span class="comment"># SSTable format changes</span>
+<span class="comment"># Protocol changes</span>
+<span class="comment"># Schema changes</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Path 2: Recent (3.11) to Latest (4.1)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Shorter path (2 upgrades):</span>
+<span class="number">3.11</span>.<span class="number">14</span> → <span class="number">4.0</span>.<span class="number">11</span> → <span class="number">4.1</span>.<span class="number">3</span>
+
+<span class="comment">-- Timeline: ~4-5 days total</span>
+
+<span class="comment">-- Note: 3.11 is LTS (Long Term Support)</span>
+<span class="comment"># Safe to stay on 3.11 if not ready for 4.x</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Path 3: Patch Upgrades (Easy)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Within same major version:</span>
+<span class="number">4.0</span>.<span class="number">7</span> → <span class="number">4.0</span>.<span class="number">11</span>  <span class="comment">✅ Easy, low risk</span>
+<span class="number">4.1</span>.<span class="number">0</span> → <span class="number">4.1</span>.<span class="number">3</span>   <span class="comment">✅ Easy, low risk</span>
+
+<span class="comment">-- Timeline: 1-2 days</span>
+<span class="comment">-- No SSTable format changes</span>
+<span class="comment">-- Just bug fixes & security patches</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="preparation" data-aos="fade-up">
+    <h2>📋 Pre-Upgrade Preparation</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Critical steps BEFORE upgrading!</p>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">1</div>
+        <div class="step-content">
+            <h3>Read Release Notes</h3>
+            <p style="color: var(--text-secondary);">Know what's changing!</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Read EVERYTHING between your version and target:</span>
+
+<span class="comment"># Upgrading 3.11 → 4.0? Read:</span>
+- Cassandra <span class="number">4.0</span> Release Notes
+- Cassandra <span class="number">4.0</span> NEWS.txt
+- Cassandra <span class="number">4.0</span> CHANGES.txt
+
+<span class="comment">-- Look for:</span>
+✅ Breaking changes
+✅ Deprecated features
+✅ New requirements
+✅ Config changes
+✅ Known issues
+
+<span class="comment">-- Example breaking changes:</span>
+<span class="comment"># 4.0 removed Thrift</span>
+<span class="comment"># 4.0 changed default compaction</span>
+<span class="comment"># 4.0 requires Java 11</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">2</div>
+        <div class="step-content">
+            <h3>Take Full Snapshot</h3>
+            <p style="color: var(--text-secondary);">Backup EVERYTHING!</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Take snapshot on ALL nodes:</span>
+$ nodetool snapshot --tag pre-upgrade-<span class="number">4.0</span>
+
+<span class="comment">-- Verify snapshot created:</span>
+$ nodetool listsnapshots
+
+<span class="comment">/* Output:
+Snapshot name  Keyspace  Table      Size
+pre-upgrade-4.0 my_keyspace users    50 GB
+pre-upgrade-4.0 my_keyspace orders   120 GB
+*/</span>
+
+<span class="comment">-- Copy snapshots to external storage:</span>
+$ rsync -avz /var/lib/cassandra/data/ \
+  backup-server:/cassandra-backups/pre-upgrade/
+
+<span class="comment">-- CRITICAL: Test restore BEFORE upgrading!</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">3</div>
+        <div class="step-content">
+            <h3>Test in Staging</h3>
+            <p style="color: var(--text-secondary);">NEVER upgrade production first!</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Build staging cluster (same version as prod):</span>
+Staging: <span class="number">3.11</span>.<span class="number">14</span> (matching production)
+
+<span class="comment">-- Copy production data to staging:</span>
+$ nodetool snapshot --tag staging-data
+$ rsync -avz prod:/var/lib/cassandra/data/ \
+  staging:/var/lib/cassandra/data/
+
+<span class="comment">-- Perform upgrade on staging:</span>
+<span class="number">1</span>. Upgrade one staging node
+<span class="number">2</span>. Run upgradesstables
+<span class="number">3</span>. Test application thoroughly
+<span class="number">4</span>. Upgrade remaining staging nodes
+<span class="number">5</span>. Test for <span class="number">24</span>-<span class="number">48</span> hours
+
+<span class="comment">-- Test checklist:</span>
+✅ All queries work
+✅ Application connects
+✅ Performance acceptable
+✅ No errors in logs
+✅ Monitoring working
+
+<span class="comment">-- If staging fails, FIX BEFORE production!</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">4</div>
+        <div class="step-content">
+            <h3>Check Compatibility</h3>
+            <p style="color: var(--text-secondary);">Verify all components compatible</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Check driver versions:</span>
+<span class="comment"># Upgrading to 4.0? Need driver that supports 4.0!</span>
+
+Python driver: <span class="number">3.25</span>+ supports <span class="number">4.0</span>
+Java driver: <span class="number">4.13</span>+ supports <span class="number">4.0</span>
+Node.js driver: <span class="number">4.6</span>+ supports <span class="number">4.0</span>
+
+<span class="comment">-- Check Java version:</span>
+$ java -version
+
+<span class="comment"># Cassandra 4.0 requires Java 11</span>
+<span class="comment"># Cassandra 3.x works with Java 8</span>
+
+<span class="comment">-- Check monitoring tools:</span>
+<span class="comment"># Does Prometheus exporter work with 4.0?</span>
+<span class="comment"># Does Grafana dashboard need updates?</span>
+
+<span class="comment">-- Check integrations:</span>
+<span class="comment"># Spark connector compatible?</span>
+<span class="comment"># Kafka connector compatible?</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box warning" data-aos="fade-up">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Pre-Upgrade Checklist</h4>
+        <ul style="font-size: 1.05rem; line-height: 2;">
+            <li>☐ <strong>Read release notes</strong> (all versions between current and target)</li>
+            <li>☐ <strong>Take snapshots</strong> (all nodes, copy offsite)</li>
+            <li>☐ <strong>Test restore</strong> (verify backups work!)</li>
+            <li>☐ <strong>Test in staging</strong> (at least 24 hours)</li>
+            <li>☐ <strong>Check drivers</strong> (compatible versions)</li>
+            <li>☐ <strong>Check Java version</strong> (meets requirements)</li>
+            <li>☐ <strong>Schedule maintenance window</strong> (even though rolling upgrade)</li>
+            <li>☐ <strong>Notify stakeholders</strong> (let them know upgrade happening)</li>
+            <li>☐ <strong>Prepare rollback plan</strong> (how to go back if fails)</li>
+            <li>☐ <strong>Check cluster health</strong> (all nodes UN, no repairs running)</li>
+        </ul>
+    </div>
+</section>
+
+<section id="process" data-aos="fade-up">
+    <h2>⬆️ The Upgrade Process</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Step-by-step rolling upgrade!</p>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">1</div>
+        <div class="step-content">
+            <h3>Upgrade First Node (Canary)</h3>
+            <p style="color: var(--text-secondary);">Test on one node first</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Choose a canary node (not seed node!):</span>
+$ ssh node3  <span class="comment">← Non-seed node</span>
+
+<span class="comment">-- 1. Take snapshot:</span>
+$ nodetool snapshot --tag pre-upgrade-node3
+
+<span class="comment">-- 2. Drain the node:</span>
+$ nodetool drain
+<span class="comment"># Flushes memtables, stops accepting writes</span>
+
+<span class="comment">-- 3. Stop Cassandra:</span>
+$ sudo systemctl stop cassandra
+
+<span class="comment">-- 4. Install new version:</span>
+$ sudo apt update
+$ sudo apt install cassandra=<span class="number">4.0</span>.<span class="number">11</span>
+
+<span class="comment">-- 5. Start Cassandra:</span>
+$ sudo systemctl start cassandra
+
+<span class="comment">-- 6. Watch logs for startup:</span>
+$ tail -f /var/log/cassandra/system.log
+
+<span class="comment">/* Look for:
+INFO  Starting listening for CQL clients...
+INFO  Node state jump to NORMAL
+*/</span>
+
+<span class="comment">-- 7. Verify status:</span>
+$ nodetool version
+ReleaseVersion: <span class="number">4.0</span>.<span class="number">11</span>  <span class="comment">← New version! ✅</span>
+
+$ nodetool status
+UN  <span class="number">10.0</span>.<span class="number">1</span>.<span class="number">13</span>  <span class="number">500</span> GB  <span class="comment">← Node3 is UP! ✅</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">2</div>
+        <div class="step-content">
+            <h3>Run upgradesstables</h3>
+            <p style="color: var(--text-secondary);">Rewrite SSTables to new format</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- IMPORTANT: Must run after EACH node upgrade!</span>
+$ nodetool upgradesstables
+
+<span class="comment">/* What this does:
+- Rewrites SSTables in new format
+- Can take 30 min - 6 hours
+- Increases disk I/O temporarily
+- Necessary for new features
+*/</span>
+
+<span class="comment">-- Monitor progress:</span>
+$ nodetool compactionstats
+
+<span class="comment">/* Output:
+pending tasks: 15
+      compaction type   keyspace   table
+           Upgrade       my_keyspace users
+*/</span>
+
+<span class="comment">-- Wait until complete:</span>
+pending tasks: <span class="number">0</span>  <span class="comment">← Finished! ✅</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">3</div>
+        <div class="step-content">
+            <h3>Monitor Canary (24 Hours)</h3>
+            <p style="color: var(--text-secondary);">Watch for issues before continuing</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Monitor canary node for 24 hours:</span>
+
+<span class="comment"># Check logs continuously:</span>
+$ tail -f /var/log/cassandra/system.log | grep -i error
+
+<span class="comment"># Check metrics:</span>
+$ nodetool tablestats my_keyspace.users
+<span class="comment"># Verify latency is normal</span>
+
+<span class="comment"># Check GC:</span>
+$ nodetool gcstats
+<span class="comment"># Should not show increase in GC</span>
+
+<span class="comment"># Test queries:</span>
+$ cqlsh node3
+cqlsh> SELECT * FROM my_keyspace.users LIMIT <span class="number">10</span>;
+<span class="comment"># Should work! ✅</span>
+
+<span class="comment">-- If ANY issues, rollback immediately:</span>
+$ sudo systemctl stop cassandra
+$ sudo apt install cassandra=<span class="number">3.11</span>.<span class="number">14</span>
+$ sudo systemctl start cassandra
+
+<span class="comment">-- If canary healthy for 24h, proceed!</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">4</div>
+        <div class="step-content">
+            <h3>Rolling Upgrade Remaining Nodes</h3>
+            <p style="color: var(--text-secondary);">One at a time, with patience</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- For EACH remaining node:</span>
+
+<span class="comment"># Node 1:</span>
+$ ssh node1
+$ nodetool snapshot --tag pre-upgrade-node1
+$ nodetool drain
+$ sudo systemctl stop cassandra
+$ sudo apt install cassandra=<span class="number">4.0</span>.<span class="number">11</span>
+$ sudo systemctl start cassandra
+<span class="comment"># Wait for UN</span>
+$ nodetool upgradesstables
+<span class="comment"># Wait 2-5 minutes for stability</span>
+
+<span class="comment"># Node 2:</span>
+<span class="comment"># ... Repeat same process</span>
+
+<span class="comment"># Continue for all nodes</span>
+
+<span class="comment">-- Important:</span>
+<span class="comment">✅ ONE node at a time</span>
+<span class="comment">✅ Wait for UN after each</span>
+<span class="comment">✅ Run upgradesstables on each</span>
+<span class="comment">✅ 2-5 min wait between nodes</span>
+
+<span class="comment">-- Timeline for 6-node cluster:</span>
+<span class="comment"># ~6 hours total</span>
+<span class="comment"># But ZERO downtime! ✅</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">5</div>
+        <div class="step-content">
+            <h3>Post-Upgrade Verification</h3>
+            <p style="color: var(--text-secondary);">Confirm success!</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- 1. Check all nodes upgraded:</span>
+$ ansible cassandra-cluster -m shell -a <span class="string">"nodetool version"</span>
+
+<span class="comment">/* All should show:
+ReleaseVersion: 4.0.11
+*/</span>
+
+<span class="comment">-- 2. Check cluster health:</span>
+$ nodetool status
+
+<span class="comment">/* All should be UN:
+UN  10.0.1.10  500 GB  ✅
+UN  10.0.1.11  500 GB  ✅
+UN  10.0.1.12  500 GB  ✅
+*/</span>
+
+<span class="comment">-- 3. Verify upgradesstables completed everywhere:</span>
+$ ansible cassandra-cluster -m shell -a <span class="string">"nodetool compactionstats"</span>
+<span class="comment"># All should show: pending tasks: 0</span>
+
+<span class="comment">-- 4. Test queries:</span>
+$ cqlsh -e <span class="string">"SELECT * FROM my_keyspace.users LIMIT 1"</span>
+<span class="comment"># Should work! ✅</span>
+
+<span class="comment">-- 5. Check application:</span>
+<span class="comment"># Verify app still working</span>
+<span class="comment"># Check app logs for errors</span>
+<span class="comment"># Monitor metrics</span>
+
+<span class="comment">-- 6. Run repair (recommended):</span>
+$ nodetool repair -pr
+
+<span class="comment">-- 7. Clean up snapshots (after 1 week):</span>
+$ nodetool clearsnapshot pre-upgrade-<span class="number">4.0</span>
+
+<span class="comment">-- Success! Upgrade complete! 🎉</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="major-vs-minor" data-aos="fade-up">
+    <h2>🔄 Major vs Minor Upgrades</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understand the difference!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">⚠️</div>
+            <h3>Major Upgrade</h3>
+            <p><strong>3.11 → 4.0 (First digit change)</strong></p>
+            <div style="text-align: left; margin-top: 1.5rem;">
+                <p><strong>Changes:</strong></p>
+                <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                    <li>SSTable format changes</li>
+                    <li>New features</li>
+                    <li>Breaking changes</li>
+                    <li>Protocol changes</li>
+                    <li>Config changes</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Risk:</strong> HIGH</p>
+                <p style="margin-top: 0.5rem;"><strong>Time:</strong> 1-2 days</p>
+                <p style="margin-top: 0.5rem;"><strong>Testing:</strong> MANDATORY</p>
+                <p style="color: #dc2626; font-weight: 700; margin-top: 0.5rem;">Plan carefully!</p>
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>Minor/Patch Upgrade</h3>
+            <p><strong>4.0.7 → 4.0.11 (Patch version)</strong></p>
+            <div style="text-align: left; margin-top: 1.5rem;">
+                <p><strong>Changes:</strong></p>
+                <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                    <li>Bug fixes</li>
+                    <li>Security patches</li>
+                    <li>Performance improvements</li>
+                    <li>No breaking changes</li>
+                    <li>No format changes</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Risk:</strong> LOW</p>
+                <p style="margin-top: 0.5rem;"><strong>Time:</strong> 4-6 hours</p>
+                <p style="margin-top: 0.5rem;"><strong>Testing:</strong> Recommended</p>
+                <p style="color: #059669; font-weight: 700; margin-top: 0.5rem;">Safer, do often!</p>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Upgrade Complexity Comparison</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Aspect</th>
+                <th>Major (3.11 → 4.0)</th>
+                <th>Patch (4.0.7 → 4.0.11)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>upgradesstables</strong></td>
+                <td>✅ Required (hours)</td>
+                <td>❌ Not needed</td>
+            </tr>
+            <tr>
+                <td><strong>Staging test</strong></td>
+                <td>✅ Mandatory</td>
+                <td>⚠️ Recommended</td>
+            </tr>
+            <tr>
+                <td><strong>Rollback</strong></td>
+                <td>⚠️ Complex</td>
+                <td>✅ Easy</td>
+            </tr>
+            <tr>
+                <td><strong>Driver update</strong></td>
+                <td>✅ Often required</td>
+                <td>❌ Usually not needed</td>
+            </tr>
+            <tr>
+                <td><strong>Downtime</strong></td>
+                <td>Zero (rolling)</td>
+                <td>Zero (rolling)</td>
+            </tr>
+            <tr>
+                <td><strong>Total time</strong></td>
+                <td>1-2 days</td>
+                <td>4-6 hours</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="troubleshooting" data-aos="fade-up">
+    <h2>🔧 Troubleshooting Upgrades</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Fix common issues!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>❌ Node Won't Start After Upgrade</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+$ sudo systemctl status cassandra
+Failed to start cassandra
+
+<span class="comment">-- CHECK LOGS:</span>
+$ tail -<span class="number">100</span> /var/log/cassandra/system.log
+
+<span class="comment">-- COMMON CAUSES:</span>
+
+<span class="comment"># 1. Wrong Java version:</span>
+ERROR: Java <span class="number">8</span> not supported, need Java <span class="number">11</span>+
+
+<span class="comment"># FIX: Install Java 11</span>
+$ sudo apt install openjdk-<span class="number">11</span>-jdk
+$ sudo update-alternatives --config java
+
+<span class="comment"># 2. Config incompatibility:</span>
+ERROR: Unknown configuration parameter <span class="string">'thrift_framed_transport_size_in_mb'</span>
+
+<span class="comment"># FIX: Remove deprecated config</span>
+$ sudo vim /etc/cassandra/cassandra.yaml
+<span class="comment"># Comment out or remove deprecated settings</span>
+
+<span class="comment"># 3. SSTable format error:</span>
+ERROR: Cannot read SSTable version
+
+<span class="comment"># FIX: Restore from snapshot + rollback</span>
+$ nodetool refresh
+$ sudo systemctl restart cassandra
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>❌ Cluster Loses Quorum</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Queries failing with "Unavailable"</span>
+
+<span class="comment">-- CAUSE: Upgraded too many nodes at once</span>
+
+<span class="comment">-- FIX: WAIT for nodes to come back online</span>
+$ watch -n <span class="number">5</span> <span class="string">'nodetool status'</span>
+
+<span class="comment"># Don't upgrade more until cluster stable!</span>
+
+<span class="comment">-- PREVENTION: ONE node at a time with RF=3</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>❌ Driver Incompatibility</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Application can't connect after upgrade</span>
+
+ERROR: Protocol version <span class="number">4</span> not supported by server
+
+<span class="comment">-- CAUSE: Driver too old for new Cassandra version</span>
+
+<span class="comment">-- FIX: Upgrade driver BEFORE upgrading Cassandra</span>
+<span class="comment"># Python example:</span>
+pip install --upgrade cassandra-driver
+
+<span class="comment"># Java example:</span>
+<span class="comment"><!-- pom.xml --></span>
+<dependency>
+  <groupId>com.datastax.oss</groupId>
+  <artifactId>java-driver-core</artifactId>
+  <version><span class="number">4.15</span>.<span class="number">0</span></version>
+</dependency>
+
+<span class="comment">-- PREVENTION: Check driver compatibility BEFORE upgrade</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>❌ Performance Degradation</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Latency increased after upgrade</span>
+
+<span class="comment">-- CHECK: Did you run upgradesstables?</span>
+$ nodetool compactionstats
+pending tasks: <span class="number">0</span>  <span class="comment">← Should be 0</span>
+
+<span class="comment">-- CHECK: Mixed versions in cluster?</span>
+$ ansible cassandra-cluster -m shell -a <span class="string">"nodetool version"</span>
+<span class="comment"># All should match!</span>
+
+<span class="comment">-- CHECK: Compaction strategy changed?</span>
+$ cqlsh -e <span class="string">"DESC TABLE my_keyspace.users"</span>
+<span class="comment"># 4.0 changed default compaction</span>
+
+<span class="comment">-- FIX: May need to tune new settings</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box danger" data-aos="fade-up">
+        <h4><i class="fas fa-undo" style="color: #dc2626;"></i> Emergency Rollback</h4>
+        <p><strong>If upgrade goes catastrophically wrong:</strong></p>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- 1. Stop Cassandra on problem node:</span>
+$ sudo systemctl stop cassandra
+
+<span class="comment">-- 2. Remove new version:</span>
+$ sudo apt remove cassandra
+
+<span class="comment">-- 3. Install old version:</span>
+$ sudo apt install cassandra=<span class="number">3.11</span>.<span class="number">14</span>
+
+<span class="comment">-- 4. Restore snapshot if needed:</span>
+$ nodetool refresh my_keyspace users
+
+<span class="comment">-- 5. Start Cassandra:</span>
+$ sudo systemctl start cassandra
+
+<span class="comment">-- 6. Verify:</span>
+$ nodetool version
+$ nodetool status
+
+<span class="comment">-- IMPORTANT: Only rollback if SEVERE issues!</span>
+<span class="comment">#             Prefer to fix forward when possible</span>
+        </div>
+    </div>
+</section>
+
+<section id="best-practices" data-aos="fade-up">
+    <h2>💡 Upgrade Best Practices</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Do it right!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--success-green);">
+            <div class="comparison-icon">✅</div>
+            <h3>DO</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Read ALL release notes</li>
+                <li>Test in staging first</li>
+                <li>Take full snapshots</li>
+                <li>One major version at a time</li>
+                <li>Upgrade one node at a time</li>
+                <li>Run upgradesstables</li>
+                <li>Wait 24h on canary</li>
+                <li>Monitor continuously</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--error-red);">
+            <div class="comparison-icon">❌</div>
+            <h3>DON'T</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Skip major versions</li>
+                <li>Upgrade all at once</li>
+                <li>Skip staging tests</li>
+                <li>Forget snapshots</li>
+                <li>Skip upgradesstables</li>
+                <li>Ignore release notes</li>
+                <li>Upgrade during peak</li>
+                <li>Rush the process</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-check-circle" style="color: #059669;"></i> Upgrade Checklist</h4>
+        <p><strong>Complete this for every major upgrade:</strong></p>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>Task</th>
+                    <th>Done?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Planning</strong></td>
+                    <td>☐ Read release notes</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Check compatibility</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Plan upgrade path</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>Preparation</strong></td>
+                    <td>☐ Take snapshots (all nodes)</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Copy backups offsite</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Test restore</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>Staging</strong></td>
+                    <td>☐ Build staging cluster</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Perform upgrade in staging</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Test for 24-48 hours</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>Production</strong></td>
+                    <td>☐ Upgrade canary node</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Run upgradesstables</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Monitor canary 24h</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Rolling upgrade remaining</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td><strong>Verification</strong></td>
+                    <td>☐ All nodes same version</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ upgradesstables complete</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Application working</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ No errors in logs</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>☐ Run repair</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Upgrade Timeline Estimates</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Upgrade Type</th>
+                <th>Testing</th>
+                <th>Production</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Patch (4.0.7 → 4.0.11)</strong></td>
+                <td>4-8 hours</td>
+                <td>4-6 hours</td>
+                <td>1 day</td>
+            </tr>
+            <tr>
+                <td><strong>Minor (4.0 → 4.1)</strong></td>
+                <td>1 day</td>
+                <td>6-8 hours</td>
+                <td>2 days</td>
+            </tr>
+            <tr>
+                <td><strong>Major (3.11 → 4.0)</strong></td>
+                <td>1-2 days</td>
+                <td>1 day</td>
+                <td>2-3 days</td>
+            </tr>
+            <tr>
+                <td><strong>Multi-major (2.1 → 4.0)</strong></td>
+                <td>2-3 days</td>
+                <td>4-5 days</td>
+                <td>8-10 days</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- Summary Box -->
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎉 Master Cassandra Upgrades!</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now know how to safely upgrade Cassandra!</strong></p>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Learned:</h4>
+        <ul style="line-height: 1.9;">
+            <li>📖 <strong>Maria's disaster:</strong> Jumped 2.1 → 4.0 = $1M lost</li>
+            <li>🎯 <strong>Why upgrade:</strong> Security, bugs, performance, features</li>
+            <li>🛣️ <strong>Upgrade paths:</strong> ONE major version at a time!</li>
+            <li>📋 <strong>Preparation:</strong> Snapshots, staging, testing</li>
+            <li>⬆️ <strong>Process:</strong> Canary → monitor → rolling upgrade<li>🔄 <strong>Major vs minor:</strong> Major = risky, patch = safe</li>
+            <li>🔧 <strong>Troubleshooting:</strong> Fix common upgrade issues</li>
+            <li>💡 <strong>Best practices:</strong> Test, snapshot, be patient</li>
+        </ul>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Takeaways:</h4>
+    <ol style="line-height: 1.9;">
+        <li><strong>ONE major version at a time</strong> - 2.1 → 2.2 → 3.0 (not 2.1 → 3.0)</li>
+        <li><strong>Test in staging FIRST</strong> - Never upgrade production first</li>
+        <li><strong>Take snapshots</strong> - Backup everything before starting</li>
+        <li><strong>Canary approach</strong> - Test on one node, wait 24h</li>
+        <li><strong>Run upgradesstables</strong> - Required after major upgrades</li>
+        <li><strong>Be patient</strong> - Don't rush, zero downtime is guaranteed</li>
+    </ol>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">⚠️ The Golden Rule:</h4>
+    <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(220, 38, 38, 0.1)); padding: 2rem; border-radius: 12px; margin-top: 1rem; border: 3px solid #dc2626;">
+        <p style="font-size: 1.3rem; text-align: center; color: #dc2626; font-weight: 700; margin: 0;">
+            🚫 NEVER skip major versions!<br>
+            2.1 → 4.0 = DISASTER 💥<br>
+            2.1 → 2.2 → 3.0 → 3.11 → 4.0 = SUCCESS ✅
+        </p>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">📋 Quick Upgrade Process:</h4>
+    <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># For EACH major version upgrade:</span>
+<span class="comment">## 1. PREPARATION (Day 1)</span>
+
+Read release notes
+Take snapshots on all nodes
+Test in staging environment
+
+<span class="comment">## 2. CANARY (Day 2)</span>
+
+Upgrade one non-seed node
+Run upgradesstables
+Monitor for <span class="number">24</span> hours
+
+<span class="comment">## 3. ROLLING UPGRADE (Day 3)</span>
+<span class="keyword">for</span> each remaining node:
+
+nodetool drain
+Stop Cassandra
+Install new version
+Start Cassandra
+Wait <span class="keyword">for</span> UN
+Run upgradesstables
+Wait <span class="number">2</span>-<span class="number">5</span> minutes
+
+<span class="comment">## 4. VERIFICATION</span>
+
+All nodes same version
+All upgradesstables complete
+Application working
+No errors in logs
+
+<span class="comment">## 5. STABILIZE</span>
+
+Monitor for <span class="number">24</span>-<span class="number">48</span> hours
+Run repair
+Clean old snapshots
+
+<span class="comment"># Then start next major version upgrade!</span>
+</div>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎯 Upgrade Decision Tree:</h4>
+    <div style="background: rgba(139, 92, 246, 0.1); padding: 2rem; border-radius: 12px; margin-top: 1rem;">
+        <div class="code-block" style="margin: 0;">
+<span class="comment">## Question: What am I upgrading?</span>
+<span class="keyword">if</span> patch upgrade (e.g., <span class="number">4.0</span>.<span class="number">7</span> → <span class="number">4.0</span>.<span class="number">11</span>):
+Risk: LOW
+Time: <span class="number">4</span>-<span class="number">6</span> hours
+upgradesstables: NO
+Testing: Recommended
+→ Safe, do it often!
+<span class="keyword">elif</span> one major version (e.g., <span class="number">3.11</span> → <span class="number">4.0</span>):
+Risk: MEDIUM
+Time: <span class="number">1</span>-<span class="number">2</span> days
+upgradesstables: YES (required)
+Testing: MANDATORY
+→ Plan carefully, test thoroughly
+<span class="keyword">elif</span> multiple major versions (e.g., <span class="number">2.1</span> → <span class="number">4.0</span>):
+Risk: HIGH
+Time: <span class="number">8</span>-<span class="number">10</span> days
+upgradesstables: YES (each step)
+Testing: MANDATORY (each step)
+Path: <span class="number">2.1</span> → <span class="number">2.2</span> → <span class="number">3.0</span> → <span class="number">3.11</span> → <span class="number">4.0</span>
+→ Multiple upgrades, be patient
+<span class="keyword">else</span>:
+→ Read release notes first!
+</div>
+</div>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">⚡ Pro Tips:</h4>
+    <ul style="line-height: 2;">
+        <li>🕐 <strong>Schedule during low traffic</strong> - Even though zero downtime</li>
+        <li>📊 <strong>Monitor metrics</strong> - Watch latency, throughput, errors</li>
+        <li>🔄 <strong>Upgrade drivers first</strong> - Before upgrading Cassandra</li>
+        <li>☕ <strong>Check Java version</strong> - 4.0+ requires Java 11</li>
+        <li>📸 <strong>Keep snapshots 1 week</strong> - In case of delayed issues</li>
+        <li>🏃 <strong>Don't rush</strong> - Patience prevents disasters</li>
+    </ul>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🚨 When to Rollback:</h4>
+    <div style="background: rgba(220, 38, 38, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+        <ul style="color: var(--text-secondary); line-height: 1.9; margin: 0;">
+            <li>❌ Node won't start after multiple attempts</li>
+            <li>❌ Data corruption detected</li>
+            <li>❌ Critical application features broken</li>
+            <li>❌ Severe performance degradation</li>
+            <li>✅ Minor issues? Fix forward, don't rollback</li>
+        </ul>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">📚 Recommended Upgrade Schedule:</h4>
+    <table style="margin-top: 1rem;">
+        <thead>
+            <tr>
+                <th>Upgrade Type</th>
+                <th>Frequency</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Patch</strong></td>
+                <td>Every 3-6 months</td>
+                <td>Security fixes, bug fixes</td>
+            </tr>
+            <tr>
+                <td><strong>Minor</strong></td>
+                <td>Every 6-12 months</td>
+                <td>New features, improvements</td>
+            </tr>
+            <tr>
+                <td><strong>Major</strong></td>
+                <td>Every 1-2 years</td>
+                <td>Stay current, avoid EOL</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">✅ Success Metrics:</h4>
+    <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.2), rgba(5, 150, 105, 0.1)); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; border: 2px solid #059669;">
+        <p style="margin-bottom: 1rem;"><strong style="color: var(--text-primary);">Your upgrade is successful when:</strong></p>
+        <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+            <li>✅ All nodes show same version</li>
+            <li>✅ All nodes status = UN</li>
+            <li>✅ upgradesstables completed on all nodes</li>
+            <li>✅ Zero application errors</li>
+            <li>✅ Latency within normal range</li>
+            <li>✅ No errors in Cassandra logs</li>
+            <li>✅ Repair completes successfully</li>
+            <li>✅ Monitoring dashboards green</li>
+            <li>✅ Users didn't notice anything</li>
+        </ul>
+    </div>
+
+    <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: #8b5cf6; font-weight: 700;">
+        ⬆️ Remember Maria's lesson:<br>
+        Patience + Planning = Zero Downtime Success! 🎯
+    </p>
+
+    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(13, 148, 136, 0.1)); padding: 2rem; border-radius: 12px; margin-top: 2rem; border: 2px solid var(--accent-purple);">
+        <h4 style="color: var(--accent-purple); margin-top: 0; text-align: center;">🎓 Final Wisdom</h4>
+        <p style="font-size: 1.1rem; text-align: center; margin: 1.5rem 0; line-height: 1.9;">
+            <strong>The difference between a $1M disaster and a smooth upgrade?</strong><br>
+            Reading the release notes.<br>
+            Testing in staging.<br>
+            Taking snapshots.<br>
+            Following the rules.<br>
+            Being patient.
+        </p>
+        <p style="font-size: 1.2rem; text-align: center; color: #059669; font-weight: 700; margin: 1.5rem 0 0 0;">
+            Don't be Maria. Plan your upgrades! 🚀
+        </p>
+    </div>
+</div>
+</div>
+<!-- Navigation -->
+<div class="page-navigation">
+    <a href="rolling-restart.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Rolling Restart</div>
+        </div>
+    </a>
+    <a href="log-management.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Log Management</div>
+        </div>
+    </a>
+</div>
+<!-- AdSense Placeholder -->
+        <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                <p style="color: var(--text-muted); margin: 0;">📱 Responsive Ad 📱</p>
+            </div>
+        </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

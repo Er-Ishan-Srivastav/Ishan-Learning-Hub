@@ -1,0 +1,3479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cassandra Strong Consistency - Complete guide to QUORUM, R+W>RF formula, and when you need guaranteed consistency!">
+    <meta name="keywords" content="strong consistency, cassandra quorum, distributed systems, r+w>rf, guaranteed consistency">
+    <title>Strong Consistency: QUORUM & Guaranteed Reads 2025 | CassandraHub</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+
+
+        :root {
+            --primary-red: #dc2626;
+            --dark-red: #b91c1c;
+            --light-red: #ef4444;
+            --accent-crimson: #991b1b;
+            --muted-red: #7f1d1d;
+            --strong-amber: #f59e0b;
+            --fortress-gold: #d97706;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #10b981;
+            --warning-orange: #f59e0b;
+            --error-red: #ef4444;
+            --purple: #8b5cf6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-darker); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-red), var(--dark-red));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(220, 38, 38, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-red), var(--light-red), var(--strong-amber));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            animation: pulse-shield 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-shield {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% {
+                transform: translateY(-100px) translateX(var(--x-drift)) scale(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(220, 38, 38, 0.6); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-red), var(--light-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #b91c1c 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(239, 68, 68, 0.15) 0%, transparent 50%);
+            animation: subtleMove 20s ease-in-out infinite;
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(248, 113, 113, 0.05) 50%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes subtleMove {
+            0%, 100% { 
+                background-position: 0% 0%, 100% 100%; 
+                opacity: 1;
+            }
+            50% { 
+                background-position: 100% 100%, 0% 0%; 
+                opacity: 0.8;
+            }
+        }
+
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--primary-red);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: float-particle linear infinite;
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.4);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fca5a5 0%, #f87171 50%, #ef4444 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: #fca5a5;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        section { padding: 4rem 0; }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-red), var(--light-red));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+        
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-red);
+            border-left-color: var(--primary-red);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(239, 68, 68, 0.08));
+            border-left: 5px solid var(--primary-red);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .comparison-card:hover::before {
+            left: 100%;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--primary-red);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(220, 38, 38, 0.3);
+        }
+
+        .comparison-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-red), var(--light-red));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-red);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+        }
+
+        .info-box h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            <h2>CassandraHub</h2>
+        </div>
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html" class="active">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="particles" id="particles"></div>
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-shield-alt"></i>
+                        Strong Consistency
+                    </span>
+                    <h1><span class="gradient-text">STRONG</span> - Guaranteed Consistency with QUORUM</h1>
+                    <p>🛡️ Master QUORUM, R+W>RF formula, and when you absolutely need guaranteed reads!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Stripe Story</a></li>
+                            <li><a href="#live-console">💻 Live Console</a></li>
+                            <li><a href="#what-is">🛡️ What is Strong</a></li>
+                            <li><a href="#quorum">⚖️ QUORUM Deep-Dive</a></li>
+                            <li><a href="#formula">🧮 R+W>RF Formula</a></li>
+                            <li><a href="#guarantees">✅ Guarantees</a></li>
+                            <li><a href="#when-needed">🎯 When Needed</a></li>
+                            <li><a href="#tradeoffs">⚖️ Trade-offs</a></li>
+                            <li><a href="#real-examples">🏢 Real Companies</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 Stripe: When Strong Consistency is Non-Negotiable</h2>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                Stripe processes <strong style="color: var(--text-primary);">billions of dollars in payments annually</strong> with <strong style="color: var(--text-primary);">millions of transactions per day</strong>. The challenge? <strong style="color: var(--primary-red);">You cannot afford to lose payment data</strong>. Ever. Challenge: If they used <strong style="color: var(--error-red);">eventual consistency (ONE)</strong> = <strong style="color: var(--error-red);">risk of silent data loss</strong>. Concurrent writes could conflict. Last-Write-Wins could discard payment! Customer charged but no record = disaster. Regulatory violation. Lawsuits. The requirement: <strong style="color: var(--text-primary);">Every payment must be immediately consistent</strong> across all replicas. No stale reads. No conflicts. No data loss. Stripe's solution: <strong style="color: var(--primary-red);">Strong consistency (QUORUM + QUORUM)</strong> for all financial transactions! The guarantee: <strong style="color: var(--success-green);">R + W > RF</strong> = overlap guaranteed. Every read returns the latest write. No ghost data. No conflicts. Result: <strong style="color: var(--success-green);">Zero payment data loss</strong>, <strong style="color: var(--success-green);">regulatory compliance maintained</strong>, <strong style="color: var(--success-green);">customer trust preserved</strong>, <strong style="color: var(--success-green);">12-18ms latency</strong> (acceptable for payments). The trade-off: Slightly slower than eventual (12ms vs 3ms), but <strong style="color: var(--strong-amber);">worth it for financial accuracy</strong>. Half the throughput (25k vs 50k ops/sec), but <strong style="color: var(--strong-amber);">payments aren't that high volume</strong>. Stripe Engineering: "For payment data, strong consistency isn't optional - it's <strong style="color: var(--primary-red);">mandatory</strong>. The R+W>RF formula gives us mathematical certainty that we'll never read stale financial data. <strong style="color: var(--fortress-gold);">12ms is a small price to pay for guaranteed accuracy!</strong>"
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Live Console -->
+                    <section id="live-console" data-aos="fade-up">
+                        <h2>💻 Interactive Strong Consistency Simulator</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                            See strong consistency guarantees in action! Watch QUORUM prevent stale reads!
+                        </p>
+
+                        <div style="background: var(--code-darker); border-radius: 16px; padding: 2rem; border: 2px solid var(--primary-red); box-shadow: 0 10px 40px rgba(220, 38, 38, 0.3);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #dc2626;"></div>
+                                <span style="margin-left: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-family: 'JetBrains Mono', monospace;">cqlsh@strong-cluster</span>
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem;">
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem; font-weight: 600;">🛡️ Strong Consistency Scenarios - Click to Explore:</p>
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                                    <button onclick="runExample(1)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        QUORUM Guarantee
+                                    </button>
+                                    <button onclick="runExample(2)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Strong vs Eventual
+                                    </button>
+                                    <button onclick="runExample(3)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        R+W>RF Formula
+                                    </button>
+                                    <button onclick="runExample(4)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Conflict Prevention
+                                    </button>
+                                    <button onclick="runExample(5)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Performance Cost
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="consoleOutput" style="padding: 1.5rem; background: #0a0f1a; border: 2px solid var(--border-light); border-radius: 8px; min-height: 300px; max-height: 500px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6;">
+                                <div style="color: var(--text-secondary);">
+                                    <span style="color: var(--primary-red);">🛡️</span> Strong Consistency Simulator Ready!<br/>
+                                    <span style="color: var(--light-red);">⚖️</span> Click scenarios above to see QUORUM guarantees<br/>
+                                    <span style="color: var(--success-green);">✓</span> Learn R+W>RF formula and overlap principle
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-shield-alt"></i> 🛡️ The Strong Guarantee</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Strong consistency means:</strong> You always read the most recent write. No stale data. No ghost updates. No conflicts. QUORUM achieves this through the R+W>RF formula - by querying the majority on reads and writes, we guarantee overlap. At least one replica in both sets will have the latest data. This is Cassandra's rock-solid guarantee for critical data!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- What is Strong Consistency -->
+                    <section id="what-is" data-aos="fade-up">
+                        <h2>🛡️ What is Strong Consistency?</h2>
+                        
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Imagine you have <strong style="color: var(--text-primary);">three bank vaults</strong> storing your money. With <strong style="color: var(--primary-red);">strong consistency</strong>, when you deposit money, you <strong style="color: var(--text-primary);">wait until at least 2 of 3 vaults</strong> confirm they have your money. When you check your balance, you <strong style="color: var(--text-primary);">ask 2 of 3 vaults</strong> and take the latest value. Because you check 2 and updated 2 (out of 3 total), <strong style="color: var(--success-green);">at least 1 vault MUST be in both sets</strong> - that vault has the correct balance! <strong style="color: var(--primary-red);">You're guaranteed to never see stale money!</strong>
+                        </p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(239, 68, 68, 0.08)); border-left-color: var(--primary-red);">
+                            <h3 style="color: var(--primary-red); margin-top: 0;">🏦 The Bank Vault Analogy</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                You have <strong style="color: var(--text-primary);">$1,000 in 3 bank vaults</strong>: Vault A, Vault B, Vault C.<br/><br/>
+                                
+                                <strong style="color: var(--light-red);">With Eventual Consistency (ONE):</strong><br/>
+                                • You deposit $500 → Only Vault A confirms (instant!)<br/>
+                                • You immediately check balance → Ask Vault B<br/>
+                                • Vault B shows $1,000 (old!) → <strong style="color: var(--error-red);">"Where's my $500?!"</strong><br/>
+                                • Your $500 is "in transit" to Vaults B and C<br/>
+                                • Eventually all vaults show $1,500 ✓<br/><br/>
+                                
+                                <strong style="color: var(--primary-red);">With Strong Consistency (QUORUM):</strong><br/>
+                                • You deposit $500 → Wait for 2 of 3 vaults to confirm (12ms)<br/>
+                                • Vaults A and B both confirm $1,500 ✓<br/>
+                                • You immediately check balance → Ask 2 of 3 vaults<br/>
+                                • Guaranteed: At least 1 of the 2 you ask was updated!<br/>
+                                • If you ask A+B: Both say $1,500 ✓<br/>
+                                • If you ask A+C: A says $1,500 (latest!) ✓<br/>
+                                • If you ask B+C: B says $1,500 (latest!) ✓<br/>
+                                • <strong style="color: var(--success-green);">Always see $1,500! Never stale!</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">The Math:</strong><br/>
+                                Updated vaults (W) = 2<br/>
+                                Queried vaults (R) = 2<br/>
+                                Total vaults (RF) = 3<br/>
+                                R + W = 2 + 2 = 4<br/>
+                                4 > 3 ✓ <strong style="color: var(--success-green);">OVERLAP GUARANTEED!</strong><br/><br/>
+                                
+                                <strong style="color: var(--fortress-gold);">Cassandra's QUORUM works exactly like this:</strong> Wait for majority on writes, query majority on reads = always see latest value!
+                            </p>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🛡️</div>
+                                <h4 style="color: var(--primary-red);">Guaranteed Fresh Reads</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Promise:</strong> Always read most recent write<br/>
+                                    <strong>Mechanism:</strong> R + W > RF overlap guarantee<br/>
+                                    <strong>QUORUM:</strong> 2 write + 2 read = 4 > 3 (RF) ✓<br/>
+                                    <strong>Result:</strong> Never stale data<br/>
+                                    <strong>Use case:</strong> User profiles, orders, critical data<br/>
+                                    <strong>Cost:</strong> Slower (12ms vs 3ms) but worth it!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">⚔️</div>
+                                <h4 style="color: var(--light-red);">Conflict Prevention</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Problem prevented:</strong> Concurrent write conflicts<br/>
+                                    <strong>With ONE:</strong> Two users write → one lost (LWW)<br/>
+                                    <strong>With QUORUM:</strong> Both writes see each other<br/>
+                                    <strong>Behavior:</strong> Last write truly wins (no silent loss)<br/>
+                                    <strong>Critical for:</strong> Shopping carts, balances, inventory<br/>
+                                    <strong>Benefit:</strong> No silent data loss!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--strong-amber);">Linearizability</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Definition:</strong> Operations appear atomic and ordered<br/>
+                                    <strong>Guarantee:</strong> If A writes then B reads, B sees A's write<br/>
+                                    <strong>QUORUM:</strong> Provides this guarantee<br/>
+                                    <strong>Causality:</strong> Respects happens-before relationships<br/>
+                                    <strong>Real-world:</strong> User updates → refresh → sees update<br/>
+                                    <strong>Compare:</strong> Eventual can show old value
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-info-circle"></i> 💡 Key Difference from Eventual</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Eventual (ONE):</strong> "If you stop writing, replicas will eventually agree." (20-100ms convergence, stale reads possible)<br/><br/>
+                                <strong>Strong (QUORUM):</strong> "You always read the latest write, immediately." (no convergence needed, never stale!)<br/><br/>
+                                The cost? Latency increases from 3ms to 12ms, and throughput drops from 50k to 25k ops/sec. But for critical data - profiles, orders, payments - it's absolutely worth it!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- QUORUM Deep-Dive -->
+                    <section id="quorum" data-aos="fade-up">
+                        <h2>⚖️ QUORUM Deep-Dive: The Majority Rule</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            QUORUM means <strong style="color: var(--primary-red);">"majority of replicas"</strong> - more than half! It's the sweet spot between <strong style="color: var(--text-primary);">ONE (too weak)</strong> and <strong style="color: var(--text-primary);">ALL (too strict)</strong>.
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">🔢</div>
+                                <h4 style="color: var(--primary-red);">Majority Calculation</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Formula:</strong> QUORUM = ⌈RF / 2⌉ (ceiling of half)<br/>
+                                    <strong>RF=3:</strong> QUORUM = ⌈3/2⌉ = ⌈1.5⌉ = 2<br/>
+                                    <strong>RF=5:</strong> QUORUM = ⌈5/2⌉ = ⌈2.5⌉ = 3<br/>
+                                    <strong>RF=7:</strong> QUORUM = ⌈7/2⌉ = ⌈3.5⌉ = 4<br/>
+                                    <strong>Pattern:</strong> Always more than half!<br/>
+                                    <strong>Why:</strong> Guarantees overlap for R+W>RF
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">⚡</div>
+                                <h4 style="color: var(--light-red);">Performance Profile</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Latency:</strong> 12-18ms (waits for majority)<br/>
+                                    <strong>Throughput:</strong> 25,000 writes/sec per node<br/>
+                                    <strong>Comparison:</strong> 4x slower than ONE, 3x faster than ALL<br/>
+                                    <strong>Network:</strong> Multiple replicas = more network round-trips<br/>
+                                    <strong>Sweet spot:</strong> Balance between speed and consistency<br/>
+                                    <strong>Production:</strong> 99% of strong consistency use cases
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">🛡️</div>
+                                <h4 style="color: var(--strong-amber);">Fault Tolerance</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>RF=3:</strong> Can lose 1 node (33% failure tolerance)<br/>
+                                    <strong>RF=5:</strong> Can lose 2 nodes (40% failure tolerance)<br/>
+                                    <strong>RF=7:</strong> Can lose 3 nodes (43% failure tolerance)<br/>
+                                    <strong>Formula:</strong> Can lose ⌊RF/2⌋ nodes<br/>
+                                    <strong>Better than ALL:</strong> ALL fails if ANY node down!<br/>
+                                    <strong>Production:</strong> RF=3 standard (lose 1 node = OK)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">📊</div>
+                                <h4 style="color: var(--primary-red);">Write Behavior</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Process:</strong> Coordinator sends to all RF replicas<br/>
+                                    <strong>Wait:</strong> Must receive ACKs from QUORUM (majority)<br/>
+                                    <strong>RF=3:</strong> Waits for 2 of 3 ACKs (12ms typical)<br/>
+                                    <strong>Background:</strong> Third replica updates async<br/>
+                                    <strong>Success:</strong> Client gets response after majority confirms<br/>
+                                    <strong>Failure:</strong> If can't reach majority = write fails
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">🔍</div>
+                                <h4 style="color: var(--light-red);">Read Behavior</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Process:</strong> Coordinator queries QUORUM replicas<br/>
+                                    <strong>RF=3:</strong> Queries 2 of 3 replicas (random selection)<br/>
+                                    <strong>Compare:</strong> Gets responses, compares timestamps<br/>
+                                    <strong>Return:</strong> Returns value with latest timestamp<br/>
+                                    <strong>Repair:</strong> Updates stale replicas in background<br/>
+                                    <strong>Guarantee:</strong> Always returns latest write!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">⚖️</div>
+                                <h4 style="color: var(--strong-amber);">Why QUORUM Works</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Math:</strong> R=2, W=2, RF=3 → 2+2=4>3 ✓<br/>
+                                    <strong>Overlap:</strong> Write set (2) + Read set (2) = 4 replicas<br/>
+                                    <strong>But only 3 exist:</strong> Pigeonhole principle!<br/>
+                                    <strong>Guarantee:</strong> At least 1 replica in BOTH sets<br/>
+                                    <strong>That replica:</strong> Has the latest write<br/>
+                                    <strong>Result:</strong> Read always returns latest value!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h3 style="color: var(--primary-red); margin-top: 0;">🗳️ QUORUM Like Voting</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                Think of QUORUM like a <strong style="color: var(--text-primary);">voting system</strong> with 3 judges:<br/><br/>
+                                
+                                <strong style="color: var(--light-red);">Decision (Write with QUORUM):</strong><br/>
+                                • Need majority (2 of 3) to pass a ruling<br/>
+                                • Judge A votes YES (5ms)<br/>
+                                • Judge B votes YES (12ms) → <strong style="color: var(--success-green);">Decision passed! ✓</strong><br/>
+                                • Judge C still deliberating (doesn't matter!)<br/>
+                                • Majority reached = decision is law<br/><br/>
+                                
+                                <strong style="color: var(--primary-red);">Query (Read with QUORUM):</strong><br/>
+                                • Need to ask majority (2 of 3) what the law is<br/>
+                                • Ask Judges A + B: Both say "Law XYZ" ✓<br/>
+                                • Ask Judges A + C: A says "Law XYZ", C says "Law ABC" → <strong>A is newer!</strong> ✓<br/>
+                                • Ask Judges B + C: B says "Law XYZ", C says "Law ABC" → <strong>B is newer!</strong> ✓<br/>
+                                • <strong style="color: var(--success-green);">No matter which 2 you ask, you always get the latest law!</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Why it works:</strong><br/>
+                                • Passed decision with 2 judges (A + B)<br/>
+                                • Query 2 of 3 judges<br/>
+                                • At least 1 of queried judges MUST be from the passing set!<br/>
+                                • That judge has the latest decision<br/>
+                                • <strong style="color: var(--fortress-gold);">Mathematical guarantee!</strong>
+                            </p>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-info-circle"></i> 💡 Why Not Use ALL Instead?</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>ALL seems safer</strong> - why not wait for all replicas?<br/><br/>
+                                <strong style="color: var(--error-red);">Problem with ALL:</strong> If ANY single node is down → entire write fails! In a 3-node cluster with ALL, if 1 node crashes = <strong>0% availability</strong> for writes. With QUORUM, you can lose 1 node and still have 100% availability! QUORUM is the perfect balance: <strong>Strong consistency + Good availability</strong>. This is why 99% of production systems use QUORUM, not ALL!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- R+W>RF Formula SVG -->
+                    <section id="formula" data-aos="fade-up">
+                        <h2>🧮 R+W>RF Formula: Visual Proof</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1000 900" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#dc2626;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+
+                                <text x="500" y="40" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    R+W>RF Formula: Why QUORUM Guarantees Strong Consistency
+                                </text>
+
+                                <!-- Example 1: QUORUM (Strong) -->
+                                <rect x="50" y="80" width="440" height="180" rx="10" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="2"/>
+                                <text x="270" y="110" font-size="16" fill="#10b981" font-weight="800" text-anchor="middle">
+                                    ✓ QUORUM + QUORUM = STRONG
+                                </text>
+                                
+                                <text x="60" y="140" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    RF=3, Write CL=QUORUM, Read CL=QUORUM
+                                </text>
+                                
+                                <!-- Write set -->
+                                <circle cx="120" cy="185" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="120" y="190" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">A</text>
+                                <text x="120" y="225" font-size="10" fill="#fbbf24" text-anchor="middle">Write ✓</text>
+                                
+                                <circle cx="200" cy="185" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="200" y="190" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">B</text>
+                                <text x="200" y="225" font-size="10" fill="#fbbf24" text-anchor="middle">Write ✓</text>
+                                
+                                <circle cx="280" cy="185" r="25" fill="#64748b" opacity="0.2" stroke="#64748b" stroke-width="2"/>
+                                <text x="280" y="190" font-size="12" fill="#94a3b8" text-anchor="middle">C</text>
+                                <text x="280" y="225" font-size="10" fill="#94a3b8" text-anchor="middle">(async)</text>
+
+                                <text x="350" y="190" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    <tspan x="350" dy="0">W = 2</tspan>
+                                    <tspan x="350" dy="18">R = 2</tspan>
+                                    <tspan x="350" dy="18">RF = 3</tspan>
+                                </text>
+
+                                <text x="430" y="190" font-size="16" fill="#10b981" font-weight="800" text-anchor="end">
+                                    <tspan x="480" dy="0">2+2=4</tspan>
+                                    <tspan x="480" dy="22">4>3 ✓</tspan>
+                                    <tspan x="480" dy="22" font-size="12">STRONG!</tspan>
+                                </text>
+
+                                <!-- Example 2: ONE+ONE (Eventual) -->
+                                <rect x="510" y="80" width="440" height="180" rx="10" fill="#ef4444" opacity="0.1" stroke="#ef4444" stroke-width="2"/>
+                                <text x="730" y="110" font-size="16" fill="#ef4444" font-weight="800" text-anchor="middle">
+                                    ❌ ONE + ONE = EVENTUAL
+                                </text>
+                                
+                                <text x="520" y="140" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    RF=3, Write CL=ONE, Read CL=ONE
+                                </text>
+                                
+                                <circle cx="580" cy="185" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="580" y="190" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">A</text>
+                                <text x="580" y="225" font-size="10" fill="#fbbf24" text-anchor="middle">Write ✓</text>
+                                
+                                <circle cx="660" cy="185" r="25" fill="#64748b" opacity="0.2" stroke="#64748b" stroke-width="2"/>
+                                <text x="660" y="190" font-size="12" fill="#94a3b8" text-anchor="middle">B</text>
+                                <text x="660" y="225" font-size="10" fill="#ef4444" text-anchor="middle">Stale!</text>
+                                
+                                <circle cx="740" cy="185" r="25" fill="#64748b" opacity="0.2" stroke="#64748b" stroke-width="2"/>
+                                <text x="740" y="190" font-size="12" fill="#94a3b8" text-anchor="middle">C</text>
+                                <text x="740" y="225" font-size="10" fill="#ef4444" text-anchor="middle">Stale!</text>
+
+                                <text x="810" y="190" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    <tspan x="810" dy="0">W = 1</tspan>
+                                    <tspan x="810" dy="18">R = 1</tspan>
+                                    <tspan x="810" dy="18">RF = 3</tspan>
+                                </text>
+
+                                <text x="890" y="190" font-size="16" fill="#ef4444" font-weight="800" text-anchor="end">
+                                    <tspan x="940" dy="0">1+1=2</tspan>
+                                    <tspan x="940" dy="22">2≤3 ❌</tspan>
+                                    <tspan x="940" dy="22" font-size="12">EVENTUAL</tspan>
+                                </text>
+
+                                <!-- Example 3: ALL+ONE (Strong but overkill) -->
+                                <rect x="50" y="280" width="440" height="180" rx="10" fill="#f59e0b" opacity="0.1" stroke="#f59e0b" stroke-width="2"/>
+                                <text x="270" y="310" font-size="16" fill="#f59e0b" font-weight="800" text-anchor="middle">
+                                    ⚠️ ALL + ONE = STRONG (but overkill!)
+                                </text>
+                                
+                                <text x="60" y="340" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    RF=3, Write CL=ALL, Read CL=ONE
+                                </text>
+                                
+                                <circle cx="120" cy="385" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="120" y="390" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">A</text>
+                                <text x="120" y="425" font-size="10" fill="#fbbf24" text-anchor="middle">ALL ✓</text>
+                                
+                                <circle cx="200" cy="385" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="200" y="390" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">B</text>
+                                <text x="200" y="425" font-size="10" fill="#fbbf24" text-anchor="middle">ALL ✓</text>
+                                
+                                <circle cx="280" cy="385" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="280" y="390" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">C</text>
+                                <text x="280" y="425" font-size="10" fill="#fbbf24" text-anchor="middle">ALL ✓</text>
+
+                                <text x="350" y="390" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    <tspan x="350" dy="0">W = 3</tspan>
+                                    <tspan x="350" dy="18">R = 1</tspan>
+                                    <tspan x="350" dy="18">RF = 3</tspan>
+                                </text>
+
+                                <text x="430" y="385" font-size="16" fill="#f59e0b" font-weight="800" text-anchor="end">
+                                    <tspan x="480" dy="0">3+1=4</tspan>
+                                    <tspan x="480" dy="22">4>3 ✓</tspan>
+                                    <tspan x="480" dy="22" font-size="11">SLOW!</tspan>
+                                </text>
+
+                                <!-- Example 4: TWO+TWO (Strong) -->
+                                <rect x="510" y="280" width="440" height="180" rx="10" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="2"/>
+                                <text x="730" y="310" font-size="16" fill="#10b981" font-weight="800" text-anchor="middle">
+                                    ✓ TWO + TWO = STRONG (same as QUORUM!)
+                                </text>
+                                
+                                <text x="520" y="340" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    RF=3, Write CL=TWO, Read CL=TWO
+                                </text>
+                                
+                                <circle cx="580" cy="385" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="580" y="390" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">A</text>
+                                <text x="580" y="425" font-size="10" fill="#fbbf24" text-anchor="middle">Write ✓</text>
+                                
+                                <circle cx="660" cy="385" r="25" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3"/>
+                                <text x="660" y="390" font-size="12" fill="#e2e8f0" text-anchor="middle" font-weight="700">B</text>
+                                <text x="660" y="425" font-size="10" fill="#fbbf24" text-anchor="middle">Write ✓</text>
+                                
+                                <circle cx="740" cy="385" r="25" fill="#64748b" opacity="0.2" stroke="#64748b" stroke-width="2"/>
+                                <text x="740" y="390" font-size="12" fill="#94a3b8" text-anchor="middle">C</text>
+
+                                <text x="810" y="390" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    <tspan x="810" dy="0">W = 2</tspan>
+                                    <tspan x="810" dy="18">R = 2</tspan>
+                                    <tspan x="810" dy="18">RF = 3</tspan>
+                                </text>
+
+                                <text x="890" y="385" font-size="16" fill="#10b981" font-weight="800" text-anchor="end">
+                                    <tspan x="940" dy="0">2+2=4</tspan>
+                                    <tspan x="940" dy="22">4>3 ✓</tspan>
+                                    <tspan x="940" dy="22" font-size="12">STRONG!</tspan>
+                                </text>
+
+                                <!-- Overlap Explanation -->
+                                <rect x="50" y="480" width="900" height="140" rx="10" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="2"/>
+                                <text x="500" y="510" font-size="18" fill="#dc2626" font-weight="800" text-anchor="middle">
+                                    🧮 The Overlap Principle
+                                </text>
+
+                                <text x="500" y="545" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="600">
+                                    <tspan x="500" dy="0">Write updates W replicas, Read queries R replicas, Total RF replicas</tspan>
+                                    <tspan x="500" dy="25">If R + W > RF → At least 1 replica MUST be in BOTH sets!</tspan>
+                                    <tspan x="500" dy="25">That replica has the latest write → Read returns latest value ✓</tspan>
+                                    <tspan x="500" dy="25" fill="#10b981">QUORUM+QUORUM: 2+2=4>3 → Guaranteed overlap → STRONG CONSISTENCY!</tspan>
+                                </text>
+
+                                <!-- Decision Table -->
+                                <rect x="50" y="640" width="900" height="220" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="500" y="670" font-size="18" fill="#ef4444" font-weight="800" text-anchor="middle">
+                                    Quick Reference: Which Combinations Give Strong Consistency?
+                                </text>
+
+                                <!-- Table Header -->
+                                <rect x="70" y="690" width="180" height="30" fill="#334155"/>
+                                <text x="160" y="710" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="700">Write CL + Read CL</text>
+
+                                <rect x="250" y="690" width="100" height="30" fill="#334155"/>
+                                <text x="300" y="710" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="700">R+W</text>
+
+                                <rect x="350" y="690" width="120" height="30" fill="#334155"/>
+                                <text x="410" y="710" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="700">R+W>RF?</text>
+
+                                <rect x="470" y="690" width="160" height="30" fill="#334155"/>
+                                <text x="550" y="710" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="700">Consistency</text>
+
+                                <rect x="630" y="690" width="300" height="30" fill="#334155"/>
+                                <text x="780" y="710" font-size="13" fill="#e2e8f0" text-anchor="middle" font-weight="700">Use Case</text>
+
+                                <!-- Table Rows -->
+                                <text x="160" y="745" font-size="12" fill="#e2e8f0" text-anchor="middle">QUORUM + QUORUM</text>
+                                <text x="300" y="745" font-size="12" fill="#e2e8f0" text-anchor="middle">2+2=4</text>
+                                <text x="410" y="745" font-size="12" fill="#10b981" text-anchor="middle" font-weight="700">✓ 4>3</text>
+                                <text x="550" y="745" font-size="12" fill="#10b981" text-anchor="middle" font-weight="700">STRONG</text>
+                                <text x="780" y="745" font-size="11" fill="#94a3b8" text-anchor="middle">99% production use!</text>
+
+                                <text x="160" y="775" font-size="12" fill="#e2e8f0" text-anchor="middle">ALL + ONE</text>
+                                <text x="300" y="775" font-size="12" fill="#e2e8f0" text-anchor="middle">3+1=4</text>
+                                <text x="410" y="775" font-size="12" fill="#f59e0b" text-anchor="middle" font-weight="700">✓ 4>3</text>
+                                <text x="550" y="775" font-size="12" fill="#f59e0b" text-anchor="middle" font-weight="700">STRONG</text>
+                                <text x="780" y="775" font-size="11" fill="#94a3b8" text-anchor="middle">Overkill, poor availability</text>
+
+                                <text x="160" y="805" font-size="12" fill="#e2e8f0" text-anchor="middle">ONE + ONE</text>
+                                <text x="300" y="805" font-size="12" fill="#e2e8f0" text-anchor="middle">1+1=2</text>
+                                <text x="410" y="805" font-size="12" fill="#ef4444" text-anchor="middle" font-weight="700">❌ 2≤3</text>
+                                <text x="550" y="805" font-size="12" fill="#ef4444" text-anchor="middle" font-weight="700">EVENTUAL</text>
+                                <text x="780" y="805" font-size="11" fill="#94a3b8" text-anchor="middle">Fast but stale reads</text>
+
+                                <text x="160" y="835" font-size="12" fill="#e2e8f0" text-anchor="middle">TWO + TWO</text>
+                                <text x="300" y="835" font-size="12" fill="#e2e8f0" text-anchor="middle">2+2=4</text>
+                                <text x="410" y="835" font-size="12" fill="#10b981" text-anchor="middle" font-weight="700">✓ 4>3</text>
+                                <text x="550" y="835" font-size="12" fill="#10b981" text-anchor="middle" font-weight="700">STRONG</text>
+                                <text x="780" y="835" font-size="11" fill="#94a3b8" text-anchor="middle">Same as QUORUM for RF=3</text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-check-circle"></i> ✅ The Golden Rule</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>If R + W > RF → You have strong consistency!</strong> This is a mathematical guarantee, not just a best-effort promise. The overlap principle ensures that at least one replica in your read set will have been part of your write set, giving you the latest value. For most production systems: <strong>QUORUM + QUORUM</strong> (R=2, W=2, RF=3 → 2+2=4>3 ✓) is the perfect balance of strong consistency, good performance, and reasonable fault tolerance!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Guarantees -->
+                    <section id="guarantees" data-aos="fade-up">
+                        <h2>✅ What Strong Consistency Guarantees</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Strong consistency with QUORUM provides <strong style="color: var(--primary-red);">mathematical guarantees</strong> that eventual consistency cannot match!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">✓</div>
+                                <h4 style="color: var(--success-green);">Never Stale Reads</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Promise:</strong> Every read returns most recent write<br/>
+                                    <strong>Mechanism:</strong> R+W>RF overlap guarantee<br/>
+                                    <strong>Probability:</strong> 100% (not 66% like eventual!)<br/>
+                                    <strong>User experience:</strong> Update → refresh → see update ✓<br/>
+                                    <strong>No ghost data:</strong> Never flip-flop old/new<br/>
+                                    <strong>Business impact:</strong> Reliable UX, happy users
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">🔒</div>
+                                <h4 style="color: var(--success-green);">Linearizability</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Definition:</strong> Operations appear in global order<br/>
+                                    <strong>Guarantee:</strong> If A completes before B starts, B sees A's effect<br/>
+                                    <strong>Real-world:</strong> Alice writes, Bob reads, Bob sees Alice's write<br/>
+                                    <strong>Causality:</strong> Respects happens-before relationships<br/>
+                                    <strong>Compare:</strong> Eventual can violate causality<br/>
+                                    <strong>Critical for:</strong> Coordinated multi-step operations
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">⚔️</div>
+                                <h4 style="color: var(--success-green);">Conflict-Free Reads</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Problem prevented:</strong> Reading mid-conflict state<br/>
+                                    <strong>With ONE:</strong> Can read partially replicated data<br/>
+                                    <strong>With QUORUM:</strong> Always read fully replicated majority<br/>
+                                    <strong>Consistency:</strong> All readers see same value<br/>
+                                    <strong>No surprises:</strong> Predictable behavior<br/>
+                                    <strong>Business value:</strong> No user confusion
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">🛡️</div>
+                                <h4 style="color: var(--success-green);">Immediate Consistency</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>No convergence wait:</strong> Consistent immediately!<br/>
+                                    <strong>Compare eventual:</strong> 20-100ms convergence window<br/>
+                                    <strong>QUORUM:</strong> Consistent as soon as write completes<br/>
+                                    <strong>User experience:</strong> Write completes = everyone sees it<br/>
+                                    <strong>No race conditions:</strong> No timing-dependent bugs<br/>
+                                    <strong>Simplifies testing:</strong> Predictable behavior
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">📊</div>
+                                <h4 style="color: var(--success-green);">Atomic Operations</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Guarantee:</strong> Operations complete or fail, no partial<br/>
+                                    <strong>With QUORUM:</strong> Majority confirms = committed<br/>
+                                    <strong>Failure handling:</strong> Can't reach majority = write fails<br/>
+                                    <strong>No limbo:</strong> Data either there or not, never partial<br/>
+                                    <strong>Critical for:</strong> Multi-step transactions<br/>
+                                    <strong>Business value:</strong> No data corruption
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">🔄</div>
+                                <h4 style="color: var(--success-green);">Read-Your-Writes</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Promise:</strong> If you write then read, you see your write<br/>
+                                    <strong>User expectation:</strong> "I just saved, where is it?!"<br/>
+                                    <strong>QUORUM:</strong> Always see your own updates ✓<br/>
+                                    <strong>ONE problem:</strong> Might read from stale replica ❌<br/>
+                                    <strong>Critical for:</strong> User-facing data (profiles, posts)<br/>
+                                    <strong>UX impact:</strong> No user confusion!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h3 style="color: var(--primary-red); margin-top: 0;">🎯 Strong vs Eventual: Real-World Impact</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">User updates their email address:</strong><br/><br/>
+                                
+                                <strong style="color: var(--error-red);">With Eventual (ONE):</strong><br/>
+                                • User types new email → clicks Save<br/>
+                                • Write succeeds in 3ms ✓<br/>
+                                • User refreshes page immediately<br/>
+                                • Sees OLD email! <strong style="color: var(--error-red);">"Did it save?!"</strong><br/>
+                                • Refreshes again → sees NEW email (confusing!)<br/>
+                                • Support ticket: "Your site is broken!"<br/>
+                                • Result: <strong style="color: var(--error-red);">Angry user, lost trust</strong><br/><br/>
+                                
+                                <strong style="color: var(--success-green);">With Strong (QUORUM):</strong><br/>
+                                • User types new email → clicks Save<br/>
+                                • Write waits for majority (12ms) ✓<br/>
+                                • User refreshes page immediately<br/>
+                                • Sees NEW email! <strong style="color: var(--success-green);">Perfect! ✓</strong><br/>
+                                • Refreshes again → still sees NEW email (consistent!)<br/>
+                                • User happy, app feels reliable<br/>
+                                • Result: <strong style="color: var(--success-green);">Happy user, trust maintained</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">The cost?</strong> 9ms additional latency (12ms vs 3ms). <strong style="color: var(--fortress-gold);">Worth it for user-facing data!</strong> User doesn't notice 12ms, but they DEFINITELY notice ghost data!
+                            </p>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-info-circle"></i> 💡 What Strong Consistency Does NOT Guarantee</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Important limitations:</strong><br/><br/>
+                                • <strong>Does NOT prevent concurrent writes:</strong> Two users can still write concurrently, Last-Write-Wins still applies (use LWT for true serializability)<br/>
+                                • <strong>Does NOT guarantee global ordering:</strong> Different clients may observe writes in different orders (unless using SERIAL)<br/>
+                                • <strong>Does NOT prevent network partitions:</strong> During split-brain, minority partition becomes unavailable<br/>
+                                • <strong>Does NOT make writes faster:</strong> Actually 4x slower than ONE due to waiting for majority<br/><br/>
+                                QUORUM gives you strong consistency (no stale reads), but it's not a silver bullet. For truly atomic operations, consider Lightweight Transactions (LWT)!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- When Needed -->
+                    <section id="when-needed" data-aos="fade-up">
+                        <h2>🎯 When You NEED Strong Consistency</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Not all data needs QUORUM. Here's when strong consistency is <strong style="color: var(--primary-red);">essential</strong> vs when eventual is fine!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">👤</div>
+                                <h4 style="color: var(--primary-red);">NEEDED: User Profiles</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Email, username, bio, settings<br/>
+                                    <strong>Why QUORUM:</strong> User updates → refreshes → must see update!<br/>
+                                    <strong>ONE problem:</strong> Ghost data = "Where's my change?!"<br/>
+                                    <strong>User tolerance:</strong> Zero for profile updates<br/>
+                                    <strong>Volume:</strong> Moderate (10k updates/sec manageable)<br/>
+                                    <strong>Latency OK:</strong> 12ms acceptable for profile saves<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--success-green);">Use QUORUM! ✓</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">🛒</div>
+                                <h4 style="color: var(--primary-red);">NEEDED: Shopping Cart</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Items in cart, quantities<br/>
+                                    <strong>Why QUORUM:</strong> Prevent item loss from concurrent adds<br/>
+                                    <strong>ONE problem:</strong> Add iPhone + MacBook → one lost (LWW!)<br/>
+                                    <strong>Business impact:</strong> Lost sales, support tickets<br/>
+                                    <strong>User expectation:</strong> Cart = reliable staging area<br/>
+                                    <strong>Better:</strong> Use append-only + QUORUM<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--success-green);">Use QUORUM! ✓</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">💰</div>
+                                <h4 style="color: var(--primary-red);">NEEDED: Financial Data</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Payments, balances, transactions<br/>
+                                    <strong>Why QUORUM:</strong> Cannot afford data loss or stale reads<br/>
+                                    <strong>ONE problem:</strong> Concurrent transactions = money lost!<br/>
+                                    <strong>Regulatory:</strong> Compliance requires consistency<br/>
+                                    <strong>Even better:</strong> Use QUORUM + LWT for atomicity<br/>
+                                    <strong>Performance:</strong> Financial operations not high-volume<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--success-green);">Use QUORUM! (or ALL) ✓</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">📊</div>
+                                <h4 style="color: var(--success-green);">NOT NEEDED: Analytics Events</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Pageviews, clicks, impressions<br/>
+                                    <strong>Why ONE OK:</strong> Approximate counts acceptable<br/>
+                                    <strong>Volume:</strong> Massive (100k+ events/sec)<br/>
+                                    <strong>QUORUM cost:</strong> Would kill throughput!<br/>
+                                    <strong>Staleness:</strong> "12,347 vs 12,351 views" = who cares?<br/>
+                                    <strong>Latency critical:</strong> Must not block app flow<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--error-red);">Use ONE! ✓</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">🔍</div>
+                                <h4 style="color: var(--success-green);">NOT NEEDED: Search Cache</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Cached search results<br/>
+                                    <strong>Why ONE OK:</strong> It's a cache! Stale = refresh<br/>
+                                    <strong>Volume:</strong> Very high (millions of searches/sec)<br/>
+                                    <strong>QUORUM cost:</strong> 4x slower for no benefit<br/>
+                                    <strong>Staleness impact:</strong> Missing result → next search finds it<br/>
+                                    <strong>User expectation:</strong> Caches can be stale<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--error-red);">Use ONE! ✓</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">👍</div>
+                                <h4 style="color: var(--success-green);">NOT NEEDED: Like Counters</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data:</strong> Post likes, view counts, engagement metrics<br/>
+                                    <strong>Why ONE OK:</strong> Approximate counts perfectly fine<br/>
+                                    <strong>Volume:</strong> Billions of likes per day<br/>
+                                    <strong>QUORUM impact:</strong> Would limit scalability<br/>
+                                    <strong>Staleness:</strong> "12.3k vs 12.4k" = immaterial<br/>
+                                    <strong>User expectation:</strong> Counts can lag slightly<br/>
+                                    <strong>Verdict:</strong> <strong style="color: var(--error-red);">Use ONE! ✓</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem; border-left-color: var(--primary-red);">
+                            <h4><i class="fas fa-balance-scale"></i> ⚖️ Decision Framework</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Ask these questions:</strong><br/><br/>
+                                
+                                1. <strong>Will users notice stale reads?</strong> (Yes → QUORUM, No → ONE)<br/>
+                                2. <strong>Would stale data cause confusion?</strong> (Yes → QUORUM, No → ONE)<br/>
+                                3. <strong>Is this user-facing critical data?</strong> (Yes → QUORUM, No → ONE)<br/>
+                                4. <strong>Would concurrent writes cause data loss?</strong> (Yes → QUORUM, No → ONE)<br/>
+                                5. <strong>Is volume moderate (<50k writes/sec)?</strong> (Yes → QUORUM OK, No → consider ONE)<br/>
+                                6. <strong>Is data approximate/regenerable?</strong> (Yes → ONE OK, No → QUORUM)<br/><br/>
+                                
+                                <strong>General rule:</strong> When in doubt, start with QUORUM. Only optimize to ONE if you're certain staleness is acceptable and volume demands it!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Trade-offs -->
+                    <section id="tradeoffs" data-aos="fade-up">
+                        <h2>⚖️ Trade-offs: Strong Consistency Costs</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Strong consistency isn't free. Understanding the <strong style="color: var(--primary-red);">trade-offs</strong> helps you make smart decisions!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">⏱️</div>
+                                <h4 style="color: var(--error-red);">Latency Cost</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE:</strong> 3-5ms (single replica ACK)<br/>
+                                    <strong>QUORUM:</strong> 12-18ms (majority ACK)<br/>
+                                    <strong>ALL:</strong> 40-80ms (all replicas ACK)<br/>
+                                    <strong>Cost:</strong> 4x slower than ONE!<br/>
+                                    <strong>Impact:</strong> 12ms noticeable for high-frequency ops<br/>
+                                    <strong>Acceptable for:</strong> User-facing updates (profile, cart)<br/>
+                                    <strong>Too slow for:</strong> Analytics, high-volume counters
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">📉</div>
+                                <h4 style="color: var(--error-red);">Throughput Cost</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE:</strong> 50,000 writes/sec per node<br/>
+                                    <strong>QUORUM:</strong> 25,000 writes/sec per node<br/>
+                                    <strong>ALL:</strong> 8,000 writes/sec per node<br/>
+                                    <strong>Cost:</strong> 50% throughput reduction!<br/>
+                                    <strong>Why:</strong> More replicas = more coordination<br/>
+                                    <strong>Acceptable for:</strong> Moderate volume (<50k/sec)<br/>
+                                    <strong>Problem for:</strong> High-volume data (>100k/sec)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">🔧</div>
+                                <h4 style="color: var(--error-red);">Availability Cost</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE (RF=3):</strong> Works with 2 nodes down<br/>
+                                    <strong>QUORUM (RF=3):</strong> Works with 1 node down<br/>
+                                    <strong>ALL (RF=3):</strong> Works with 0 nodes down!<br/>
+                                    <strong>Cost:</strong> Lower fault tolerance<br/>
+                                    <strong>Risk:</strong> Can't reach majority = writes fail<br/>
+                                    <strong>Mitigation:</strong> Higher RF (RF=5 can lose 2 nodes)<br/>
+                                    <strong>Production:</strong> RF=3 + QUORUM = acceptable
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">✅</div>
+                                <h4 style="color: var(--success-green);">Consistency Benefit</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE:</strong> 66% stale read probability<br/>
+                                    <strong>QUORUM:</strong> 0% stale read probability!<br/>
+                                    <strong>ALL:</strong> 0% stale but overkill<br/>
+                                    <strong>Benefit:</strong> Never see ghost data<br/>
+                                    <strong>UX impact:</strong> Users always see their updates<br/>
+                                    <strong>Business value:</strong> Reliable, trustworthy app<br/>
+                                    <strong>Worth it for:</strong> User-facing critical data
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">🛡️</div>
+                                <h4 style="color: var(--success-green);">Predictability Benefit</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE:</strong> Unpredictable convergence (20-100ms)<br/>
+                                    <strong>QUORUM:</strong> Immediate consistency!<br/>
+                                    <strong>Benefit:</strong> No timing-dependent bugs<br/>
+                                    <strong>Testing:</strong> Easier to test (no race conditions)<br/>
+                                    <strong>Development:</strong> Simpler reasoning about state<br/>
+                                    <strong>Operations:</strong> Fewer "weird" production issues<br/>
+                                    <strong>Saves:</strong> Engineering time debugging
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #10b981, #059669);">💼</div>
+                                <h4 style="color: var(--success-green);">Business Value</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ONE:</strong> Fast but confusing UX<br/>
+                                    <strong>QUORUM:</strong> Reliable, trustworthy feel<br/>
+                                    <strong>User trust:</strong> App "just works" consistently<br/>
+                                    <strong>Support tickets:</strong> Fewer "my data disappeared!" tickets<br/>
+                                    <strong>Reputation:</strong> Professional, reliable app<br/>
+                                    <strong>Conversion:</strong> Users trust app with critical data<br/>
+                                    <strong>ROI:</strong> Worth latency cost for critical features
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h3 style="color: var(--primary-red); margin-top: 0;">💰 Cost-Benefit Analysis: Real Numbers</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">E-commerce platform: 1 million users, 100k orders/day</strong><br/><br/>
+                                
+                                <strong style="color: var(--light-red);">Scenario 1: User Profiles with ONE (eventual)</strong><br/>
+                                • Latency: 3ms ✓<br/>
+                                • Throughput: 50k updates/sec ✓<br/>
+                                • Problem: Users update email → refresh → see OLD email<br/>
+                                • Support tickets: 500/day "My update didn't save!"<br/>
+                                • Cost: 500 tickets × $5/ticket × 365 days = <strong style="color: var(--error-red);">$912,500/year</strong><br/>
+                                • User churn: 2% abandon due to frustration<br/>
+                                • Lost revenue: 20,000 users × $50 average order = <strong style="color: var(--error-red);">$1M/year</strong><br/>
+                                • <strong>Total cost: $1.9M/year</strong><br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Scenario 2: User Profiles with QUORUM (strong)</strong><br/>
+                                • Latency: 12ms (9ms slower, but user doesn't notice!)<br/>
+                                • Throughput: 25k updates/sec (still more than enough!)<br/>
+                                • Problem: None! Users always see their updates ✓<br/>
+                                • Support tickets: 50/day (unrelated issues)<br/>
+                                • Cost: 50 tickets × $5/ticket × 365 days = <strong style="color: var(--success-green);">$91,250/year</strong><br/>
+                                • User churn: 0% from consistency issues ✓<br/>
+                                • Lost revenue: $0 ✓<br/>
+                                • <strong>Total cost: $91,250/year</strong><br/><br/>
+                                
+                                <strong style="color: var(--fortress-gold);">Net benefit of QUORUM: $1.8M/year savings!</strong><br/>
+                                The 9ms latency increase costs nothing, but the consistency guarantee saves millions in support costs and lost revenue. <strong style="color: var(--primary-red);">This is why QUORUM is worth it for user-facing data!</strong>
+                            </p>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem; border-left-color: var(--warning-orange);">
+                            <h4><i class="fas fa-balance-scale"></i> ⚖️ When Is The Cost Too High?</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Use ONE instead of QUORUM when:</strong><br/><br/>
+                                
+                                • <strong>Volume > 50k writes/sec:</strong> QUORUM throughput limit would require more nodes<br/>
+                                • <strong>Latency < 5ms required:</strong> Real-time systems where 12ms is too slow<br/>
+                                • <strong>Approximate data OK:</strong> Analytics, counters, metrics where staleness acceptable<br/>
+                                • <strong>Cache/regenerable:</strong> Data that can be refreshed if stale<br/>
+                                • <strong>Non-user-facing:</strong> Background jobs, internal metrics<br/><br/>
+                                
+                                For everything else (user profiles, orders, payments, critical business data) → <strong style="color: var(--primary-red);">QUORUM is worth it!</strong>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Real Company Examples -->
+                    <section id="real-examples" data-aos="fade-up">
+                        <h2>🏢 How Real Companies Use Strong Consistency</h2>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(239, 68, 68, 0.08)); border-left-color: var(--primary-red);">
+                            <h3 style="color: var(--primary-red); margin-top: 0;">💳 Stripe: QUORUM for Payment Integrity</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scale:</strong> Billions in payments annually, millions of transactions/day<br/>
+                                <strong style="color: var(--text-primary);">Requirement:</strong> Zero data loss, regulatory compliance, audit trail<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Payment Transactions (QUORUM + QUORUM):</strong><br/>
+                                • Every payment written with CL=QUORUM<br/>
+                                • Waits for 2 of 3 replicas (12-18ms)<br/>
+                                • Read with QUORUM ensures immediate consistency<br/>
+                                • Customer charged = payment record immediately visible<br/>
+                                • <strong>Why:</strong> Cannot afford stale reads showing "payment not found"<br/>
+                                • <strong>Why:</strong> Regulatory requirements for financial data<br/>
+                                • <strong>Cost:</strong> 12-18ms latency acceptable for payment processing<br/><br/>
+                                
+                                <strong style="color: var(--light-red);">Customer Metadata (QUORUM):</strong><br/>
+                                • Email, billing address, payment methods<br/>
+                                • Written with QUORUM (12-15ms)<br/>
+                                • Users expect immediate updates<br/>
+                                • "I just updated my card, why doesn't it show?"<br/><br/>
+                                
+                                <strong style="color: var(--accent-crimson);">Even Stronger: Idempotency Keys (ALL):</strong><br/>
+                                • Prevent duplicate charges<br/>
+                                • Written with CL=ALL (40ms)<br/>
+                                • Worth the cost to prevent double-charging customers<br/>
+                                • Critical for financial integrity<br/><br/>
+                                
+                                <strong style="color: var(--strong-amber);">But Analytics (ONE):</strong><br/>
+                                • Payment success rates, metrics, dashboards<br/>
+                                • HIGH volume (millions of events/sec)<br/>
+                                • Approximate counts fine for internal analytics<br/>
+                                • ONE allows massive throughput<br/><br/>
+                                
+                                <strong style="color: var(--fortress-gold);">Result:</strong> <strong style="color: var(--success-green);">Zero payment data loss</strong>, <strong style="color: var(--success-green);">regulatory compliance</strong>, <strong style="color: var(--success-green);">customer trust maintained</strong>. Stripe's engineering: "Strong consistency for financial data isn't optional - it's mandatory. The R+W>RF formula gives us mathematical certainty!"
+                            </p>
+                        </div>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.08)); border-left-color: #3b82f6;">
+                            <h3 style="color: #3b82f6; margin-top: 0;">🏨 Booking.com: QUORUM for Zero Double-Bookings</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scale:</strong> 1.5M+ properties, millions of bookings/day<br/>
+                                <strong style="color: var(--text-primary);">Challenge:</strong> Prevent double-booking same room<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Bookings/Reservations (QUORUM + LWT):</strong><br/>
+                                • Each booking: QUORUM write (15ms)<br/>
+                                • Checks room availability with Lightweight Transactions<br/>
+                                • IF room available THEN book ELSE fail<br/>
+                                • Prevents concurrent users booking same room<br/>
+                                • <strong>Why QUORUM:</strong> Immediate consistency = no race conditions<br/>
+                                • <strong>Why LWT:</strong> Atomic check-and-set operation<br/>
+                                • <strong>Cost:</strong> 50ms total (QUORUM + LWT overhead)<br/>
+                                • <strong>Worth it:</strong> Zero double-bookings = no angry customers!<br/><br/>
+                                
+                                <strong style="color: var(--light-red);">Room Availability Count (QUORUM):</strong><br/>
+                                • "3 rooms left!" on listing page<br/>
+                                • Written with QUORUM to prevent overselling<br/>
+                                • Two users see "1 room left" simultaneously<br/>
+                                • Both try to book → LWT ensures only one succeeds<br/>
+                                • Other sees "Sorry, room just booked"<br/><br/>
+                                
+                                <strong style="color: var(--accent-crimson);">User Booking History (QUORUM):</strong><br/>
+                                • "My Bookings" page<br/>
+                                • User books hotel → refreshes "My Bookings"<br/>
+                                • Must see their new booking immediately!<br/>
+                                • QUORUM guarantees they see it<br/><br/>
+                                
+                                <strong style="color: var(--strong-amber);">But Search Results Cache (ONE):</strong><br/>
+                                • Hotel search results<br/>
+                                • HIGH volume (millions of searches/sec)<br/>
+                                • Stale cache = just search again<br/>
+                                • ONE allows fast searches (3-5ms)<br/><br/>
+                                
+                                <strong style="color: var(--fortress-gold);">Result:</strong> <strong style="color: var(--success-green);">Zero double-bookings</strong>, <strong style="color: var(--success-green);">reliable inventory</strong>, <strong style="color: var(--success-green);">customer satisfaction</strong>. Booking.com: "For inventory management, strong consistency is non-negotiable. The 50ms cost of QUORUM+LWT is nothing compared to the cost of unhappy customers!"
+                            </p>
+                        </div>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08)); border-left-color: #10b981;">
+                            <h3 style="color: #10b981; margin-top: 0;">🏦 Banking App: ALL for Critical Balances</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scale:</strong> 5M+ users, 10M+ transactions/day<br/>
+                                <strong style="color: var(--text-primary);">Requirement:</strong> Absolute accuracy for account balances<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Account Balances (ALL + ALL):</strong><br/>
+                                • Every balance update: CL=ALL (40ms)<br/>
+                                • Waits for ALL 3 replicas to acknowledge<br/>
+                                • Read with CL=ALL for absolute certainty<br/>
+                                • <strong>Why ALL:</strong> Financial regulations require ALL replicas<br/>
+                                • <strong>Why ALL:</strong> Audit trail must be complete<br/>
+                                • <strong>Cost:</strong> 40ms latency for balance updates<br/>
+                                • <strong>Acceptable:</strong> Balance updates not high-frequency<br/><br/>
+                                
+                                <strong style="color: var(--light-red);">Transactions (QUORUM + LWT):</strong><br/>
+                                • Deposits, withdrawals, transfers<br/>
+                                • QUORUM write (15ms) + LWT for atomicity<br/>
+                                • Prevents concurrent transactions causing errors<br/>
+                                • IF balance sufficient THEN withdraw ELSE fail<br/>
+                                • <strong>Result:</strong> No overdrafts, no duplicate charges<br/><br/>
+                                
+                                <strong style="color: var(--accent-crimson);">User Profile (QUORUM):</strong><br/>
+                                • Email, phone, address<br/>
+                                • Not as critical as balances but still important<br/>
+                                • QUORUM sufficient (12ms)<br/>
+                                • Users expect immediate profile updates<br/><br/>
+                                
+                                <strong style="color: var(--strong-amber);">But Login Attempts Log (ONE):</strong><br/>
+                                • Track failed login attempts<br/>
+                                • HIGH volume event logging<br/>
+                                • Approximate counts OK for security monitoring<br/>
+                                • ONE allows fast logging without blocking logins<br/><br/>
+                                
+                                <strong style="color: var(--fortress-gold);">Result:</strong> <strong style="color: var(--success-green);">Zero balance discrepancies</strong>, <strong style="color: var(--success-green);">regulatory compliance</strong>, <strong style="color: var(--success-green);">customer trust</strong>. Bank CTO: "For financial data, we use ALL. Yes it's slower, but accuracy is non-negotiable. Users will wait 40ms for absolute certainty their money is safe!"
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ Best Practices for Strong Consistency</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">1️⃣</div>
+                                <h4 style="color: var(--primary-red);">1. Default to QUORUM for User Data</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Rule:</strong> Start with QUORUM for all user-facing data<br/>
+                                    <strong>Reason:</strong> Users expect their updates to be visible<br/>
+                                    <strong>Optimize:</strong> Only downgrade to ONE if proven necessary<br/>
+                                    <strong>Test:</strong> Measure actual throughput needs first<br/>
+                                    <strong>Don't assume:</strong> "I need ONE for performance"<br/>
+                                    <strong>Reality:</strong> 25k ops/sec often enough!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">2️⃣</div>
+                                <h4 style="color: var(--light-red);">2. Match Read and Write CL</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Pattern:</strong> If write=QUORUM, read=QUORUM<br/>
+                                    <strong>Why:</strong> Ensures R+W>RF for strong consistency<br/>
+                                    <strong>Don't:</strong> Write QUORUM but read ONE<br/>
+                                    <strong>Result:</strong> Still get stale reads! (1+2=3 ≤ 3 ❌)<br/>
+                                    <strong>Exception:</strong> Write=ALL + Read=ONE is strong<br/>
+                                    <strong>But:</strong> QUORUM+QUORUM is better balance
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">3️⃣</div>
+                                <h4 style="color: var(--strong-amber);">3. Monitor QUORUM Latency</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Metric:</strong> P99 write latency for QUORUM<br/>
+                                    <strong>Healthy:</strong> 12-20ms typical<br/>
+                                    <strong>Alert:</strong> >50ms = investigate!<br/>
+                                    <strong>Causes:</strong> Slow nodes, network issues, GC pauses<br/>
+                                    <strong>Tool:</strong> nodetool tablestats, prometheus<br/>
+                                    <strong>Action:</strong> Find slow replica, investigate
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">4️⃣</div>
+                                <h4 style="color: var(--primary-red);">4. Use LWT for True Atomicity</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>When:</strong> Concurrent writes to same key likely<br/>
+                                    <strong>Pattern:</strong> IF condition THEN update ELSE fail<br/>
+                                    <strong>Example:</strong> Shopping cart, inventory, bookings<br/>
+                                    <strong>Cost:</strong> 4x slower than plain QUORUM (50ms)<br/>
+                                    <strong>Worth it:</strong> Prevents data loss from conflicts<br/>
+                                    <strong>Note:</strong> QUORUM alone doesn't prevent conflicts!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">5️⃣</div>
+                                <h4 style="color: var(--light-red);">5. Test Failure Scenarios</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Simulate:</strong> Kill 1 node in RF=3 cluster<br/>
+                                    <strong>Verify:</strong> QUORUM writes still succeed ✓<br/>
+                                    <strong>Simulate:</strong> Kill 2 nodes<br/>
+                                    <strong>Verify:</strong> QUORUM writes fail (can't reach majority)<br/>
+                                    <strong>Tool:</strong> Chaos engineering, nodetool stop<br/>
+                                    <strong>Production:</strong> Know failure modes before outage!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">6️⃣</div>
+                                <h4 style="color: var(--strong-amber);">6. Consider RF=5 for Critical Data</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>RF=3:</strong> Can lose 1 node (33% tolerance)<br/>
+                                    <strong>RF=5:</strong> Can lose 2 nodes (40% tolerance)<br/>
+                                    <strong>QUORUM:</strong> Still 3 of 5 (same R+W>RF)<br/>
+                                    <strong>Benefit:</strong> Better availability during failures<br/>
+                                    <strong>Cost:</strong> More storage, more network<br/>
+                                    <strong>When:</strong> Critical financial/payment data
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">7️⃣</div>
+                                <h4 style="color: var(--primary-red);">7. Don't Over-Use ALL</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>ALL feels safer:</strong> But it's rarely necessary<br/>
+                                    <strong>Problem:</strong> ANY node down = 0% availability<br/>
+                                    <strong>QUORUM better:</strong> Strong + good availability<br/>
+                                    <strong>Use ALL only:</strong> Regulatory requirement (audit logs)<br/>
+                                    <strong>Use ALL only:</strong> Financial compliance mandates<br/>
+                                    <strong>Otherwise:</strong> QUORUM is the right choice
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">8️⃣</div>
+                                <h4 style="color: var(--light-red);">8. Document Consistency Choices</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>For each table:</strong> Document why QUORUM chosen<br/>
+                                    <strong>Include:</strong> Criticality, volume, user expectations<br/>
+                                    <strong>Review:</strong> Quarterly consistency strategy audit<br/>
+                                    <strong>Share:</strong> Team understanding critical<br/>
+                                    <strong>Update:</strong> As requirements evolve<br/>
+                                    <strong>Prevent:</strong> Accidental downgrades to ONE
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">9️⃣</div>
+                                <h4 style="color: var(--strong-amber);">9. Benchmark Before Optimizing</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Don't assume:</strong> "QUORUM too slow for my case"<br/>
+                                    <strong>Measure:</strong> Actual throughput with QUORUM<br/>
+                                    <strong>Compare:</strong> Against requirements (not ONE)<br/>
+                                    <strong>Often:</strong> 25k ops/sec sufficient!<br/>
+                                    <strong>Optimize:</strong> Only if proven bottleneck<br/>
+                                    <strong>Remember:</strong> Correctness > speed
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem; border-left-color: var(--error-red);">
+                            <h4><i class="fas fa-exclamation-triangle"></i> 🚨 Common Mistakes to Avoid</h4>
+                            <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 1rem;">
+                                <li><strong>❌ Using ONE for user profiles:</strong> "It's faster!" → Users see ghost data, confusion</li>
+                                <li><strong>❌ Write QUORUM but read ONE:</strong> Still get stale reads! R+W≤RF ❌</li>
+                                <li><strong>❌ Using ALL everywhere:</strong> Poor availability, any node down = fail</li>
+                                <li><strong>❌ Not testing node failures:</strong> Surprise outages in production</li>
+                                <li><strong>❌ Assuming QUORUM "too slow":</strong> Measure first, optimize only if needed</li>
+                                <li><strong>❌ Forgetting LWT for conflicts:</strong> QUORUM prevents stale reads, not conflicts</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                     <div class="page-navigation">
+    <a href="eventual-consistency.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Eventual Consistency</div>
+        </div>
+    </a>
+    <a href="write-path.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Write Path</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                const startX = Math.random() * 100;
+                const drift = (Math.random() - 0.5) * 100;
+                const duration = Math.random() * 10 + 15;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${startX}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                    --x-drift: ${drift}px;
+                `;
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        window.addEventListener('load', createParticles);
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        document.getElementById('mobileMenuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        function toggleAnswer(element) {
+            const answer = element.nextElementSibling;
+            const isActive = element.classList.contains('active');
+            
+            document.querySelectorAll('.question-header').forEach(header => {
+                header.classList.remove('active');
+                header.nextElementSibling.classList.remove('active');
+            });
+            
+            if (!isActive) {
+                element.classList.add('active');
+                answer.classList.add('active');
+            }
+        }
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        window.addEventListener('scroll', () => {
+            document.getElementById('scrollTop').classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        
+        function runExample(num) {
+            const output = document.getElementById('consoleOutput');
+            output.innerHTML = `<div style="color: #e2e8f0; line-height: 1.8; font-size: 0.85rem;">${examples[num]}</div>`;
+            output.scrollTop = 0;
+        }
+   
+   
+        AOS.init({ duration: 800, once: true });
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                const startX = Math.random() * 100;
+                const drift = (Math.random() - 0.5) * 100;
+                const duration = Math.random() * 10 + 15;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${startX}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                    --x-drift: ${drift}px;
+                `;
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        window.addEventListener('load', createParticles);
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        document.getElementById('mobileMenuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        window.addEventListener('scroll', () => {
+            document.getElementById('scrollTop').classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        const examples = {
+            1: `<strong style="color: #dc2626;">🛡️ QUORUM Guarantee Demonstration</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">Scenario:</span> Write with QUORUM, Read with QUORUM (RF=3)
+
+<span style="color: #dc2626;">🔒 Strong Consistency Timeline:</span>
+
+<span style="color: #fbbf24;">T=0ms: Write "email=new@example.com" with CL=QUORUM</span>
+→ Coordinator sends to 3 replicas (A, B, C)
+→ Must wait for 2 of 3 to ACK (majority!)
+→ Replica A responds: 5ms ✓
+→ Replica B responds: 12ms ✓
+→ <strong style="color: #10b981;">2/3 confirmed! QUORUM satisfied!</strong>
+→ Client gets SUCCESS at 12ms
+→ Replica C still updating in background
+
+<span style="color: #94a3b8;">System State at T=12ms:</span>
+Replica A: email=new@example.com ✓
+Replica B: email=new@example.com ✓
+Replica C: email=old@example.com (still updating)
+
+<span style="color: #fbbf24;">T=15ms: User reads with CL=QUORUM (immediate!)</span>
+→ Coordinator queries 2 of 3 replicas (random)
+→ <strong style="color: #dc2626;">Possibility 1: Query A + B</strong>
+   Both have new@example.com ✓
+   Returns: new@example.com ✓
+→ <strong style="color: #dc2626;">Possibility 2: Query A + C</strong>
+   A has new (timestamp: 12ms)
+   C has old (timestamp: 0ms)
+   A's timestamp newer → Returns: new@example.com ✓
+→ <strong style="color: #dc2626;">Possibility 3: Query B + C</strong>
+   B has new (timestamp: 12ms)
+   C has old (timestamp: 0ms)
+   B's timestamp newer → Returns: new@example.com ✓
+
+<strong style="color: #10b981;">RESULT: Always returns new@example.com! Never stale!</strong>
+
+<span style="color: #dc2626;">Why This Works (The Math):</span>
+Write replicas (W) = 2 (updated A, B)
+Read replicas (R) = 2 (query any 2)
+Total replicas (RF) = 3
+
+R + W = 2 + 2 = 4
+4 > 3 ✓ <strong style="color: #10b981;">OVERLAP GUARANTEED!</strong>
+
+No matter which 2 we query, at least 1 MUST
+be from the 2 that were updated!
+
+<span style="color: #fbbf24;">T=25ms: Replica C fully updated</span>
+→ All 3 replicas now consistent
+→ But we didn't need to wait for C!
+→ QUORUM = majority is enough
+
+<span style="color: #dc2626;">Key Observations:</span>
+• Write took 12ms (waited for 2/3)
+• Read immediately got latest value
+• 0% chance of stale read
+• Mathematical guarantee via R+W>RF
+• Slightly slower than ONE but ALWAYS correct!`,
+
+            2: `<strong style="color: #dc2626;">⚖️ Strong (QUORUM) vs Eventual (ONE)</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">Direct Comparison:</span> Same write, different CL
+
+<span style="color: #dc2626;">Scenario: User updates profile bio</span>
+
+<span style="color: #10b981;">═══ STRONG CONSISTENCY (QUORUM) ═══</span>
+
+<span style="color: #fbbf24;">T=0ms: Write with CL=QUORUM</span>
+UPDATE users SET bio='Engineer at Google'
+WHERE id=123 USING CONSISTENCY QUORUM;
+
+→ Coordinator sends to A, B, C
+→ Waits for 2 of 3 ACKs
+→ A responds: 5ms ✓
+→ B responds: 12ms ✓
+→ <strong style="color: #10b981;">SUCCESS at 12ms</strong>
+
+<span style="color: #fbbf24;">T=13ms: User refreshes page immediately</span>
+SELECT bio FROM users WHERE id=123
+USING CONSISTENCY QUORUM;
+
+→ Queries 2 of 3 replicas
+→ Gets responses from A + B (both have new bio)
+→ Returns: "Engineer at Google" ✓
+<strong style="color: #10b981;">User sees their update! Perfect UX!</strong>
+
+<span style="color: #ef4444;">═══ EVENTUAL CONSISTENCY (ONE) ═══</span>
+
+<span style="color: #fbbf24;">T=0ms: Write with CL=ONE</span>
+UPDATE users SET bio='Engineer at Google'
+WHERE id=123 USING CONSISTENCY ONE;
+
+→ Coordinator sends to A, B, C
+→ Waits for just 1 ACK
+→ A responds: 3ms ✓
+→ <strong style="color: #10b981;">SUCCESS at 3ms (fast!)</strong>
+→ B, C still have old bio!
+
+<span style="color: #fbbf24;">T=5ms: User refreshes immediately</span>
+SELECT bio FROM users WHERE id=123
+USING CONSISTENCY ONE;
+
+→ Queries 1 random replica
+→ Gets Replica B (unlucky!)
+→ Returns: "Engineer at Facebook" (old!)
+<strong style="color: #ef4444;">User sees OLD bio! "Did it save?!"</strong>
+
+<span style="color: #fbbf24;">T=8ms: User refreshes again (confused)</span>
+→ This time queries Replica A (lucky!)
+→ Returns: "Engineer at Google" ✓
+<strong style="color: #f59e0b;">Now sees new bio (flip-flopping!)</strong>
+
+<span style="color: #fbbf24;">T=50ms: Background replication done</span>
+→ All replicas now consistent
+→ Future reads always correct
+→ But damage done (confused user!)
+
+<span style="color: #dc2626;">Performance Comparison:</span>
+
+<strong style="color: #10b981;">ONE (Eventual):</strong>
+Latency: 3ms (4x faster!)
+Stale reads: 66% chance (2/3 replicas stale)
+User experience: Confusing ghost data
+Good for: Counters, analytics, timelines
+
+<strong style="color: #dc2626;">QUORUM (Strong):</strong>
+Latency: 12ms (slower but acceptable)
+Stale reads: 0% chance (guaranteed fresh!)
+User experience: Always see updates ✓
+Good for: Profiles, orders, critical data
+
+<span style="color: #fbbf24;">The Trade-off:</span>
+ONE = 4x faster but might be wrong
+QUORUM = 4x slower but always correct
+
+For user-facing data: Use QUORUM!
+For high-volume metrics: Use ONE!`,
+
+            3: `<strong style="color: #dc2626;">🧮 R+W>RF Formula Explained</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">The mathematical guarantee of strong consistency</span>
+
+<span style="color: #dc2626;">Formula:</span> R + W > RF
+
+R = Read consistency level (replicas queried)
+W = Write consistency level (replicas updated)
+RF = Replication Factor (total replicas)
+
+<strong style="color: #10b981;">If R + W > RF → STRONG CONSISTENCY!</strong>
+<strong style="color: #ef4444;">If R + W ≤ RF → EVENTUAL ONLY!</strong>
+
+<span style="color: #dc2626;">━━━ Example 1: QUORUM (Strong) ━━━</span>
+
+RF = 3 (3 replicas total: A, B, C)
+Write CL = QUORUM → W = 2 (majority)
+Read CL = QUORUM → R = 2 (majority)
+
+R + W = 2 + 2 = 4
+4 > 3 ✓ <strong style="color: #10b981;">STRONG!</strong>
+
+Why it works:
+• Write updated 2 replicas (say A, B)
+• Read queries 2 replicas (any 2 of A, B, C)
+• Possible reads: {A,B}, {A,C}, or {B,C}
+• {A,B}: Both updated ✓
+• {A,C}: A updated ✓
+• {B,C}: B updated ✓
+• <strong>Overlap guaranteed!</strong>
+
+<span style="color: #dc2626;">━━━ Example 2: ONE (Eventual) ━━━</span>
+
+RF = 3 (3 replicas total: A, B, C)
+Write CL = ONE → W = 1
+Read CL = ONE → R = 1
+
+R + W = 1 + 1 = 2
+2 NOT > 3 ❌ <strong style="color: #ef4444;">EVENTUAL ONLY!</strong>
+
+Why it fails:
+• Write updated 1 replica (say A)
+• Read queries 1 replica (any 1 of A, B, C)
+• Possible reads: A, B, or C
+• A: Updated ✓ (33% chance)
+• B: Stale ❌ (33% chance)
+• C: Stale ❌ (33% chance)
+• <strong>66% stale probability!</strong>
+
+<span style="color: #dc2626;">━━━ Example 3: ALL + ONE (Strong) ━━━</span>
+
+RF = 3
+Write CL = ALL → W = 3 (all replicas!)
+Read CL = ONE → R = 1
+
+R + W = 1 + 3 = 4
+4 > 3 ✓ <strong style="color: #10b981;">STRONG!</strong>
+
+Why it works:
+• Write updated ALL 3 replicas
+• Read can query ANY replica
+• All replicas have latest data!
+• <strong>But: Overkill! Slow writes, poor availability</strong>
+
+<span style="color: #dc2626;">━━━ Example 4: TWO + TWO (Strong) ━━━</span>
+
+RF = 3
+Write CL = TWO → W = 2
+Read CL = TWO → R = 2
+
+R + W = 2 + 2 = 4
+4 > 3 ✓ <strong style="color: #10b981;">STRONG!</strong>
+
+Same as QUORUM for RF=3!
+
+<span style="color: #dc2626;">━━━ General Formula ━━━</span>
+
+For RF=5:
+QUORUM = ⌈5/2⌉ = 3
+QUORUM + QUORUM: 3 + 3 = 6 > 5 ✓
+
+For RF=7:
+QUORUM = ⌈7/2⌉ = 4  
+QUORUM + QUORUM: 4 + 4 = 8 > 7 ✓
+
+<strong style="color: #10b981;">Pattern: QUORUM always gives strong!</strong>
+
+<span style="color: #fbbf24;">Key Insight:</span>
+The formula R+W>RF guarantees overlap
+→ At least 1 replica in both read and write sets
+→ That replica has the latest value
+→ Coordinator returns latest → Strong!`,
+
+            4: `<strong style="color: #dc2626;">⚔️ Conflict Prevention with QUORUM</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">How QUORUM prevents silent data loss</span>
+
+<span style="color: #dc2626;">Problem: Concurrent Writes</span>
+
+<span style="color: #ef4444;">❌ WITH ONE (Dangerous!):</span>
+
+T=0ms: User A writes "email=alice@a.com"
+       CL=ONE → Replica A gets it (3ms)
+       Replicas B, C don't have it yet!
+       <strong style="color: #10b981;">User A gets SUCCESS ✓</strong>
+
+T=2ms: User B writes "email=bob@b.com" (concurrent!)
+       CL=ONE → Replica B gets it (3ms)
+       Replica A doesn't see this write!
+       <strong style="color: #10b981;">User B gets SUCCESS ✓</strong>
+
+<span style="color: #94a3b8;">State at T=5ms:</span>
+Replica A: email=alice@a.com (ts: 1000)
+Replica B: email=bob@b.com (ts: 1001)
+Replica C: email=<old> (ts: 0)
+<strong style="color: #ef4444;">CONFLICTING DATA!</strong>
+
+T=50ms: Background replication converges
+→ Last-Write-Wins kicks in
+→ Bob's timestamp (1001) > Alice's (1000)
+→ Result: email=bob@b.com EVERYWHERE
+→ <strong style="color: #ef4444;">Alice's write SILENTLY LOST!</strong>
+
+Alice thinks it saved ✓ (got SUCCESS)
+But her data disappeared ❌ (LWW discarded it)
+<strong style="color: #ef4444;">Silent data loss! No error! No warning!</strong>
+
+<span style="color: #10b981;">✅ WITH QUORUM (Safe!):</span>
+
+T=0ms: User A writes "email=alice@a.com"
+       CL=QUORUM → Wait for 2 of 3
+       Replicas A + B get it (12ms)
+       <strong style="color: #10b981;">User A gets SUCCESS ✓</strong>
+
+T=2ms: User B writes "email=bob@b.com" (concurrent!)
+       CL=QUORUM → Must update 2 of 3
+       Tries Replicas B + C
+       <strong style="color: #dc2626;">Replica B already has Alice's write!</strong>
+       Coordinator sees conflict (timestamps differ)
+       Uses Last-Write-Wins: Bob's ts (1001) > Alice's (1000)
+       Updates B + C to bob@b.com
+       <strong style="color: #10b981;">User B gets SUCCESS ✓</strong>
+
+<span style="color: #94a3b8;">State at T=14ms:</span>
+Replica A: email=alice@a.com (ts: 1000)
+Replica B: email=bob@b.com (ts: 1001) - overwrote Alice
+Replica C: email=bob@b.com (ts: 1001)
+
+T=20ms: Background replication continues
+→ Replica A gets Bob's write
+→ Bob's ts (1001) > Alice's (1000)
+→ Result: email=bob@b.com everywhere
+→ <strong style="color: #fbbf24;">Still LWW, but both users saw immediate consistency!</strong>
+
+<span style="color: #dc2626;">Key Differences:</span>
+
+<strong style="color: #ef4444;">ONE:</strong>
+• Conflicts detected LATE (during convergence)
+• Silent data loss (user thinks it saved)
+• No way to know write was overwritten
+• Both users got SUCCESS but only one survived
+
+<strong style="color: #10b981;">QUORUM:</strong>
+• Conflicts detected IMMEDIATELY
+• Coordinator sees competing writes
+• Uses LWW but consistently
+• Eventual outcome same, but more predictable
+
+<span style="color: #fbbf24;">Better Solution: Avoid Conflicts Entirely</span>
+
+1. Use Lightweight Transactions (LWT):
+   UPDATE users SET email='new'
+   WHERE id=123
+   IF email='old';
+   → Atomic compare-and-set
+   → Prevents conflicts
+   → 4x slower but worth it
+
+2. Application-level locking:
+   → Acquire distributed lock before write
+   → Prevents concurrent writes
+   → Complex but safest
+
+3. Append-only design:
+   → Never UPDATE same row
+   → Each write = new row
+   → No conflicts possible!
+
+<span style="color: #dc2626;">Recommendation:</span>
+Use QUORUM for critical data
+Use LWT for conflict-prone operations
+Use append-only when possible`,
+
+            5: `<strong style="color: #dc2626;">⚖️ Performance Cost of Strong Consistency</strong>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<span style="color: #ef4444;">Understanding the trade-offs</span>
+
+<span style="color: #dc2626;">Benchmark: 100k writes, RF=3, single DC</span>
+
+<span style="color: #10b981;">═══ ONE (Eventual) ═══</span>
+Latency P50: 3ms
+Latency P99: 8ms
+Throughput: 50,000 writes/sec
+Total time: 2 seconds
+Availability: Works with 2/3 nodes down
+Stale reads: 66% probability
+Consistency: Eventual (20-100ms convergence)
+
+<span style="color: #dc2626;">═══ QUORUM (Strong) ═══</span>
+Latency P50: 12ms
+Latency P99: 28ms
+Throughput: 25,000 writes/sec
+Total time: 4 seconds
+Availability: Works with 1/3 nodes down
+Stale reads: 0% (never!)
+Consistency: Strong (immediate)
+
+<span style="color: #fbbf24;">═══ The Cost ═══</span>
+
+<strong style="color: #ef4444;">Latency:</strong>
+• QUORUM: 12ms
+• ONE: 3ms
+• <strong>Cost: 4x slower (12ms vs 3ms)</strong>
+
+<strong style="color: #ef4444;">Throughput:</strong>
+• QUORUM: 25,000 ops/sec
+• ONE: 50,000 ops/sec
+• <strong>Cost: 50% throughput reduction</strong>
+
+<strong style="color: #ef4444;">Availability:</strong>
+• QUORUM: Fails if 2+ nodes down (needs majority)
+• ONE: Fails only if all nodes down
+• <strong>Cost: Lower fault tolerance</strong>
+
+<span style="color: #dc2626;">Real Production Example: E-commerce</span>
+
+<strong style="color: #10b981;">User Profiles (QUORUM - 10k writes/sec):</strong>
+Latency: 12-15ms average
+Volume: Manageable (10k/sec)
+Cost: Acceptable for UX
+Benefit: Users always see their updates
+Worth it? <strong style="color: #10b981;">YES! ✓</strong>
+
+<strong style="color: #ef4444;">Analytics Events (ONE - 100k writes/sec):</strong>
+Latency: 3-5ms average
+Volume: Massive (100k/sec)
+Cost: Would kill performance with QUORUM
+Benefit: Approximate counts fine
+Worth it? <strong style="color: #ef4444;">NO! Use ONE instead</strong>
+
+<span style="color: #fbbf24;">When Is QUORUM Worth The Cost?</span>
+
+<strong style="color: #10b981;">✓ Use QUORUM when:</strong>
+• User-facing critical data (profiles, orders)
+• Financial transactions (payments, balances)
+• Conflicts would cause business loss
+• Volume is moderate (<50k writes/sec)
+• 12ms latency acceptable
+• Users expect immediate consistency
+
+<strong style="color: #ef4444;">✗ Use ONE when:</strong>
+• High-volume non-critical (analytics, logs)
+• Approximate data acceptable (counters, metrics)
+• Speed critical (sub-5ms required)
+• Volume is massive (>50k writes/sec)
+• Stale reads tolerable
+• Eventual convergence OK
+
+<span style="color: #dc2626;">Cost-Benefit Analysis:</span>
+
+<strong>Scenario: User Profile Updates</strong>
+Volume: 10,000 writes/sec
+ONE latency: 3ms (acceptable)
+QUORUM latency: 12ms (still acceptable!)
+ONE stale reads: 66% (terrible UX!)
+QUORUM stale reads: 0% (perfect UX!)
+<strong style="color: #10b981;">Verdict: QUORUM worth it! ✓</strong>
+
+<strong>Scenario: Pageview Counters</strong>
+Volume: 100,000 writes/sec
+ONE latency: 3ms (fast!)
+QUORUM latency: 12ms (would kill throughput!)
+ONE stale reads: 66% (who cares? it's a counter)
+QUORUM stale reads: 0% (overkill for counts)
+<strong style="color: #ef4444;">Verdict: ONE is right choice ✓</strong>
+
+<span style="color: #fbbf24;">Key Insight:</span>
+QUORUM costs 4x latency, 50% throughput
+But for critical data = ABSOLUTELY worth it!
+Don't use ONE for user-facing updates
+Don't use QUORUM for high-volume counters
+<strong>Match consistency to criticality!</strong>`
+        };
+
+        function runExample(num) {
+            const output = document.getElementById('consoleOutput');
+            output.innerHTML = `<div style="color: #e2e8f0; line-height: 1.8; font-size: 0.85rem;">${examples[num]}</div>`;
+            output.scrollTop = 0;
+        }
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    </script>
+</body>
+</html>

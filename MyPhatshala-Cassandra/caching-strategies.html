@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Caching Strategies in Cassandra - Master caching techniques for optimal performance!">
+    <title>Caching Strategies in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html" class="active">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+ <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced Performance Topics
+                    </span>
+                    <h1>Caching Strategies <span class="gradient-text">in Cassandra</span></h1>
+                    <p>Give Cassandra a memory boost! Caching keeps popular data ready in RAM, so queries don’t have to search storage every time — like keeping your favorite snacks within arm’s reach.</p>
+
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="caching-strategies.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">Caching Strategies</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Lisa's Story</a></li>
+                            <li><a href="#fundamentals">💾 Fundamentals</a></li>
+                            <li><a href="#row-cache">🔥 Row Cache</a></li>
+                            <li><a href="#key-cache">🔑 Key Cache</a></li>
+                            <li><a href="#os-cache">💾 OS Page Cache</a></li>
+                            <li><a href="#strategy">🎯 Strategy Guide</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: Lisa's 100ms to 2ms Journey</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Lisa's e-commerce platform served 10 million users. Product pages loaded in 100ms - acceptable but not great. Her manager wanted sub-10ms response times. Here's how caching made it possible...</p>
+
+                                <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                                    <h3 style="color: #dc2626; margin-top: 0;">😔 The Problem: Everything from Disk</h3>
+                                    
+                                    <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Lisa's Initial Setup:</strong></p>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li>📊 <strong>Read Pattern:</strong> Product catalog (1M products, heavily read)</li>
+                                        <li>⚡ <strong>Query Latency:</strong> 100ms per product page</li>
+                                        <li>💾 <strong>Caching:</strong> None - every read hits disk!</li>
+                                        <li>🔥 <strong>Disk I/O:</strong> 80% utilization (bottleneck!)</li>
+                                        <li>😡 <strong>User Experience:</strong> Pages felt sluggish</li>
+                                    </ul>
+
+                                    <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">What Was Happening:</strong></p>
+                                    <ol style="color: var(--text-secondary); line-height: 1.9;">
+                                        <li><strong>Every Query:</strong> Read from 5-10 SSTables on disk</li>
+                                        <li><strong>Bloom Filter Check:</strong> 0.5ms (in memory - fast)</li>
+                                        <li><strong>Partition Index Lookup:</strong> 5ms (disk read - slow!)</li>
+                                        <li><strong>Data Block Read:</strong> 10-20ms per SSTable</li>
+                                        <li><strong>Multiple SSTables:</strong> 5-10 SSTables × 15ms = 75-150ms!</li>
+                                        <li><strong>Total:</strong> 100ms average, 200ms P99</li>
+                                    </ol>
+
+                                    <div class="code-block" style="margin-top: 1.5rem;">
+                    <span class="comment">-- Every product query hit disk</span>
+                    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products 
+                    <span class="keyword">WHERE</span> product_id = <span class="number">12345</span>;
+
+                    <span class="comment">-- Execution breakdown:</span>
+                    <span class="comment">/*
+                    Bloom filter checks: 0.5ms (memory ✓)
+                    Partition index reads: 5ms × 10 SSTables = 50ms (disk ✗)
+                    Data block reads: 5ms × 10 SSTables = 50ms (disk ✗)
+                    Total: 100ms
+                    */</span>
+                                    </div>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                                    <h3 style="color: #059669; margin-top: 0;">🚀 The Solution: Three-Layer Caching!</h3>
+                                    
+                                    <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Lisa's Optimized Setup:</strong></p>
+
+                                    <div style="margin-top: 1.5rem;">
+                                        <p><strong style="color: var(--text-primary);">Layer 1: Row Cache (Hot Products)</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Enable row cache for top 10K products</span>
+                    <span class="keyword">ALTER TABLE</span> products
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'ALL'</span>
+                    };
+
+                    <span class="comment">-- Configure in cassandra.yaml:</span>
+                    row_cache_size_in_mb: <span class="number">2048</span>  <span class="comment"># 2GB for hot products</span>
+                                        </div>
+                                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">✅ <strong>Result:</strong> Hot products served from RAM - 0.5ms latency!</p>
+                                    </div>
+
+                                    <div style="margin-top: 1.5rem;">
+                                        <p><strong style="color: var(--text-primary);">Layer 2: Key Cache (Always On)</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Already enabled by default!</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>  <span class="comment"># 1GB (default: auto)</span>
+                                        </div>
+                                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">✅ <strong>Result:</strong> Skip partition index reads - saves 5-10ms!</p>
+                                    </div>
+
+                                    <div style="margin-top: 1.5rem;">
+                                        <p><strong style="color: var(--text-primary);">Layer 3: OS Page Cache (Automatic)</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Use remaining RAM for OS page cache</span>
+                    <span class="comment">-- 64GB server:</span>
+                    <span class="comment">--   JVM heap: 16GB</span>
+                    <span class="comment">--   Row cache: 2GB</span>
+                    <span class="comment">--   Key cache: 1GB</span>
+                    <span class="comment">--   OS page cache: 45GB (automatic!)</span>
+                                        </div>
+                                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">✅ <strong>Result:</strong> Frequently accessed SSTables cached - 2-5ms!</p>
+                                    </div>
+
+                                    <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                                    <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                                        <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                                            <li>⚡ <strong>Hot Products:</strong> 100ms → 0.5ms (200x faster!)</li>
+                                            <li>⚡ <strong>Warm Products:</strong> 100ms → 2-5ms (20-50x faster!)</li>
+                                            <li>⚡ <strong>Cold Products:</strong> 100ms → 10-20ms (still 5-10x faster!)</li>
+                                            <li>📊 <strong>Cache Hit Rate:</strong> 95% (excellent!)</li>
+                                            <li>💾 <strong>Disk I/O:</strong> 80% → 20% (freed up disk!)</li>
+                                            <li>😊 <strong>User Experience:</strong> Pages feel instant!</li>
+                                        </ul>
+                                    </div>
+
+                                    <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                                        <strong>Lisa learned: Caching = 100x performance improvement for free! 🎉</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="fundamentals" data-aos="fade-up">
+                        <h2>💾 Caching Fundamentals</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understand how Cassandra's multi-layer caching works!</p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+                            <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 Why Caching Matters</h3>
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                Cassandra's read path involves multiple disk I/O operations. Each SSTable read takes 5-20ms on SSD. Caching stores frequently accessed data in RAM (0.1ms access time), making reads 100-200x faster!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">The Read Path Without Caching</h3>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">Read Path (No Cache)</text>
+
+                                <!-- Query -->
+                                <rect x="320" y="70" width="160" height="50" rx="10" fill="rgba(139, 92, 246, 0.3)" stroke="#8b5cf6" stroke-width="2"/>
+                                <text x="400" y="100" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Query Arrives</text>
+
+                                <path d="M 400 120 L 400 170" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowPurple)"/>
+
+                                <!-- Bloom Filter -->
+                                <rect x="280" y="170" width="240" height="60" rx="10" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="2"/>
+                                <text x="400" y="195" font-size="14" fill="#f59e0b" text-anchor="middle" font-weight="700">1. Bloom Filter Check</text>
+                                <text x="400" y="215" font-size="12" fill="#94a3b8" text-anchor="middle">0.5ms (memory)</text>
+
+                                <path d="M 400 230 L 400 280" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+
+                                <!-- Partition Index -->
+                                <rect x="280" y="280" width="240" height="60" rx="10" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="2"/>
+                                <text x="400" y="305" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">2. Partition Index</text>
+                                <text x="400" y="325" font-size="12" fill="#94a3b8" text-anchor="middle">5ms (disk read 🐌)</text>
+
+                                <path d="M 400 340 L 400 390" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRed)"/>
+
+                                <!-- Data Block -->
+                                <rect x="280" y="390" width="240" height="60" rx="10" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="2"/>
+                                <text x="400" y="415" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">3. Data Block Read</text>
+                                <text x="400" y="435" font-size="12" fill="#94a3b8" text-anchor="middle">10-20ms (disk 🐌)</text>
+
+                                <!-- Total -->
+                                <text x="600" y="250" font-size="16" fill="#dc2626" font-weight="700">Total: 15-25ms</text>
+                                <text x="600" y="280" font-size="13" fill="#94a3b8">Per SSTable!</text>
+                                <text x="600" y="310" font-size="13" fill="#94a3b8">10 SSTables = 150-250ms</text>
+
+                                <defs>
+                                    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#8b5cf6"/>
+                                    </marker>
+                                    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#f59e0b"/>
+                                    </marker>
+                                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#dc2626"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple); margin-top: 3rem;">Cassandra's Three Cache Layers</h3>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #10b981;">
+                                <div class="comparison-icon">🔥</div>
+                                <h3>Row Cache</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>What:</strong> Entire rows in memory</li>
+                                    <li><strong>Speed:</strong> 0.1-0.5ms (fastest!)</li>
+                                    <li><strong>Use Case:</strong> Hot data (top 10%)</li>
+                                    <li><strong>Size:</strong> 1-5GB typical</li>
+                                    <li><strong>Hit Rate:</strong> 90%+ for hot data</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #0d9488;">
+                                <div class="comparison-icon">🔑</div>
+                                <h3>Key Cache</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>What:</strong> Partition key locations</li>
+                                    <li><strong>Speed:</strong> 1-2ms (fast!)</li>
+                                    <li><strong>Use Case:</strong> Skip index lookup</li>
+                                    <li><strong>Size:</strong> 100MB-1GB typical</li>
+                                    <li><strong>Hit Rate:</strong> 95%+ always on</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #8b5cf6;">
+                                <div class="comparison-icon">💾</div>
+                                <h3>OS Page Cache</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>What:</strong> SSTables in OS memory</li>
+                                    <li><strong>Speed:</strong> 2-5ms (good!)</li>
+                                    <li><strong>Use Case:</strong> Warm data</li>
+                                    <li><strong>Size:</strong> All remaining RAM</li>
+                                    <li><strong>Hit Rate:</strong> 60-80% for warm</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="row-cache" data-aos="fade-up">
+                        <h2>🔥 Row Cache (Layer 1)</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The fastest cache - stores entire rows in memory!</p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-left-color: #10b981;">
+                            <h3 style="color: #10b981; margin-top: 0;">⚡ How Row Cache Works</h3>
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                Row cache stores complete partition data in off-heap memory. When a row is cached, Cassandra can return it in 0.1-0.5ms without touching SSTables at all. It's 100-200x faster than disk!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Enabling Row Cache</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- Enable row cache for a table</span>
+                    <span class="keyword">ALTER TABLE</span> products
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,                    <span class="comment">-- Cache all partition keys</span>
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'100'</span>    <span class="comment">-- Cache up to 100 rows per partition</span>
+                    };
+
+                    <span class="comment">-- Cache entire partitions</span>
+                    <span class="keyword">ALTER TABLE</span> user_profiles
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'ALL'</span>    <span class="comment">-- Cache all rows in partition</span>
+                    };
+
+                    <span class="comment">-- Disable row cache</span>
+                    <span class="keyword">ALTER TABLE</span> large_table
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'NONE'</span>   <span class="comment">-- No row caching</span>
+                    };
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Row Cache Configuration</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- In cassandra.yaml</span>
+
+                    <span class="comment"># Row cache size (off-heap memory)</span>
+                    row_cache_size_in_mb: <span class="number">2048</span>        <span class="comment"># 2GB (0 = disabled)</span>
+
+                    <span class="comment"># How often to save cache to disk</span>
+                    row_cache_save_period: <span class="number">14400</span>     <span class="comment"># 4 hours (0 = disabled)</span>
+
+                    <span class="comment"># Number of keys to save</span>
+                    row_cache_keys_to_save: <span class="number">100</span>      <span class="comment"># Save top 100 (unlimited = all)</span>
+
+                    <span class="comment"># Cache provider</span>
+                    row_cache_class_name: org.apache.cassandra.cache.OHCProvider  <span class="comment"># Off-heap</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">When to Use Row Cache</h3>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>Perfect For</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Hot Data:</strong> Top 10% most accessed</li>
+                                    <li><strong>Small Rows:</strong> < 1KB per row</li>
+                                    <li><strong>Read-Heavy:</strong> 95%+ reads</li>
+                                    <li><strong>Predictable Access:</strong> Same data repeatedly</li>
+                                    <li><strong>Low Cardinality:</strong> Few distinct keys</li>
+                                </ul>
+                                <p style="margin-top: 1rem; color: #059669; font-weight: 700;">Examples: User sessions, product catalog</p>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Avoid For</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Large Rows:</strong> > 10KB per row</li>
+                                    <li><strong>Write-Heavy:</strong> Frequent updates</li>
+                                    <li><strong>High Cardinality:</strong> Millions of unique keys</li>
+                                    <li><strong>Random Access:</strong> No clear hot data</li>
+                                    <li><strong>Memory Limited:</strong> < 16GB RAM</li>
+                                </ul>
+                                <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Examples: Time-series, logs, analytics</p>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Row Cache Performance Impact</h3>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #10b981;"></div>
+                                <div class="timeline-content" style="border-left-color: #10b981;">
+                                    <h4 style="color: #10b981;">Cache Hit (Fast Path)</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Query for cached product</span>
+                    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products 
+                    <span class="keyword">WHERE</span> product_id = <span class="number">12345</span>;
+
+                    <span class="comment">-- Execution with row cache hit:</span>
+                    <span class="comment">/*
+                    1. Check row cache: 0.1ms ✓ FOUND!
+                    2. Return from memory: 0.1ms
+                    Total: 0.2ms ⚡⚡⚡
+                    */</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #dc2626;"></div>
+                                <div class="timeline-content" style="border-left-color: #dc2626;">
+                                    <h4 style="color: #dc2626;">Cache Miss (Slow Path)</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Query for uncached product</span>
+                    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products 
+                    <span class="keyword">WHERE</span> product_id = <span class="number">99999</span>;
+
+                    <span class="comment">-- Execution with row cache miss:</span>
+                    <span class="comment">/*
+                    1. Check row cache: 0.1ms ✗ NOT FOUND
+                    2. Bloom filter: 0.5ms
+                    3. Partition index: 5ms (disk)
+                    4. Data block: 10ms (disk)
+                    5. Cache the result: 0.5ms
+                    Total: 16ms (then cached for next time!)
+                    */</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Row Cache Gotchas</h4>
+                            <ul style="margin-top: 1rem; line-height: 1.9;">
+                                <li>⚠️ <strong>Invalidation on Write:</strong> Any update invalidates entire partition from cache</li>
+                                <li>⚠️ <strong>Cold Start:</strong> Cache empty after restart (unless saved)</li>
+                                <li>⚠️ <strong>Memory Pressure:</strong> Can cause GC issues if too large</li>
+                                <li>⚠️ <strong>Not for TTL Data:</strong> Cached even after expiration (until invalidated)</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Monitoring Row Cache</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- Check cache statistics</span>
+                    nodetool info | grep -i cache
+
+                    <span class="comment">-- Output:</span>
+                    <span class="comment">/*
+                    Row Cache              : entries 45231, size 1.89 GB, capacity 2 GB
+                    Row Cache Hit Rate     : 0.94567 (94.5% ✅ Excellent!)
+                    Row Cache Requests     : 1500000
+                    Row Cache Hits         : 1418505
+                    */</span>
+
+                    <span class="comment">-- Good hit rate: > 90%</span>
+                    <span class="comment">-- Poor hit rate: < 70% (consider disabling)</span>
+                        </div>
+                    </section>
+
+                    <section id="key-cache" data-aos="fade-up">
+                        <h2>🔑 Key Cache (Layer 2)</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Always-on cache that skips partition index lookups!</p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.05)); border-left-color: #0d9488;">
+                            <h3 style="color: #0d9488; margin-top: 0;">🎯 What Key Cache Does</h3>
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                Key cache stores the location of partition keys within SSTables. Without it, Cassandra must read the partition index from disk (5-10ms). With key cache, this lookup happens in memory (< 1ms). It's enabled by default and you should almost never disable it!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Key Cache vs No Key Cache</h3>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Without Key Cache</h3>
+                                <ol style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Bloom filter check (0.5ms)</li>
+                                    <li>Read partition index from disk (5-10ms 🐌)</li>
+                                    <li>Read data block from disk (10ms 🐌)</li>
+                                    <li><strong>Total: 15-20ms per SSTable</strong></li>
+                                </ol>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>With Key Cache (Default)</h3>
+                                <ol style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Bloom filter check (0.5ms)</li>
+                                    <li>Key cache lookup in memory (0.5ms ⚡)</li>
+                                    <li>Read data block from disk (10ms 🐌)</li>
+                                    <li><strong>Total: 11ms per SSTable</strong></li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <p style="text-align: center; margin-top: 2rem; font-size: 1.1rem;">
+                            <strong style="color: var(--accent-purple);">Saves 5-10ms per SSTable = 50-100ms for 10 SSTables!</strong>
+                        </p>
+
+                        <h3 style="color: var(--accent-purple);">Key Cache Configuration</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- In cassandra.yaml</span>
+
+                    <span class="comment"># Key cache size (defaults to 5% of heap or 100MB)</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>        <span class="comment"># 1GB recommended</span>
+
+                    <span class="comment"># How often to save cache to disk</span>
+                    key_cache_save_period: <span class="number">14400</span>     <span class="comment"># 4 hours</span>
+
+                    <span class="comment"># Keys to save per SSTable</span>
+                    key_cache_keys_to_save: <span class="number">100</span>      <span class="comment"># unlimited = all</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Sizing Key Cache</h3>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-calculator" style="color: var(--accent-purple);"></i> Key Cache Size Formula</h4>
+                            <p style="margin-top: 1rem;">Each cached key entry is approximately 200 bytes</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                    <span class="comment">-- Calculate required key cache size:</span>
+                    key_cache_size = num_partitions × <span class="number">200</span> bytes
+
+                    <span class="comment">-- Example: 5 million partitions</span>
+                    <span class="comment">// 5,000,000 × 200 bytes = 1GB</span>
+
+                    <span class="comment">-- Example: 50 million partitions</span>
+                    <span class="comment">// 50,000,000 × 200 bytes = 10GB</span>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Monitoring Key Cache</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- Check key cache statistics</span>
+                    nodetool info | grep -i "Key Cache"
+
+                    <span class="comment">-- Output:</span>
+                    <span class="comment">/*
+                    Key Cache              : entries 5234567, size 987 MB, capacity 1 GB
+                    Key Cache Hit Rate     : 0.99123 (99.1% ✅ Excellent!)
+                    Key Cache Requests     : 50000000
+                    Key Cache Hits         : 49561500
+                    */</span>
+
+                    <span class="comment">-- Good hit rate: > 95%</span>
+                    <span class="comment">-- If < 95%: Increase key_cache_size_in_mb</span>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Key Cache Best Practices</h4>
+                            <ul style="margin-top: 1rem; line-height: 1.9;">
+                                <li>✅ <strong>Always Keep Enabled:</strong> It's always beneficial</li>
+                                <li>✅ <strong>Size Appropriately:</strong> Should cache all partition keys if possible</li>
+                                <li>✅ <strong>Monitor Hit Rate:</strong> Target > 95%</li>
+                                <li>✅ <strong>Save Period:</strong> Enable save_period to survive restarts</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section id="os-cache" data-aos="fade-up">
+                        <h2>💾 OS Page Cache (Layer 3)</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The automatic cache that uses remaining system RAM!</p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+                            <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 How OS Page Cache Works</h3>
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                The operating system automatically caches file contents in unused RAM. When Cassandra reads an SSTable from disk, the OS caches those blocks. Next read? Served from RAM at 2-5ms instead of 10-20ms from disk. It's completely automatic and uses all RAM not allocated to JVM/caches!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Memory Allocation Strategy</h3>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">64GB Server Memory Allocation</text>
+
+                                <!-- JVM Heap -->
+                                <rect x="50" y="80" width="200" height="100" rx="8" fill="rgba(139, 92, 246, 0.3)" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="150" y="120" font-size="18" fill="#e2e8f0" text-anchor="middle" font-weight="700">JVM Heap</text>
+                                <text x="150" y="145" font-size="16" fill="#94a3b8" text-anchor="middle">16GB (25%)</text>
+
+                                <!-- Row Cache -->
+                                <rect x="270" y="80" width="120" height="100" rx="8" fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="3"/>
+                                <text x="330" y="120" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Row Cache</text>
+                                <text x="330" y="145" font-size="14" fill="#94a3b8" text-anchor="middle">2GB (3%)</text>
+
+                                <!-- Key Cache -->
+                                <rect x="410" y="80" width="90" height="100" rx="8" fill="rgba(13, 148, 136, 0.3)" stroke="#0d9488" stroke-width="3"/>
+                                <text x="455" y="120" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="700">Key</text>
+                                <text x="455" y="138" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="700">Cache</text>
+                                <text x="455" y="158" font-size="13" fill="#94a3b8" text-anchor="middle">1GB</text>
+
+                                <!-- OS Page Cache -->
+                                <rect x="520" y="80" width="230" height="100" rx="8" fill="rgba(245, 158, 11, 0.3)" stroke="#f59e0b" stroke-width="3"/>
+                                <text x="635" y="120" font-size="18" fill="#e2e8f0" text-anchor="middle" font-weight="700">OS Page Cache</text>
+                                <text x="635" y="145" font-size="16" fill="#94a3b8" text-anchor="middle">45GB (70%)</text>
+
+                                <!-- Arrows and Benefits -->
+                                <text x="150" y="220" font-size="13" fill="#8b5cf6" text-anchor="middle">GC-managed</text>
+                                <text x="330" y="220" font-size="13" fill="#10b981" text-anchor="middle">Hot rows</text>
+                                <text x="455" y="220" font-size="13" fill="#0d9488" text-anchor="middle">Keys</text>
+                                <text x="635" y="220" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="700">Warm SSTables ⭐</text>
+
+                                <text x="400" y="280" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Performance Hierarchy</text>
+                                <text x="400" y="310" font-size="14" fill="#10b981">Row Cache: 0.5ms (hottest)</text>
+                                <text x="400" y="335" font-size="14" fill="#0d9488">Key Cache: 1-2ms (skip index)</text>
+                                <text x="400" y="360" font-size="14" fill="#f59e0b">OS Cache: 2-5ms (warm)</text>
+                                <text x="400" y="385" font-size="14" fill="#dc2626">Disk: 10-20ms (cold)</text>
+                            </svg>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple); margin-top: 3rem;">OS Page Cache Benefits</h3>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>Advantages</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Automatic:</strong> Zero configuration needed</li>
+                                    <li><strong>Large:</strong> Uses all free RAM (45GB+)</li>
+                                    <li><strong>No GC:</strong> Doesn't affect JVM</li>
+                                    <li><strong>Smart:</strong> OS manages LRU automatically</li>
+                                    <li><strong>Universal:</strong> Works for all tables</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #8b5cf6;">
+                                <div class="comparison-icon">💡</div>
+                                <h3>How to Optimize</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>More RAM:</strong> More cache space</li>
+                                    <li><strong>Small JVM Heap:</strong> 8-16GB leaves more for OS</li>
+                                    <li><strong>Compression:</strong> More data fits in cache</li>
+                                    <li><strong>Fewer SSTables:</strong> Better cache utilization</li>
+                                    <li><strong>Hot Paths:</strong> Frequently read data stays cached</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Monitoring OS Page Cache</h3>
+
+                        <div class="code-block">
+                    <span class="comment">-- Check OS cache usage (Linux)</span>
+                    free -h
+
+                    <span class="comment">-- Output:</span>
+                    <span class="comment">/*
+                                total        used        free      shared  buff/cache   available
+                    Mem:           64G         18G         1G        100M         45G         44G
+                                
+                    Breakdown:
+                    - Total RAM: 64GB
+                    - Used (JVM): 18GB (heap + caches)
+                    - Free: 1GB (unused)
+                    - buff/cache: 45GB ← THIS IS OS PAGE CACHE! ⭐
+                    - available: 44GB (can be used if needed)
+                    */</span>
+
+                    <span class="comment">-- Good: buff/cache > 50% of total RAM</span>
+                    <span class="comment">-- Problem: buff/cache < 20% (need more RAM or reduce heap)</span>
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-chart-line" style="color: var(--accent-purple);"></i> OS Cache Effectiveness</h4>
+                            <p style="margin-top: 1rem;"><strong>Rule of Thumb:</strong></p>
+                            <ul style="margin-top: 0.5rem; line-height: 1.9;">
+                                <li>If working set < OS cache size → 90%+ cache hit rate</li>
+                                <li>If working set > OS cache size → Cache hit rate drops</li>
+                                <li>Example: 100GB SSTables, 45GB OS cache → Top 45GB cached (hot data)</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section id="strategy" data-aos="fade-up">
+                        <h2>🎯 Caching Strategy Guide</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Choose the right caching configuration for your workload!</p>
+
+                        <h3 style="color: var(--accent-purple);">Decision Matrix</h3>
+
+                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;" data-aos="fade-up">
+                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                <tr>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Workload Type</th>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Row Cache</th>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Key Cache</th>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">OS Cache</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Read-Heavy, Hot Data</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 2-5GB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 1GB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Rest of RAM</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Write-Heavy</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ Disabled</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 1GB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Rest of RAM</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Time-Series</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ Disabled</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 500MB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Rest of RAM</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Mixed Workload</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">⚠️ 1-2GB (selective)</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 1GB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Rest of RAM</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Small Dataset</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 1-2GB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ 500MB</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Rest of RAM</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="color: var(--accent-purple); margin-top: 3rem;">Common Caching Configurations</h3>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #10b981;"></div>
+                                <div class="timeline-content" style="border-left-color: #10b981;">
+                                    <h4 style="color: #10b981;">Configuration 1: E-Commerce Product Catalog</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Workload: 95% reads, hot products (top 10%)</span>
+
+                    <span class="comment">-- Table config</span>
+                    <span class="keyword">ALTER TABLE</span> products
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'ALL'</span>  <span class="comment">-- Cache hot products</span>
+                    };
+
+                    <span class="comment">-- cassandra.yaml</span>
+                    row_cache_size_in_mb: <span class="number">4096</span>      <span class="comment"># 4GB for top 10K products</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>      <span class="comment"># 1GB for all keys</span>
+
+                    <span class="comment">-- Result: Hot products in 0.5ms! ⚡</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #0d9488;"></div>
+                                <div class="timeline-content" style="border-left-color: #0d9488;">
+                                    <h4 style="color: #0d9488;">Configuration 2: User Session Store</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Workload: 90% reads, frequent updates, hot sessions</span>
+
+                    <span class="comment">-- Table config</span>
+                    <span class="keyword">ALTER TABLE</span> sessions
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'100'</span>  <span class="comment">-- Active sessions</span>
+                    };
+
+                    <span class="comment">-- cassandra.yaml</span>
+                    row_cache_size_in_mb: <span class="number">2048</span>      <span class="comment"># 2GB for 1M active sessions</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>      <span class="comment"># 1GB</span>
+
+                    <span class="comment">-- Result: Active sessions in 1ms! ⚡</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #8b5cf6;"></div>
+                                <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                                    <h4 style="color: #8b5cf6;">Configuration 3: IoT Time-Series</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Workload: 80% writes, mostly recent data reads</span>
+
+                    <span class="comment">-- Table config</span>
+                    <span class="keyword">ALTER TABLE</span> sensor_data
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'NONE'</span>  <span class="comment">-- No row cache (write-heavy)</span>
+                    };
+
+                    <span class="comment">-- cassandra.yaml</span>
+                    row_cache_size_in_mb: <span class="number">0</span>         <span class="comment"># Disabled</span>
+                    key_cache_size_in_mb: <span class="number">512</span>       <span class="comment"># 512MB</span>
+
+                    <span class="comment">-- Rely on OS page cache for recent data</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker" style="background: #f59e0b;"></div>
+                                <div class="timeline-content" style="border-left-color: #f59e0b;">
+                                    <h4 style="color: #f59e0b;">Configuration 4: Analytics (Large Scans)</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Workload: Large range queries, no clear hot data</span>
+
+                    <span class="comment">-- Table config</span>
+                    <span class="keyword">ALTER TABLE</span> events
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'NONE'</span>  <span class="comment">-- No benefit from row cache</span>
+                    };
+
+                    <span class="comment">-- cassandra.yaml</span>
+                    row_cache_size_in_mb: <span class="number">0</span>         <span class="comment"># Disabled</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>      <span class="comment"># 1GB</span>
+
+                    <span class="comment">-- OS cache handles warm data automatically</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Interview Questions & Expert Answers</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master caching strategies for your interview!</p>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">Explain the difference between row cache, key cache, and OS page cache. When would you use each?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer: Row cache stores entire rows in off-heap memory (0.5ms), key cache stores partition key locations (skips 5ms disk read), and OS page cache automatically caches SSTable blocks in remaining RAM (2-5ms).</strong></p>
+                                        
+                                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                                <tr>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Cache Type</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">What It Caches</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Speed</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">When to Use</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Row Cache</strong></td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Entire partitions</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.5ms ⚡⚡⚡</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Hot data, read-heavy, small rows</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Key Cache</strong></td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Partition key locations</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1-2ms ⚡⚡</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Always! (default on)</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>OS Cache</strong></td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">SSTable blocks</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">2-5ms ⚡</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Always! (automatic)</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Detailed Explanation:</strong></p>
+
+                                        <p style="margin-top: 1rem;"><strong style="color: #10b981;">Row Cache:</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Stores complete serialized partition data</li>
+                                            <li>Hit = instant return from memory</li>
+                                            <li>Miss = read from disk + cache for next time</li>
+                                            <li>Invalidated on any write to partition</li>
+                                            <li>Use for: Product catalogs, user profiles (read-heavy, hot data)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong style="color: #0d9488;">Key Cache:</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Maps partition key → SSTable offset</li>
+                                            <li>Skips partition index read from disk</li>
+                                            <li>Saves 5-10ms per SSTable lookup</li>
+                                            <li>Small memory footprint (200 bytes per key)</li>
+                                            <li>Use for: Everything! Should always be enabled</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong style="color: #f59e0b;">OS Page Cache:</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Operating system caches file blocks automatically</li>
+                                            <li>Uses all RAM not allocated to JVM/caches</li>
+                                            <li>No configuration needed - just works!</li>
+                                            <li>LRU managed by OS kernel</li>
+                                            <li>Use for: Everything! Maximize by keeping JVM heap small (8-16GB)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Key cache and OS cache are always beneficial. Row cache only for specific read-heavy workloads with hot data!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">Why might enabling row cache actually hurt performance in some scenarios?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer: Row cache can hurt performance when data is write-heavy (frequent invalidations), has large rows (wastes cache space), or has no clear hot data (low hit rate). It also uses off-heap memory that could be better used by OS page cache.</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Scenarios Where Row Cache Hurts:</strong></p>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: #dc2626;">Problem 1: Write-Heavy Workload</strong></p>
+                                            <ul style="color: var(--text-secondary);">
+                                                <li>Every write invalidates entire partition from cache</li>
+                                                <li>Cache constantly being invalidated and re-populated</li>
+                                                <li>Cache hit rate drops to 20-30% (useless!)</li>
+                                                <li>Wasting memory that could be used by OS cache</li>
+                                            </ul>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Example: Session store with frequent updates</span>
+                    <span class="comment">// 1000 writes/sec per session</span>
+                    <span class="comment">// Row cache hit rate: 25% (terrible!)</span>
+                    <span class="comment">// Better: Disable row cache, rely on OS cache</span>
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: #dc2626;">Problem 2: Large Rows</strong></p>
+                                            <ul style="color: var(--text-secondary);">
+                                                <li>2GB cache / 100KB per row = only 20K rows cached</li>
+                                                <li>Most rows never fit in cache (cache thrashing)</li>
+                                                <li>OS page cache could cache 2GB of SSTable blocks instead</li>
+                                                <li>OS cache benefits ALL tables, not just one</li>
+                                            </ul>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: #dc2626;">Problem 3: No Hot Data (Uniform Access)</strong></p>
+                                            <ul style="color: var(--text-secondary);">
+                                                <li>Time-series: Access mostly recent data (not same rows)</li>
+                                                <li>Analytics: Large scans touch different data each time</li>
+                                                <li>Random access: No pattern to cache</li>
+                                                <li>Cache hit rate: 10-20% (waste of memory)</li>
+                                            </ul>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: #dc2626;">Problem 4: Memory Pressure</strong></p>
+                                            <ul style="color: var(--text-secondary);">
+                                                <li>Row cache uses off-heap memory (outside JVM)</li>
+                                                <li>On 16GB server, 2GB row cache = less for OS cache</li>
+                                                <li>OS cache benefits all reads, row cache only cached rows</li>
+                                                <li>Better: Give memory to OS cache for universal benefit</li>
+                                            </ul>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>When Row Cache Makes Sense:</strong></p>
+                                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                                <tr>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Factor</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Good for Row Cache</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Bad for Row Cache</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Read/Write Ratio</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">95%+ reads</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 80% reads</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Row Size</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 1KB</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 10KB</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Access Pattern</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Hot data (top 10%)</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Uniform or sequential</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cache Hit Rate</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light)">> 90%</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 70%</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Monitor row cache hit rate. If < 70%, disable it and let OS page cache do the work!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">3</span>
+                                    <span class="question-text">How would you size the different caches for a 64GB RAM server running Cassandra?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer: JVM heap 16GB (25%), row cache 2-4GB if applicable, key cache 1GB, leaving 45-47GB (70%) for OS page cache. The key is maximizing OS cache since it benefits all reads.</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Recommended Allocation for 64GB Server:</strong></p>
+
+                                        <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                                            <p><strong>Total: 64GB RAM</strong></p>
+                                            <ul style="line-height: 2; margin-top: 0.5rem;">
+                                                <li><strong>JVM Heap:</strong> 16GB (25%) - Never exceed 32GB!</li>
+                                                <li><strong>Row Cache:</strong> 2-4GB (3-6%) - Only if read-heavy with hot data</li>
+                                                <li><strong>Key Cache:</strong> 1GB (1.5%) - Always enable</li>
+                                                <li><strong>OS Page Cache:</strong> 45-47GB (70%) - The magic happens here!</li>
+                                            </ul>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Configuration:</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- jvm.options</span>
+                    -Xms16G
+                    -Xmx16G
+
+                    <span class="comment">-- cassandra.yaml</span>
+                    row_cache_size_in_mb: <span class="number">4096</span>      <span class="comment"># 4GB (or 0 if not needed)</span>
+                    key_cache_size_in_mb: <span class="number">1024</span>      <span class="comment"># 1GB</span>
+
+                    <span class="comment">-- Memory breakdown:</span>
+                    <span class="comment">/*
+                    JVM heap:       16GB (GC-managed)
+                    Row cache:       4GB (off-heap, manual management)
+                    Key cache:       1GB (off-heap, manual management)
+                    OS page cache:  43GB (kernel-managed, automatic!)
+                    Total:          64GB
+                    */</span>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Why This Allocation?</strong></p>
+
+                                        <p style="margin-top: 1rem;"><strong>JVM Heap (16GB):</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Enough for memtables, bloom filters, compression buffers</li>
+                                            <li>Not too large (> 32GB causes long GC pauses)</li>
+                                            <li>Sweet spot: 8-16GB for most workloads</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Row Cache (2-4GB):</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Only if you have clear hot data (top 10% of rows)</li>
+                                            <li>Size based on: hot_rows × avg_row_size</li>
+                                            <li>Example: 1M hot products × 2KB = 2GB</li>
+                                            <li>If no hot data, set to 0 and use that RAM for OS cache!</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Key Cache (1GB):</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Formula: num_partitions × 200 bytes</li>
+                                            <li>5M partitions × 200 bytes = 1GB</li>
+                                            <li>Should cache all partition keys if possible</li>
+                                            <li>Monitor hit rate, increase if < 95%</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>OS Page Cache (43GB - Most Important!):</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>Automatically caches frequently accessed SSTable blocks</li>
+                                            <li>Benefits ALL tables, not just one</li>
+                                            <li>No configuration needed - just maximize available RAM</li>
+                                            <li>This is where most performance gains come from!</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Alternative Configurations:</strong></p>
+
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Config A: Read-heavy with hot data</span>
+                    JVM: <span class="number">16</span>GB, Row: <span class="number">4</span>GB, Key: <span class="number">1</span>GB, OS: <span class="number">43</span>GB
+
+                    <span class="comment">-- Config B: Write-heavy / No hot data</span>
+                    JVM: <span class="number">16</span>GB, Row: <span class="number">0</span>GB, Key: <span class="number">1</span>GB, OS: <span class="number">47</span>GB ✨ More for OS!
+
+                    <span class="comment">-- Config C: Memory-constrained (32GB total)</span>
+                    JVM: <span class="number">8</span>GB, Row: <span class="number">1</span>GB, Key: <span class="number">512</span>MB, OS: <span class="number">22</span>GB
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Key Principle:</strong> When in doubt, give more RAM to OS page cache! It's universally beneficial and requires zero configuration.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">4</span>
+                                    <span class="question-text">What metrics would you monitor to determine if your caching strategy is effective?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer: Monitor cache hit rates (row cache > 90%, key cache > 95%), read latency P99, disk I/O utilization, and cache size vs capacity. Poor hit rates or high disk I/O indicate caching issues.</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Key Metrics to Monitor:</strong></p>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: var(--accent-purple);">1. Cache Hit Rates</strong></p>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Check all cache statistics</span>
+                    nodetool info | grep -i cache
+
+                    <span class="comment">-- Output:</span>
+                    <span class="comment">/*
+                    Row Cache Hit Rate     : 0.94567 (94.5%)
+                    Key Cache Hit Rate     : 0.99123 (99.1%)
+                    */</span>
+
+                    <span class="comment">-- Target hit rates:</span>
+                    <span class="comment">// Row Cache: > 90% (if enabled)</span>
+                    <span class="comment">// Key Cache: > 95% (should always be high)</span>
+                                            </div>
+
+                                            <p style="margin-top: 1rem;"><strong>What Hit Rates Mean:</strong></p>
+                                            <table style="width: 100%; margin-top: 0.5rem; color: var(--text-secondary); border-collapse: collapse;">
+                                                <tr>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">Row Cache > 90%</td>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">✅ Excellent! Hot data well-cached</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">Row Cache 70-90%</td>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">⚠️ OK, consider increasing size</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">Row Cache < 70%</td>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">❌ Disable it! Wasting memory</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">Key Cache < 95%</td>
+                                                    <td style="padding: 0.5rem; border: 1px solid var(--border-light);">❌ Increase size!</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: var(--accent-purple);">2. Read Latency</strong></p>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Check table read latency</span>
+                    nodetool tablestats keyspace.table | grep -i latency
+
+                    <span class="comment">-- Output:</span>
+                    <span class="comment">/*
+                    Local read latency: 2.5 ms
+                    Local read P99 latency: 12 ms
+                    */</span>
+
+                    <span class="comment">-- Good caching indicators:</span>
+                    <span class="comment">// Average < 5ms (hot data from cache)</span>
+                    <span class="comment">// P99 < 20ms (even cold reads reasonably fast)</span>
+                                            </div>
+
+                                            <p style="margin-top: 1rem;"><strong>Latency Breakdown:</strong></p>
+                                            <ul style="line-height: 1.9;">
+                                                <li>0.5-2ms: Row cache hit (excellent!)</li>
+                                                <li>2-5ms: OS cache hit (good!)</li>
+                                                <li>10-20ms: Disk read (acceptable)</li>
+                                                <li>> 50ms: Too many SSTables or slow disks (problem!)</li>
+                                            </ul>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: var(--accent-purple);">3. Disk I/O Utilization</strong></p>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Check disk I/O (Linux)</span>
+                    iostat -x 5
+
+                    <span class="comment">-- Look at %util column:</span>
+                    <span class="comment">/*
+                    Device    r/s    w/s    %util
+                    sda      500    200     45%     ← Good! Caching working
+                    sdb     2000    500     95%     ← Bad! Cache not helping
+                    */</span>
+
+                    <span class="comment">-- Good caching: Disk < 60% utilized</span>
+                    <span class="comment">-- Poor caching: Disk > 80% utilized</span>
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: var(--accent-purple);">4. Cache Size vs Capacity</strong></p>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    nodetool info | grep -i cache
+
+                    <span class="comment">/*
+                    Row Cache: entries 45231, size 1.89 GB, capacity 2 GB
+                                                            ↑            ↑
+                                                        using 95%    allocated
+                    */</span>
+
+                    <span class="comment">-- If size ≈ capacity: Cache is full (good if hit rate high)</span>
+                    <span class="comment">-- If size << capacity: Over-allocated (reduce size)</span>
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-top: 1.5rem;">
+                                            <p><strong style="color: var(--accent-purple);">5. OS Memory Usage</strong></p>
+                                            <div class="code-block" style="margin-top: 0.5rem;">
+                    free -h
+
+                    <span class="comment">/*
+                                total   used   free   buff/cache
+                    Mem:           64G    18G     1G         45G
+                                                            ↑
+                                                    OS page cache!
+                    */</span>
+
+                    <span class="comment">-- Good: buff/cache > 50% of total RAM</span>
+                    <span class="comment">-- Problem: buff/cache < 30% (increase available RAM)</span>
+                                            </div>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Decision Matrix:</strong></p>
+                                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                                <tr>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Symptom</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Diagnosis</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Row cache hit < 70%</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">No clear hot data</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disable row cache</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Key cache hit < 95%</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cache too small</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Increase key_cache_size_in_mb</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">High disk I/O (> 80%)</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cache misses</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Add RAM or reduce heap</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">P99 latency > 50ms</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cold reads slow</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Check SSTable count, compaction</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Monitoring Best Practices:</strong></p>
+                                        <ul style="line-height: 1.9;">
+                                            <li>✅ Check cache hit rates daily</li>
+                                            <li>✅ Alert if row cache < 70% (disable it!)</li>
+                                            <li>✅ Alert if key cache < 95% (increase size!)</li>
+                                            <li>✅ Monitor P99 latency trends</li>
+                                            <li>✅ Track disk I/O utilization</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">5</span>
+                                    <span class="question-text">Explain what happens to row cache when you update or delete a row. Why is this important for write-heavy workloads?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer: Any write (update, delete, insert) to a partition invalidates the ENTIRE partition from row cache. For write-heavy workloads, this causes constant cache invalidation, resulting in low hit rates and wasted memory.</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>What Happens on Write:</strong></p>
+                                        <ol style="line-height: 1.9;">
+                                            <li><strong>Write Arrives:</strong> UPDATE user SET name = 'Jane' WHERE user_id = 123</li>
+                                            <li><strong>Write to Commit Log:</strong> Written to disk (durable)</li>
+                                            <li><strong>Write to Memtable:</strong> In-memory write</li>
+                                            <li><strong>Invalidate Row Cache:</strong> ENTIRE partition for user_id=123 removed from cache!</li>
+                                            <li><strong>Acknowledge Write:</strong> Success returned to client</li>
+                                            <li><strong>Next Read:</strong> Cache miss → read from disk → cache again</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Why Invalidate Entire Partition?</strong></p>
+                                        <p style="color: var(--text-secondary);">Row cache stores serialized partition data. Cassandra can't easily update just one column in cached data. Simpler/safer to invalidate entire partition and re-cache on next read.</p>
+
+                                        <div class="code-block" style="margin-top: 1.5rem;">
+                    <span class="comment">-- Example: Write-heavy workload</span>
+
+                    <span class="comment">-- User session with frequent updates:</span>
+                    <span class="keyword">UPDATE</span> sessions 
+                    <span class="keyword">SET</span> last_activity = now() 
+                    <span class="keyword">WHERE</span> session_id = <span class="number">123</span>;
+                    <span class="comment">-- ← Entire partition invalidated from cache!</span>
+
+                    <span class="comment">-- 10 seconds later, another update:</span>
+                    <span class="keyword">UPDATE</span> sessions 
+                    <span class="keyword">SET</span> last_activity = now() 
+                    <span class="keyword">WHERE</span> session_id = <span class="number">123</span>;
+                    <span class="comment">-- ← Invalidated again!</span>
+
+                    <span class="comment">-- Result: Cache constantly churning, low hit rate!</span>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Impact on Write-Heavy Workloads:</strong></p>
+
+                                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                                <tr>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Workload</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Read/Write</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Cache Hit Rate</th>
+                                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Recommendation</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Product Catalog</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">99% read, 1% write</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">95%+ ✅</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Enable row cache</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">User Profiles</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">90% read, 10% write</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-85% ⚠️</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Maybe (test it!)</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Shopping Carts</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70% read, 30% write</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">40-60% ❌</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disable row cache</td>
+                                                </tr>
+                                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Sessions (active)</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">60% read, 40% write</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">20-30% ❌</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disable row cache</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Time-Series</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">20% read, 80% write</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 10% ❌</td>
+                                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disable row cache</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Real-World Example:</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+                    <span class="comment">-- Shopping cart: 1000 updates/minute per cart</span>
+                    <span class="comment">// Write every 6 seconds on average</span>
+                    <span class="comment">// Cache invalidated every 6 seconds</span>
+                    <span class="comment">// Cache only useful for 6 seconds!</span>
+                    <span class="comment">// Hit rate: 25% (terrible!)</span>
+
+                    <span class="comment">-- Solution: Disable row cache</span>
+                    <span class="keyword">ALTER TABLE</span> shopping_carts
+                    <span class="keyword">WITH</span> caching = {
+                        <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+                        <span class="string">'rows_per_partition'</span>: <span class="string">'NONE'</span>  <span class="comment">-- Disabled!</span>
+                    };
+
+                    <span class="comment">-- Result: 2GB freed for OS cache</span>
+                    <span class="comment">// OS cache helps ALL reads, not just cached rows</span>
+                    <span class="comment">// Better overall performance!</span>
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Row cache only helps when reads significantly outnumber writes (95%+ read ratio). For write-heavy workloads, disable it and use that memory for OS page cache!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Caching Strategy Mastery</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">You now understand Cassandra's caching system at a production level!</strong></p>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem;">The Three Cache Layers:</h4>
+                            <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="line-height: 2; margin: 0;">
+                    <li>🔥 <strong>Row Cache:</strong> 0.5ms - Hot data only (read-heavy, hit rate > 90%)</li>
+                    <li>🔑 <strong>Key Cache:</strong> 1-2ms - Always enable! (saves 5-10ms per SSTable)</li>
+                    <li>💾 <strong>OS Page Cache:</strong> 2-5ms - Automatic! (maximize by keeping heap small)</li>
+                    </ul>
+                    </div>
+                        <h4 style="color: var(--accent-purple); margin-top: 2rem;">Golden Rules:</h4>
+                        <ul style="line-height: 1.9;">
+                            <li>✅ <strong>Always enable key cache</strong> - universally beneficial</li>
+                            <li>✅ <strong>Maximize OS page cache</strong> - keep JVM heap 8-16GB</li>
+                            <li>⚠️ <strong>Row cache only for read-heavy</strong> - 95%+ reads with hot data</li>
+                            <li>❌ <strong>Disable row cache if hit rate < 70%</strong> - wasting memory</li>
+                        </ul>
+
+                        <h4 style="color: var(--accent-purple); margin-top: 2rem;">64GB Server Allocation:</h4>
+                        <p style="margin-top: 0.5rem;">JVM: 16GB | Row: 0-4GB | Key: 1GB | OS: 43-47GB</p>
+
+                        <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+                            <strong style="color: var(--accent-purple);">Remember Lisa: 100ms → 0.5ms with proper caching! 🚀</strong>
+                        </p>
+                    </div>
+                    </div>
+
+                    <div class="page-navigation">
+                        <a href="compaction-strategies.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Compaction Strategies</div>
+                            </div>
+                        </a>
+                        <a href="jvm-tuning.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">JVM Tuning</div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+
+        </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Caching Strategies in Cassandra - Master caching techniques for optimal performance!">
+    <title>JVM Tuning in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master JVM Tuning</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html" class="active">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+ <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced Performance Topics
+                    </span>
+                    <h1>JVM Tuning <span class="gradient-text">in Cassandra</span></h1>
+                    <p>Give Cassandra a performance makeover! JVM tuning optimizes memory and garbage collection so your database runs faster, avoids slowdowns, and handles large-scale data like a champ.</p>
+
+
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="jvm-tuning.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">JVM Tuning</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Tom's Story</a></li>
+                            <li><a href="#fundamentals">☕ Fundamentals</a></li>
+                            <li><a href="#heap-sizing">📏 Heap Sizing</a></li>
+                            <li><a href="#g1gc">🔄 G1GC</a></li>
+                            <li><a href="#gc-logging">📊 GC Logging</a></li>
+                            <li><a href="#tuning-guide">🎛️ Tuning Guide</a></li>
+                            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Tom's 10-Second GC Pause Nightmare</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Tom's Cassandra cluster handled 1 million requests per second perfectly... until one day, everything froze for 10 seconds. Then it happened again. And again. Users complained. Monitoring showed: "Stop-the-world GC pause: 10,247ms". Here's what went wrong...</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">💥 The Disaster: 32GB Heap Size</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Tom's Original Configuration:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Tom's jvm.options (WRONG!)</span>
+-Xms32G
+-Xmx32G
+<span class="comment"># "More heap = better performance, right?" ❌</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">What Happened:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🕐 <strong>First Week:</strong> Everything fine, performance great</li>
+                    <li>💥 <strong>Week 2:</strong> First 10-second freeze during traffic spike</li>
+                    <li>😱 <strong>Week 3:</strong> Freezes happening hourly</li>
+                    <li>⏱️ <strong>GC Logs:</strong> "Full GC (Allocation Failure) 10.2sec"</li>
+                    <li>💀 <strong>User Impact:</strong> Timeouts, 500 errors, angry customers</li>
+                    <li>📉 <strong>Monitoring:</strong> 99.9% → 90% availability!</li>
+                </ul>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Why 32GB Heap Failed:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Huge Heap:</strong> 32GB of objects to scan during GC</li>
+                    <li><strong>Old Generation Full:</strong> 28GB of old gen objects accumulated</li>
+                    <li><strong>Full GC Triggered:</strong> Must scan ALL 32GB objects</li>
+                    <li><strong>Stop-the-World:</strong> Entire JVM pauses (no reads, no writes!)</li>
+                    <li><strong>10 Second Pause:</strong> Scanning 32GB takes 10+ seconds</li>
+                    <li><strong>All Threads Frozen:</strong> Cassandra completely unresponsive</li>
+                </ol>
+
+                <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- GC log showing disaster:</span>
+<span class="comment">/*
+[Full GC (Allocation Failure) 
+  [PSYoungGen: 1024K->0K(2048K)] 
+  [ParOldGen: 31457280K->28934567K(32768000K)] 
+  31458304K->28934567K(32770048K), 10.2471893 secs]
+  [Times: user=42.18 sys=0.89, real=10.25 secs]
+
+ENTIRE CLUSTER FROZEN FOR 10.25 SECONDS! 💥
+*/</span>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The Fix: 12GB Heap + G1GC!</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Tom's New Configuration:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Optimized jvm.options</span>
+-Xms12G
+-Xmx12G
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+
+<span class="comment"># Small enough to GC quickly!</span>
+<span class="comment"># G1GC = predictable pauses!</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">What Changed:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Smaller Heap:</strong> 12GB instead of 32GB</li>
+                    <li><strong>Faster GC:</strong> Scanning 12GB takes 200ms (not 10 seconds!)</li>
+                    <li><strong>G1GC Algorithm:</strong> Concurrent, incremental collection</li>
+                    <li><strong>Predictable Pauses:</strong> Target 200ms, never exceed 500ms</li>
+                    <li><strong>More RAM for OS Cache:</strong> 52GB for OS page cache (was 32GB)</li>
+                    <li><strong>Better Performance:</strong> OS cache improves read speeds!</li>
+                </ol>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>⚡ <strong>GC Pauses:</strong> 10 seconds → 150ms (66x faster!)</li>
+                        <li>✅ <strong>P99 GC Time:</strong> < 200ms (predictable!)</li>
+                        <li>🚀 <strong>Zero Freezes:</strong> No more 10-second hangs!</li>
+                        <li>📈 <strong>Availability:</strong> 90% → 99.99% (back to normal!)</li>
+                        <li>💚 <strong>Read Performance:</strong> Actually improved! (more OS cache)</li>
+                        <li>😊 <strong>Customers Happy:</strong> No more timeouts!</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Tom learned: More heap ≠ better! Keep it 8-16GB max! 🎉</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="fundamentals" data-aos="fade-up">
+    <h2>☕ JVM Tuning Fundamentals</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understand how the JVM affects Cassandra performance!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 Why JVM Tuning Matters</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Cassandra runs on the JVM. During garbage collection (GC), the JVM pauses ALL threads to clean up memory. If GC takes 10 seconds, Cassandra is completely frozen for 10 seconds - no reads, no writes, no repairs. Proper JVM tuning keeps GC pauses under 200ms!
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">The Garbage Collection Problem</h3>
+
+    <div class="svg-container" data-aos="zoom-in">
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">GC Pause Impact</text>
+
+            <!-- Timeline -->
+            <line x1="50" y1="100" x2="750" y2="100" stroke="#475569" stroke-width="2"/>
+            
+            <!-- Normal Operation -->
+            <rect x="50" y="80" width="150" height="40" rx="5" fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="2"/>
+            <text x="125" y="105" font-size="14" fill="#10b981" text-anchor="middle" font-weight="700">Processing</text>
+
+            <!-- GC Pause -->
+            <rect x="200" y="60" width="200" height="80" rx="5" fill="rgba(220, 38, 38, 0.3)" stroke="#dc2626" stroke-width="3"/>
+            <text x="300" y="95" font-size="16" fill="#dc2626" text-anchor="middle" font-weight="700">GC PAUSE</text>
+            <text x="300" y="115" font-size="13" fill="#94a3b8" text-anchor="middle">10 seconds!</text>
+            
+            <!-- Frozen indicator -->
+            <text x="300" y="165" font-size="12" fill="#dc2626" text-anchor="middle">❄️ FROZEN ❄️</text>
+
+            <!-- Resume -->
+            <rect x="400" y="80" width="150" height="40" rx="5" fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="2"/>
+            <text x="475" y="105" font-size="14" fill="#10b981" text-anchor="middle" font-weight="700">Resume</text>
+
+            <!-- Impact boxes -->
+            <text x="400" y="220" font-size="18" fill="#dc2626" text-anchor="middle" font-weight="700">What Happens During GC Pause:</text>
+            
+            <text x="50" y="260" font-size="14" fill="#94a3b8">❌ All read requests timeout</text>
+            <text x="50" y="290" font-size="14" fill="#94a3b8">❌ All write requests timeout</text>
+            <text x="50" y="320" font-size="14" fill="#94a3b8">❌ Coordinator marked as DOWN</text>
+            <text x="50" y="350" font-size="14" fill="#94a3b8">❌ Clients retry on other nodes</text>
+            <text x="50" y="380" font-size="14" fill="#94a3b8">❌ Cluster appears unhealthy</text>
+            <text x="50" y="410" font-size="14" fill="#94a3b8">❌ Users see 500 errors</text>
+
+            <text x="500" y="260" font-size="14" fill="#10b981">✅ Target: GC < 200ms</text>
+            <text x="500" y="290" font-size="14" fill="#10b981">✅ Users don't notice</text>
+            <text x="500" y="320" font-size="14" fill="#10b981">✅ No timeouts</text>
+            <text x="500" y="350" font-size="14" fill="#10b981">✅ Cluster stays healthy</text>
+        </svg>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">The Heap Size Paradox</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">💥</div>
+            <h3>Too Large (32GB+)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>GC Pauses:</strong> 5-10+ seconds</li>
+                <li><strong>Stop-the-World:</strong> Complete freeze</li>
+                <li><strong>Timeouts:</strong> All requests fail</li>
+                <li><strong>Memory Scan:</strong> Must check 32GB</li>
+                <li><strong>Result:</strong> Production outage!</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Never use > 16GB heap!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>Optimal (8-16GB)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>GC Pauses:</strong> 50-200ms</li>
+                <li><strong>Predictable:</strong> Consistent performance</li>
+                <li><strong>No Timeouts:</strong> Requests succeed</li>
+                <li><strong>Fast Scan:</strong> Only 8-16GB to check</li>
+                <li><strong>Result:</strong> Production stable!</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #059669; font-weight: 700;">Sweet spot: 8-16GB!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">⚠️</div>
+            <h3>Too Small (< 4GB)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>GC Pauses:</strong> 10-50ms (good!)</li>
+                <li><strong>But...</strong> Frequent GC cycles</li>
+                <li><strong>High CPU:</strong> 20% CPU on GC</li>
+                <li><strong>OOM Risk:</strong> Out of memory errors</li>
+                <li><strong>Result:</strong> Unstable!</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #f59e0b; font-weight: 700;">Too small = frequent GC</p>
+        </div>
+    </div>
+
+    <div class="info-box expert" data-aos="fade-up" style="margin-top: 2rem;">
+        <h4><i class="fas fa-lightbulb" style="color: var(--accent-purple);"></i> The Golden Rule</h4>
+        <p style="margin-top: 1rem; font-size: 1.15rem; line-height: 1.9;">
+            <strong>Heap Size: 8-16GB regardless of total server RAM!</strong><br/>
+            64GB server? Use 12GB heap.<br/>
+            256GB server? Still use 12-16GB heap!<br/>
+            Give the rest to OS page cache!
+        </p>
+    </div>
+</section>
+
+<section id="heap-sizing" data-aos="fade-up">
+    <h2>📏 Heap Sizing Guide</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How to choose the right heap size for your server!</p>
+
+    <h3 style="color: var(--accent-purple);">Heap Sizing by Server RAM</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;" data-aos="fade-up">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Total RAM</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Heap Size</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">OS Cache</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">16GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">~7GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Minimum production</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">32GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8-12GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">~20-23GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Recommended</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">64GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">12-16GB ⭐</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">~47-51GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Ideal balance</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">128GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">16GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">~110GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Huge OS cache!</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">256GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">16-24GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">~230GB</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Max heap 24GB</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Why Not Exceed 32GB Heap?</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 1: Long GC Pauses</h4>
+                <p style="color: var(--text-secondary);">GC time proportional to heap size. 32GB heap = 10+ second pauses!</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Real GC log from 32GB heap:</span>
+<span class="comment">/*
+[Full GC 32G->28G(32G), 10.247 secs]
+  
+10 seconds where:
+- No reads processed
+- No writes processed  
+- Coordinator appears down
+- All clients timeout
+*/</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 2: Compressed Oops Lost</h4>
+                <p style="color: var(--text-secondary);">JVM uses 64-bit pointers if heap > 32GB, increasing memory overhead by 20-50%!</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Heap ≤ 32GB: Compressed pointers (4 bytes)</span>
+-XX:+UseCompressedOops  <span class="comment"># Automatic if ≤ 32GB</span>
+
+<span class="comment">-- Heap > 32GB: Full pointers (8 bytes)</span>
+<span class="comment"># 2x pointer size = 20-50% more memory per object!</span>
+<span class="comment"># Effectively get LESS usable memory!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 3: OS Cache Starvation</h4>
+                <p style="color: var(--text-secondary);">Large heap leaves little RAM for OS page cache, hurting read performance!</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 64GB server with 48GB heap (BAD!):</span>
+Heap: <span class="number">48</span>GB
+OS Cache: <span class="number">14</span>GB  <span class="comment">← Tiny! Slow reads!</span>
+
+<span class="comment">-- 64GB server with 12GB heap (GOOD!):</span>
+Heap: <span class="number">12</span>GB
+OS Cache: <span class="number">50</span>GB  <span class="comment">← Huge! Fast reads!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box danger" data-aos="fade-up">
+        <h4><i class="fas fa-ban" style="color: #dc2626;"></i> Never Exceed These Limits</h4>
+        <ul style="margin-top: 1rem; line-height: 1.9;">
+            <li>❌ <strong>Never > 32GB:</strong> Loses compressed oops, massive GC pauses</li>
+            <li>❌ <strong>Never > 16GB:</strong> For most workloads (8-16GB is optimal)</li>
+            <li>❌ <strong>Never > 50% RAM:</strong> Starves OS cache</li>
+            <li>✅ <strong>Sweet Spot:</strong> 8-16GB regardless of total RAM</li>
+        </ul>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Configuration Example</h3>
+
+    <div class="code-block">
+<span class="comment">-- jvm.options (64GB server)</span>
+
+<span class="comment"># Heap size: 12GB</span>
+-Xms12G
+-Xmx12G
+
+<span class="comment"># Why Xms = Xmx?</span>
+<span class="comment"># - Prevents heap resizing (expensive!)</span>
+<span class="comment"># - More predictable GC behavior</span>
+<span class="comment"># - Faster startup</span>
+
+<span class="comment"># Result:</span>
+<span class="comment"># - JVM heap: 12GB</span>
+<span class="comment"># - Row cache: 2GB (optional)</span>
+<span class="comment"># - Key cache: 1GB</span>
+<span class="comment"># - OS page cache: 49GB (automatic!)</span>
+    </div>
+</section>
+
+<section id="g1gc" data-aos="fade-up">
+    <h2>🔄 G1GC - The Right Garbage Collector</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Why G1GC is best for Cassandra!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-left-color: #10b981;">
+        <h3 style="color: #10b981; margin-top: 0;">⚡ G1GC: Garbage-First Garbage Collector</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            G1GC divides heap into regions and collects garbage incrementally, focusing on regions with most garbage first. It can meet pause time targets (200ms) and runs mostly concurrently. Perfect for Cassandra!
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">G1GC vs CMS (Old Default)</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">⚠️</div>
+            <h3>CMS (Old)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Fragmentation:</strong> Over time, heap fragments</li>
+                <li><strong>Full GC:</strong> Falls back to stop-the-world</li>
+                <li><strong>Unpredictable:</strong> Pauses vary wildly</li>
+                <li><strong>Deprecated:</strong> Removed in Java 14</li>
+                <li><strong>Result:</strong> Occasional 5-10s pauses</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Don't use CMS anymore!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>G1GC (Current)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Compacting:</strong> Eliminates fragmentation</li>
+                <li><strong>Concurrent:</strong> Most work happens in background</li>
+                <li><strong>Predictable:</strong> Meets pause time targets</li>
+                <li><strong>Default:</strong> Since Java 9</li>
+                <li><strong>Result:</strong> Consistent 50-200ms pauses</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #059669; font-weight: 700;">Use G1GC! (default on Java 9+)</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">🚀</div>
+            <h3>ZGC / Shenandoah</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Low Latency:</strong> < 10ms pauses</li>
+                <li><strong>Huge Heaps:</strong> Can handle TB+ heaps</li>
+                <li><strong>Still Experimental:</strong> For Cassandra</li>
+                <li><strong>More CPU:</strong> Higher overhead</li>
+                <li><strong>Result:</strong> Future option</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #8b5cf6; font-weight: 700;">For future (not yet recommended)</p>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">G1GC Configuration</h3>
+
+    <div class="code-block">
+<span class="comment">-- jvm.options - G1GC configuration</span>
+
+<span class="comment"># Enable G1GC (default on Java 9+)</span>
+-XX:+UseG1GC
+
+<span class="comment"># Target max pause time (200ms recommended)</span>
+-XX:MaxGCPauseMillis=200
+
+<span class="comment"># Max % of time spent in GC (default: 10)</span>
+-XX:GCTimeRatio=9
+
+<span class="comment"># G1 region size (auto-calculated, usually 8-32MB)</span>
+<span class="comment"># -XX:G1HeapRegionSize=16M</span>
+
+<span class="comment"># How much time to spend updating remembered sets</span>
+-XX:G1RSetUpdatingPauseTimePercent=5
+
+<span class="comment"># Initiating heap occupancy percent (default: 45)</span>
+-XX:InitiatingHeapOccupancyPercent=70
+
+<span class="comment"># Reserve % of heap to avoid to-space exhaustion</span>
+-XX:G1ReservePercent=25
+    </div>
+
+    <h3 style="color: var(--accent-purple);">How G1GC Works</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">1. Young Generation Collection (Fast)</h4>
+                <p style="color: var(--text-secondary);">Happens frequently, collects short-lived objects</p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Pause time: 10-50ms</li>
+                    <li>Frequency: Every few seconds</li>
+                    <li>Impact: Minimal</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">2. Concurrent Marking (Background)</h4>
+                <p style="color: var(--text-secondary);">Runs in background, marks live objects</p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Mostly concurrent (no pauses)</li>
+                    <li>Identifies garbage regions</li>
+                    <li>Prepares for mixed collections</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">3. Mixed Collection (Incremental)</h4>
+                <p style="color: var(--text-secondary);">Collects old + young regions with most garbage</p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Pause time: 50-200ms</li>
+                    <li>Frequency: As needed</li>
+                    <li>Collects regions with most garbage first</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">4. Full GC (Rare, Last Resort)</h4>
+                <p style="color: var(--text-secondary);">Only if heap is exhausted (should be rare!)</p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Pause time: 500ms-2s</li>
+                    <li>Should happen < 1/day</li>
+                    <li>If frequent: increase heap or reduce load</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-check-circle" style="color: #059669;"></i> G1GC Benefits for Cassandra</h4>
+        <ul style="margin-top: 1rem; line-height: 1.9;">
+            <li>✅ <strong>Predictable Pauses:</strong> Meets 200ms target consistently</li>
+            <li>✅ <strong>No Fragmentation:</strong> Compacts heap incrementally</li>
+            <li>✅ <strong>Concurrent:</strong> Most work in background</li>
+            <li>✅ <strong>Handles Large Heaps:</strong> Better than CMS for 8-16GB</li>
+            <li>✅ <strong>Self-Tuning:</strong> Adapts to workload automatically</li>
+        </ul>
+    </div>
+</section>
+
+<section id="gc-logging" data-aos="fade-up">
+    <h2>📊 GC Logging & Monitoring</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential for troubleshooting GC issues!</p>
+
+    <h3 style="color: var(--accent-purple);">Enable GC Logging</h3>
+
+    <div class="code-block">
+<span class="comment">-- jvm.options - GC logging configuration</span>
+
+<span class="comment"># Enable GC logging (Java 9+)</span>
+-Xlog:gc*:file=/var/log/cassandra/gc.log:time,uptime,level,tags:filecount=10,filesize=10M
+
+<span class="comment"># Legacy format (Java 8):</span>
+-Xloggc:/var/log/cassandra/gc.log
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-XX:+PrintGCApplicationStoppedTime
+-XX:+PrintPromotionFailure
+-XX:+UseGCLogFileRotation
+-XX:NumberOfGCLogFiles=10
+-XX:GCLogFileSize=10M
+
+<span class="comment"># Heap dump on OOM (for debugging)</span>
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/cassandra/heapdump.hprof
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Check GC Statistics</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check current GC stats</span>
+nodetool gcstats
+
+<span class="comment">-- Output:</span>
+<span class="comment">/*
+Interval (ms)   Max (ms)    Total (ms)    Stdev (ms)    GC #
+         1000         42           150          8.2        3
+         
+Max (ms): Longest GC pause in interval
+Total (ms): Total GC time in interval  
+Stdev: Standard deviation
+GC #: Number of GC cycles
+*/</span>
+
+<span class="comment">-- Good GC stats:</span>
+<span class="comment">// Max < 200ms (pause time)</span>
+<span class="comment">// Total < 500ms per second (< 50% time in GC)</span>
+<span class="comment">// Stdev low (predictable)</span>
+
+<span class="comment">-- Bad GC stats:</span>
+<span class="comment">// Max > 1000ms (❌ freezing!)</span>
+<span class="comment">// Total > 500ms per second (❌ too much GC!)</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Reading GC Logs</h3>
+
+    <div class="code-block">
+<span class="comment">-- Good GC log (G1GC, 12GB heap):</span>
+<span class="comment">/*
+[2025-01-06T10:15:23.456+0000] GC(45) Pause Young (Normal) 
+  2048M->512M(12288M) 42.123ms
+
+GOOD! 42ms pause, young collection only
+*/</span>
+
+<span class="comment">-- Warning GC log:</span>
+<span class="comment">/*
+[2025-01-06T10:20:15.789+0000] GC(78) Pause Full (Allocation Failure)
+  11264M->9876M(12288M) 1247.456ms
+  
+⚠️ WARNING! Full GC took 1.2 seconds
+If frequent → increase heap or reduce load
+*/</span>
+
+<span class="comment">-- Disaster GC log (32GB heap):</span>
+<span class="comment">/*
+[2025-01-06T10:25:42.123+0000] GC(102) Pause Full (Ergonomics)
+  31457M->28934M(32768M) 10247.893ms
+
+💥 DISASTER! 10 second pause!
+Reduce heap to 12-16GB immediately!
+*/</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">GC Monitoring Checklist</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Healthy</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Warning</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Critical</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Max GC Pause</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 200ms ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">200-500ms ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 1000ms ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>P99 GC Pause</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 150ms ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">150-300ms ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 500ms ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Time in GC</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 5% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">5-10% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 10% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Full GC Frequency</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 1/day ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1/hour ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 1/minute ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Heap Usage</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50-70% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-85% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 90% ❌</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="tuning-guide" data-aos="fade-up">
+    <h2>🎛️ Complete JVM Tuning Guide</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-ready jvm.options configuration!</p>
+
+    <h3 style="color: var(--accent-purple);">Recommended jvm.options Template</h3>
+
+    <div class="code-block">
+<span class="comment">####################################</span>
+<span class="comment"># CASSANDRA JVM OPTIONS - PRODUCTION</span>
+<span class="comment"># For 64GB server with G1GC</span>
+<span class="comment">####################################</span>
+
+<span class="comment"># ========== HEAP SIZE ==========</span>
+<span class="comment"># Rule: 8-16GB regardless of total RAM</span>
+-Xms12G
+-Xmx12G
+
+<span class="comment"># ========== GC ALGORITHM ==========</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+-XX:InitiatingHeapOccupancyPercent=70
+-XX:G1ReservePercent=25
+
+<span class="comment"># ========== GC LOGGING ==========</span>
+-Xlog:gc*:file=/var/log/cassandra/gc.log:time,uptime,level,tags:filecount=10,filesize=10M
+
+<span class="comment"># ========== HEAP DUMP ON OOM ==========</span>
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/cassandra/heapdump.hprof
+
+<span class="comment"># ========== STRING DEDUPLICATION ==========</span>
+-XX:+UseStringDeduplication
+
+<span class="comment"># ========== PERFORMANCE ==========</span>
+-XX:+AlwaysPreTouch
+-XX:-UseBiasedLocking
+
+<span class="comment"># ========== LARGE PAGES (optional) ==========</span>
+<span class="comment"># -XX:+UseLargePages</span>
+
+<span class="comment"># ========== THREAD STACK SIZE ==========</span>
+-Xss256k
+
+<span class="comment"># ========== JMX MONITORING ==========</span>
+-Dcom.sun.management.jmxremote
+-Dcom.sun.management.jmxremote.port=7199
+-Dcom.sun.management.jmxremote.ssl=false
+-Dcom.sun.management.jmxremote.authenticate=true
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Configuration by Server Size</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">Small Server (16GB RAM)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+-Xms8G
+-Xmx8G
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+
+<span class="comment"># Allocation:</span>
+<span class="comment"># Heap: 8GB</span>
+<span class="comment"># Caches: 1GB</span>
+<span class="comment"># OS: 7GB</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">Medium Server (32GB RAM) ⭐ Recommended</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+-Xms12G
+-Xmx12G
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+
+<span class="comment"># Allocation:</span>
+<span class="comment"># Heap: 12GB</span>
+<span class="comment"># Caches: 3GB (row + key)</span>
+<span class="comment"># OS: 17GB</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Large Server (64GB+ RAM)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+-Xms16G
+-Xmx16G
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+-XX:InitiatingHeapOccupancyPercent=70
+
+<span class="comment"># Allocation (64GB server):</span>
+<span class="comment"># Heap: 16GB</span>
+<span class="comment"># Caches: 4GB (row + key)</span>
+<span class="comment"># OS: 44GB (huge cache!)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Extra-Large Server (128GB+ RAM)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+-Xms16G
+-Xmx16G
+<span class="comment"># Still 16GB! Don't increase heap!</span>
+
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+-XX:InitiatingHeapOccupancyPercent=70
+-XX:G1ReservePercent=25
+
+<span class="comment"># Allocation (128GB server):</span>
+<span class="comment"># Heap: 16GB</span>
+<span class="comment"># Caches: 4GB</span>
+<span class="comment"># OS: 108GB (massive cache!)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="troubleshooting" data-aos="fade-up">
+    <h2>🔧 Troubleshooting GC Issues</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How to diagnose and fix JVM problems!</p>
+
+    <h3 style="color: var(--accent-purple);">Common GC Problems & Solutions</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 1: Long GC Pauses (> 1s)</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>GC pauses > 1000ms</li>
+                    <li>Clients timeout</li>
+                    <li>Nodes marked DOWN temporarily</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool gcstats
+<span class="comment">// Max > 1000ms → Heap too large!</span>
+
+grep "Full GC" /var/log/cassandra/gc.log
+<span class="comment">// Frequent Full GC → Heap too large or memory leak</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solution:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># Reduce heap size</span>
+-Xms12G  <span class="comment"># was 32G</span>
+-Xmx12G
+
+<span class="comment"># Ensure G1GC</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 2: Frequent GC (> 10% time in GC)</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>GC happening constantly</li>
+                    <li>High CPU usage</li>
+                    <li>Degraded performance</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool gcstats
+<span class="comment">// Total GC time > 10% of interval → Too much GC!</span>
+
+nodetool info | grep Heap
+<span class="comment">// Heap Usage: 11.8GB / 12GB → Too full!</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solution:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># Option 1: Increase heap slightly</span>
+-Xms14G  <span class="comment"># was 12G</span>
+-Xmx14G
+
+<span class="comment"># Option 2: Reduce load or add nodes</span>
+
+<span class="comment"># Option 3: Check for memory leaks</span>
+<span class="comment"># - Large partitions?</span>
+<span class="comment"># - Too many SSTables?</span>
+<span class="comment"># - Row cache too large?</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 3: OutOfMemoryError</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Cassandra crashes with OOM</li>
+                    <li>Heap dump generated</li>
+                    <li>Node won't start</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># Analyze heap dump</span>
+jhat /var/log/cassandra/heapdump.hprof
+<span class="comment"># Or use Eclipse MAT (better)</span>
+
+<span class="comment"># Look for:</span>
+<span class="comment">// - Large objects (partitions > 100MB?)</span>
+<span class="comment">// - Too many objects of same type</span>
+<span class="comment">// - Memory leaks</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solution:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Increase heap to 14-16GB (if < 12GB)</li>
+                    <li>Fix data model (partition sizes)</li>
+                    <li>Reduce row cache size</li>
+                    <li>Check for application memory leaks</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 4: Unpredictable GC Pauses</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>GC pauses vary from 50ms to 2000ms</li>
+                    <li>Sometimes fast, sometimes slow</li>
+                    <li>Using CMS collector</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Solution:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># Switch from CMS to G1GC</span>
+<span class="comment"># Remove CMS flags:</span>
+<span class="comment"># -XX:+UseConcMarkSweepGC</span>
+<span class="comment"># -XX:+CMSParallelRemarkEnabled</span>
+<span class="comment"># etc...</span>
+
+<span class="comment"># Add G1GC:</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master JVM tuning for your interview!</p>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">Why is JVM heap size limited to 8-16GB for Cassandra, even on servers with 256GB RAM?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: GC pause time is proportional to heap size. A 32GB+ heap causes 5-10 second stop-the-world pauses that freeze Cassandra completely, while 8-16GB keeps pauses under 200ms. Extra RAM goes to OS page cache which improves performance without GC penalties.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>The Problem with Large Heaps:</strong></p>
+                    <ol style="line-height: 1.9;">
+                        <li><strong>GC Must Scan All Objects:</strong> During GC, JVM must examine every object in heap</li>
+                        <li><strong>Time Proportional to Size:</strong> 32GB heap takes 4x longer than 8GB heap</li>
+                        <li><strong>Stop-the-World:</strong> ALL Cassandra threads freeze during GC</li>
+                        <li><strong>User Impact:</strong> 10-second pause = 10 seconds of complete unresponsiveness</li>
+                        <li><strong>Compressed Oops Lost:</strong> Heaps > 32GB lose pointer compression (20-50% overhead)</li>
+                    </ol>
+
+                    <p style="margin-top: 1.5rem;"><strong>Performance Comparison:</strong></p>
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Heap Size</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">GC Pause</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">User Experience</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8GB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50-150ms ✅</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Imperceptible</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">12GB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100-200ms ✅</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Barely noticeable</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">16GB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">150-300ms ⚠️</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Slight delay</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">32GB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">5-10s ❌</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Complete freeze!</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">64GB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-20s ❌</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Catastrophic!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why Not Use All RAM for Heap?</strong></p>
+                    <p style="color: var(--text-secondary);">Cassandra benefits more from OS page cache than from large heap!</p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 256GB server comparison:</span>
+
+<span class="comment">// Bad: 128GB heap</span>
+Heap: <span class="number">128</span>GB → GC pauses: <span class="number">20</span>+ seconds! 💥
+OS Cache: <span class="number">120</span>GB
+
+<span class="comment">// Good: 16GB heap</span>
+Heap: <span class="number">16</span>GB → GC pauses: <span class="number">200</span>ms ✅
+OS Cache: <span class="number">235</span>GB → Caches way more SSTables!
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Cassandra's architecture is designed for large OS caches, not large heaps. Keep heap 8-16GB and let OS cache do the heavy lifting!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">Explain the difference between G1GC and CMS. Why is G1GC recommended for Cassandra?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: G1GC (Garbage-First) is a concurrent, compacting collector with predictable pause times (< 200ms), while CMS (Concurrent Mark-Sweep) is a non-compacting collector prone to fragmentation and unpredictable Full GC pauses. G1GC is better for Cassandra's workload.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Key Differences:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Feature</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">CMS</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">G1GC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Compacting</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">No ❌</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Yes ✅</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Fragmentation</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Severe over time</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Minimal</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Pause Times</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Unpredictable</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Predictable (target)</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Full GC</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Frequent (when fragmented)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Rare</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Heap Support</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 8GB optimal</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8-16GB optimal</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Status</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Deprecated (Java 14)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Default (Java 9+)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why CMS Fails for Cassandra:</strong></p>
+
+                    <div style="margin-top: 1rem;">
+                        <p><strong style="color: #dc2626;">Problem 1: Fragmentation</strong></p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>CMS doesn't compact memory (no defragmentation)</li>
+                            <li>Over days/weeks, heap becomes fragmented</li>
+                            <li>Eventually can't allocate large objects</li>
+                            <li>Triggers Full GC (stop-the-world)</li>
+                            <li>Full GC can take 5-10+ seconds!</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #dc2626;">Problem 2: Concurrent Mode Failure</strong></p>
+                        <p style="color: var(--text-secondary);">If heap fills up before CMS completes, it falls back to Full GC:</p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- CMS log showing failure:</span>
+<span class="comment">/*
+[CMS-concurrent-mark: 2.157/2.443 secs]
+[CMS-concurrent-mode-failure: 8G->7G(12G), 8.234 secs]
+                              ↑
+                    Fell back to Full GC! 💥
+*/</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why G1GC is Better:</strong></p>
+
+                    <div style="margin-top: 1rem;">
+                        <p><strong style="color: #059669;">Advantage 1: Predictable Pauses</strong></p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>Set target: -XX:MaxGCPauseMillis=200</li>
+                            <li>G1GC tries to meet target (usually does!)</li>
+                            <li>Pauses stay consistent: 50-200ms</li>
+                            <li>No surprise 10-second pauses</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 2: Automatic Compaction</strong></p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>G1GC compacts memory during mixed collections</li>
+                            <li>No fragmentation buildup</li>
+                            <li>Full GC extremely rare (< 1/day)</li>
+                            <li>Stable performance over time</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 3: Region-Based</strong></p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>Heap divided into regions (1-32MB each)</li>
+                            <li>Collects regions with most garbage first</li>
+                            <li>Can meet pause time targets incrementally</li>
+                            <li>Better than CMS's generational approach</li>
+                        </ul>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Configuration Example:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- G1GC configuration (recommended):</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+-XX:InitiatingHeapOccupancyPercent=70
+
+<span class="comment">-- Result: Consistent 50-200ms pauses ✅</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> G1GC is the standard for Cassandra since Java 9. CMS is deprecated and causes fragmentation issues. Always use G1GC!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">How would you troubleshoot a Cassandra node experiencing frequent Full GC cycles?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Check GC logs for Full GC frequency, analyze heap usage patterns, verify heap size is 8-16GB, ensure G1GC is enabled, check for memory leaks (large partitions, too many SSTables), and monitor if heap is consistently > 85% full.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Step-by-Step Troubleshooting:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Check GC Statistics</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Check current GC stats</span>
+nodetool gcstats
+
+<span class="comment">-- Output:</span>
+<span class="comment">/*
+Interval (ms)   Max (ms)    Total (ms)    GC #
+         1000       2147          3456      12
+
+Max: 2147ms → PROBLEM! Full GC taking 2+ seconds
+GC #: 12 → PROBLEM! 12 GCs in 1 second is too many!
+*/</span>
+
+<span class="comment">-- Check heap usage</span>
+nodetool info | grep Heap
+<span class="comment">/*
+Heap Memory (MB): 11534.21 / 12288.00 → 94% full! 💥
+*/</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Analyze GC Logs</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Find Full GC occurrences</span>
+grep "Full GC" /var/log/cassandra/gc.log | tail -20
+
+<span class="comment">-- Look for patterns:</span>
+<span class="comment">/*
+[Full GC (Allocation Failure) 11.8G->10.2G(12G), 2.147 secs]
+[Full GC (Allocation Failure) 11.7G->10.5G(12G), 2.234 secs]
+[Full GC (Allocation Failure) 11.9G->10.1G(12G), 2.089 secs]
+
+Pattern: Frequent Full GCs, only reclaiming ~1.5GB each time
+Problem: Heap too full, not enough garbage to collect!
+*/</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Common Causes & Solutions</strong></p>
+
+                        <p style="margin-top: 1rem;"><strong>Cause 1: Heap Too Large</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check current heap</span>
+grep -E "Xms|Xmx" /etc/cassandra/jvm.options
+<span class="comment">// -Xms32G</span>
+<span class="comment">// -Xmx32G  → PROBLEM! Way too large!</span>
+
+<span class="comment">-- Solution: Reduce heap</span>
+-Xms12G
+-Xmx12G
+                        </div>
+
+                        <p style="margin-top: 1rem;"><strong>Cause 2: Using CMS Instead of G1GC</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check GC algorithm</span>
+grep "UseG1GC\|UseConcMarkSweepGC" /etc/cassandra/jvm.options
+
+<span class="comment">-- Solution: Switch to G1GC</span>
+<span class="comment"># Remove: -XX:+UseConcMarkSweepGC</span>
+<span class="comment"># Add:</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+                        </div>
+
+                        <p style="margin-top: 1rem;"><strong>Cause 3: Memory Leak (Large Partitions)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check partition sizes</span>
+nodetool tablestats keyspace.table
+
+<span class="comment">-- Output:</span>
+<span class="comment">/*
+Compacted partition maximum bytes: 524288000  (500MB!)
+Compacted partition mean bytes: 104857600     (100MB!)
+
+PROBLEM! Partitions way too large (should be < 100MB)
+*/</span>
+
+<span class="comment">-- Solution: Fix data model (add bucketing)</span>
+                        </div>
+
+                        <p style="margin-top: 1rem;"><strong>Cause 4: Too Many SSTables</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check SSTable count</span>
+nodetool tablestats keyspace.table | grep "SSTable count"
+<span class="comment">// SSTable count: 547  → PROBLEM! Way too many!</span>
+
+<span class="comment">-- Solution: Force compaction</span>
+nodetool compact keyspace table
+                        </div>
+
+                        <p style="margin-top: 1rem;"><strong>Cause 5: Row Cache Too Large</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check row cache</span>
+nodetool info | grep "Row Cache"
+<span class="comment">// Row Cache: size 8.5 GB  → Too large!</span>
+
+<span class="comment">-- Solution: Reduce row cache</span>
+<span class="comment"># In cassandra.yaml:</span>
+row_cache_size_in_mb: <span class="number">2048</span>  <span class="comment"># was 8192</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Monitor After Changes</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Watch GC in real-time</span>
+watch -n 5 "nodetool gcstats"
+
+<span class="comment">-- Good indicators:</span>
+<span class="comment">// Max < 200ms</span>
+<span class="comment">// GC # < 5 per second</span>
+<span class="comment">// Heap usage 50-70%</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Decision Tree:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>Heap > 16GB? → Reduce to 12GB</li>
+                        <li>Using CMS? → Switch to G1GC</li>
+                        <li>Heap > 85% full? → Increase slightly or reduce load</li>
+                        <li>Large partitions? → Fix data model</li>
+                        <li>Many SSTables? → Run compaction</li>
+                        <li>Large row cache? → Reduce size</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">What is the significance of -Xms and -Xmx being equal? Why not let the heap grow dynamically?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Setting -Xms = -Xmx prevents expensive heap resizing operations, provides predictable GC behavior, and ensures the OS doesn't reclaim committed memory. Dynamic sizing causes performance variability and additional GC overhead.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Why -Xms = -Xmx?</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 1: No Heap Resizing</strong></p>
+                        <p style="color: var(--text-secondary);">When -Xms < -Xmx, JVM can resize heap dynamically:</p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>Growing heap: Expensive operation (can take 100s of ms)</li>
+                            <li>Shrinking heap: Requires Full GC (stop-the-world)</li>
+                            <li>Unpredictable pauses during resize</li>
+                            <li>With -Xms = -Xmx: Heap size fixed, no resizing ever!</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 2: Predictable Performance</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Bad: Dynamic sizing</span>
+-Xms4G
+-Xmx12G
+
+<span class="comment">/*
+Start: 4GB heap
+Hour 1: Grows to 6GB (pause!)
+Hour 2: Grows to 8GB (pause!)
+Hour 3: Grows to 10GB (pause!)
+Low traffic: Shrinks to 6GB (Full GC!)
+
+Result: Unpredictable pauses throughout day!
+*/</span>
+
+<span class="comment">-- Good: Fixed sizing</span>
+-Xms12G
+-Xmx12G
+
+<span class="comment">/*
+Always: 12GB heap
+No growing, no shrinking
+Consistent GC behavior
+Predictable pauses!
+*/</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 3: OS Memory Commitment</strong></p>
+                        <p style="color: var(--text-secondary);">When -Xms < -Xmx:</p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>OS may not commit all memory upfront</li>
+                            <li>Pages allocated on-demand (can be slow)</li>
+                            <li>OS might swap unused heap pages</li>
+                            <li>Risk of OOM if system RAM exhausted</li>
+                        </ul>
+                        <p style="margin-top: 0.5rem; color: var(--text-secondary);">When -Xms = -Xmx:</p>
+                        <ul style="color: var(--text-secondary);">
+                            <li>OS commits all memory at startup</li>
+                            <li>All pages allocated upfront (use -XX:+AlwaysPreTouch)</li>
+                            <li>No on-demand allocation delays</li>
+                            <li>Guaranteed memory availability</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">Advantage 4: Faster Startup</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- With -XX:+AlwaysPreTouch:</span>
+-Xms12G
+-Xmx12G
+-XX:+AlwaysPreTouch
+
+<span class="comment">/*
+At startup:
+1. Allocate 12GB from OS
+2. Touch every page (pre-fault)
+3. All memory ready immediately
+4. No page faults during operation
+
+Result: Predictable startup, consistent performance
+*/</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Real-World Impact:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Configuration</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Behavior</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Production Use</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">-Xms4G -Xmx12G</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Dynamic, unpredictable</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ Never use</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">-Xms12G -Xmx12G</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Fixed, predictable</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Always use</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Recommended Configuration:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Always set equal + AlwaysPreTouch</span>
+-Xms12G
+-Xmx12G
+-XX:+AlwaysPreTouch  <span class="comment"># Pre-fault all pages</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> -Xms = -Xmx eliminates heap resizing overhead and provides predictable, consistent performance. Always use equal values in production!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">What JVM flags would you use for a 128GB Cassandra server and why?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Still use 16GB heap (not proportional to RAM!), enable G1GC with 200ms pause target, enable GC logging, heap dump on OOM, and AlwaysPreTouch. The key is keeping heap small (16GB) regardless of total RAM, leaving 110GB+ for OS page cache.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Complete Configuration for 128GB Server:</strong></p>
+
+                    <div class="code-block">
+                            <span class="comment">####################################</span>
+                            <span class="comment"># CASSANDRA JVM OPTIONS</span>
+                            <span class="comment"># Server: 128GB RAM</span>
+                            <span class="comment">####################################</span>
+
+                            <span class="comment"># ========== HEAP SIZE ==========</span>
+                            <span class="comment"># CRITICAL: Still only 16GB!</span>
+                            <span class="comment"># NOT 64GB or 32GB!</span>
+                            -Xms16G
+                            -Xmx16G
+
+                            <span class="comment"># Why only 16GB on 128GB server?</span>
+                            <span class="comment"># - Larger heap = longer GC pauses</span>
+                            <span class="comment"># - 16GB is sweet spot for GC performance</span>
+                            <span class="comment"># - Rest (110GB) goes to OS page cache!</span>
+                            <span class="comment"># - OS cache benefitsALL reads</span>
+<span class="comment"># ========== GC ALGORITHM ==========</span>
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1RSetUpdatingPauseTimePercent=5
+-XX:InitiatingHeapOccupancyPercent=70
+-XX:G1ReservePercent=25
+<span class="comment"># ========== MEMORY PRE-TOUCH ==========</span>
+-XX:+AlwaysPreTouch
+<span class="comment"># Pre-fault all 16GB at startup</span>
+<span class="comment"># Avoids page faults during operation</span>
+<span class="comment"># ========== GC LOGGING ==========</span>
+-Xlog:gc*:file=/var/log/cassandra/gc.log:time,uptime,level,tags:filecount=10,filesize=10M
+<span class="comment"># ========== HEAP DUMP ON OOM ==========</span>
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/cassandra/heapdump.hprof
+-XX:+ExitOnOutOfMemoryError
+<span class="comment"># ========== OPTIMIZATION ==========</span>
+-XX:+UseStringDeduplication
+-XX:-UseBiasedLocking
+-XX:+UseTLAB
+<span class="comment"># ========== THREAD STACK ==========</span>
+-Xss256k
+<span class="comment"># ========== JMX ==========</span>
+-Dcom.sun.management.jmxremote
+-Dcom.sun.management.jmxremote.port=7199
+-Dcom.sun.management.jmxremote.ssl=false
+-Dcom.sun.management.jmxremote.authenticate=true
+<span class="comment"># ========== LARGE PAGES (optional) ==========</span>
+<span class="comment"># Requires OS configuration</span>
+<span class="comment"># -XX:+UseLargePages</span>
+<span class="comment"># -XX:LargePageSizeInBytes=2M</span>
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Memory Allocation Breakdown:</strong></p>
+                <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <p><strong>Total: 128GB RAM</strong></p>
+                    <ul style="line-height: 2; margin-top: 0.5rem;">
+                        <li><strong>JVM Heap:</strong> 16GB (12.5%)</li>
+                        <li><strong>Row Cache:</strong> 2-4GB (optional, 3%)</li>
+                        <li><strong>Key Cache:</strong> 1GB (1%)</li>
+                        <li><strong>OS Page Cache:</strong> 107-109GB (84%) ⭐</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong>Why This Configuration?</strong></p>
+
+                <div style="margin-top: 1rem;">
+                    <p><strong style="color: var(--accent-purple);">Heap Size Rationale:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>16GB keeps GC pauses < 200ms consistently</li>
+                        <li>32GB would cause 5-10 second pauses!</li>
+                        <li>64GB would cause 20+ second pauses!</li>
+                        <li>16GB is optimal regardless of total RAM</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--accent-purple);">OS Cache Strategy:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>110GB OS cache can cache HUGE portion of SSTables</li>
+                        <li>100GB dataset → 100% cached in RAM!</li>
+                        <li>500GB dataset → 22% cached (hot data)</li>
+                        <li>OS cache has zero GC overhead</li>
+                        <li>Benefits ALL tables, not just one</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--accent-purple);">G1GC Configuration:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>MaxGCPauseMillis=200: Target 200ms pauses</li>
+                        <li>InitiatingHeapOccupancyPercent=70: Start concurrent GC at 70% full</li>
+                        <li>G1ReservePercent=25: Reserve 25% to avoid evacuation failures</li>
+                        <li>Result: Consistent, predictable GC behavior</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong>Common Mistake to Avoid:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ❌ WRONG: Proportional to RAM</span>
+-Xms64G  <span class="comment"># 50% of 128GB</span>
+-Xmx64G
+<span class="comment">/*
+Result:
+
+GC pauses: 10-20 seconds! 💥
+Complete cluster freezes
+Timeouts everywhere
+Production disaster!
+*/</span>
+
+<span class="comment">-- ✅ CORRECT: Fixed optimal size</span>
+-Xms16G  <span class="comment"># Same as 64GB server!</span>
+-Xmx16G
+<span class="comment">/*
+Result:
+
+GC pauses: 150-200ms ✅
+Predictable performance
+110GB for OS cache
+Production stable!
+*/</span>
+</div>
+              <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> More RAM doesn't mean bigger heap! Keep heap 8-16GB regardless of total RAM. Give extra RAM to OS page cache for massive performance gains!</p>
+          </div>
+      </div>
+  </div>
+  </div>
+
+
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: JVM Tuning Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now understand JVM tuning at a production level!</strong></p>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">The Golden Rules:</h4>
+    <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+        <ul style="line-height: 2; margin: 0;">
+            <li>☕ <strong>Heap Size: 8-16GB</strong> - Regardless of total RAM!</li>
+            <li>♻️ <strong>Use G1GC</strong> - Predictable 50-200ms pauses</li>
+            <li>⚖️ <strong>-Xms = -Xmx</strong> - No dynamic resizing</li>
+            <li>❌ <strong>Never > 32GB heap</strong> - Causes 10+ second pauses</li>
+            <li>💾 <strong>Maximize OS cache</strong> - Give extra RAM to OS</li>
+        </ul>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Quick Configuration:</h4>
+    <div class="code-block" style="margin-top: 0.5rem;">
+-Xms12G
+-Xmx12G
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:+AlwaysPreTouch
+</div>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Target Metrics:</h4>
+    <ul style="line-height: 1.9;">
+        <li>✅ Max GC pause < 200ms</li>
+        <li>✅ P99 GC pause < 150ms</li>
+        <li>✅ Time in GC < 5%</li>
+        <li>✅ Full GC < 1/day</li>
+    </ul>
+
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+        <strong style="color: var(--accent-purple);">Remember Tom: 32GB heap = disaster, 12GB heap = success! 🚀</strong>
+    </p>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="caching-strategies.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Caching Strategies</div>
+        </div>
+    </a>
+    <a href="memory-management.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Memory Management</div>
+        </div>
+    </a>
+</div>
+    <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+        </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Caching Strategies in Cassandra - Master caching techniques for optimal performance!">
+    <title>Memory Management in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Memory Management</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html" class="active">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+ <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced Performance Topics
+                    </span>
+                   <h1>Memory Management <span class="gradient-text">in Cassandra</span></h1>
+                <p>Make the most of every byte! Memory management controls how Cassandra uses RAM so data stays quick to access, workloads stay stable, and performance never misses a beat.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="memory-management.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">Memory Management</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Emma's Story</a></li>
+                            <li><a href="#fundamentals">💾 Architecture</a></li>
+                            <li><a href="#off-heap">💎 Off-Heap Deep Dive</a></li>
+                            <li><a href="#budget">📊 Memory Budget</a></li>
+                            <li><a href="#monitoring">📈 Monitoring</a></li>
+                            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+
+                    <!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Emma's Memory Crisis</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Emma's 128GB Cassandra cluster was supposed to be high-performance. But after 2 weeks, nodes started running out of memory. OOM errors appeared. Nodes crashed randomly. She had no idea where all the memory went. Here's what she discovered...</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">😱 The Crisis: Memory Disappeared!</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Emma's Setup (128GB Server):</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Emma's configuration</span>
+JVM Heap: <span class="number">16</span>GB         <span class="comment"># Correct!</span>
+Row Cache: <span class="number">8</span>GB         <span class="comment"># Seemed reasonable?</span>
+Key Cache: <span class="number">2</span>GB         <span class="comment"># More is better?</span>
+
+<span class="comment"># Expected: 26GB used, 102GB free for OS</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">What Actually Happened:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Week 1:</strong> Everything perfect, memory at 40GB used</li>
+                    <li><strong>Week 2:</strong> Memory creeping up - 60GB, then 80GB</li>
+                    <li><strong>Day 14:</strong> Memory at 95GB! Swap being used!</li>
+                    <li><strong>Day 15:</strong> First OOM error - node crashed</li>
+                    <li><strong>Day 16:</strong> Multiple nodes OOM - partial outage!</li>
+                    <li><strong>Panic:</strong> No idea where 70GB of memory went!</li>
+                </ol>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Hidden Memory Consumers:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Emma ran 'free -h' and found:</span>
+<span class="comment">/*
+              total   used   free   buffers   cache
+Mem:          128G    120G    8G      2G       25G
+                      ↑
+              Where did 120GB go?!
+*/</span>
+
+<span class="comment">-- She discovered the culprits:</span>
+JVM Heap: <span class="number">16</span>GB           <span class="comment">✓ Expected</span>
+Row Cache: <span class="number">8</span>GB           <span class="comment">✓ Expected</span>
+Key Cache: <span class="number">2</span>GB           <span class="comment">✓ Expected</span>
+Memtables: <span class="number">12</span>GB          <span class="comment">❌ SURPRISE!</span>
+Bloom Filters: <span class="number">8</span>GB      <span class="comment">❌ SURPRISE!</span>
+Compression Buffers: <span class="number">6</span>GB <span class="comment">❌ SURPRISE!</span>
+SSTable Index: <span class="number">15</span>GB     <span class="comment">❌ SURPRISE!</span>
+Network Buffers: <span class="number">4</span>GB    <span class="comment">❌ SURPRISE!</span>
+OS Overhead: <span class="number">3</span>GB        <span class="comment">❌ SURPRISE!</span>
+Native Memory: <span class="number">18</span>GB     <span class="comment">❌ SURPRISE!</span>
+<span class="comment">─────────────────────────</span>
+Total: <span class="number">92</span>GB              <span class="comment">💥 Way over budget!</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Why It Happened:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>💥 <strong>Forgot Off-Heap Memory:</strong> Memtables, bloom filters, indexes all off-heap!</li>
+                    <li>💥 <strong>Data Growth:</strong> More SSTables = more bloom filters + indexes</li>
+                    <li>💥 <strong>High Write Rate:</strong> Large memtables consuming memory</li>
+                    <li>💥 <strong>No Monitoring:</strong> Didn't track native memory usage</li>
+                    <li>💥 <strong>Swap Enabled:</strong> System swapping = death spiral!</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The Fix: Complete Memory Budget!</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Emma's New Memory Budget (128GB):</strong></p>
+
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <p><strong>Heap & Caches (26GB):</strong></p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 0.5rem;">
+                        <li>JVM Heap: 16GB</li>
+                        <li>Row Cache: 4GB (reduced from 8GB)</li>
+                        <li>Key Cache: 1GB (reduced from 2GB)</li>
+                        <li>Chunk Cache: 5GB (new!)</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Off-Heap Estimates (35GB):</strong></p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 0.5rem;">
+                        <li>Memtables: 12GB (25% of heap)</li>
+                        <li>Bloom Filters: 8GB</li>
+                        <li>Compression Buffers: 6GB</li>
+                        <li>SSTable Index: 5GB</li>
+                        <li>Network Buffers: 4GB</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>OS & Overhead (12GB):</strong></p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 0.5rem;">
+                        <li>OS Kernel: 3GB</li>
+                        <li>Native Memory: 6GB</li>
+                        <li>Safety Buffer: 3GB</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>OS Page Cache (55GB):</strong></p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 0.5rem;">
+                        <li>Available: 55GB</li>
+                        <li>Caches hot SSTables automatically</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem; font-weight: 700; color: #059669;">
+                        Total: 26 + 35 + 12 + 55 = 128GB ✅
+                    </p>
+                </div>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">Actions Taken:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Disabled Swap:</strong> swapoff -a (critical!)</li>
+                    <li><strong>Reduced Caches:</strong> Row cache 8GB → 4GB</li>
+                    <li><strong>Tuned Memtables:</strong> Reduced flush threshold</li>
+                    <li><strong>Added Monitoring:</strong> Track native memory usage</li>
+                    <li><strong>Set vm.swappiness=1:</strong> Prevent kernel swapping</li>
+                    <li><strong>Added Alerts:</strong> Notify if memory > 80%</li>
+                </ol>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>💚 <strong>Memory Stable:</strong> 73GB used, 55GB free</li>
+                        <li>✅ <strong>No More OOMs:</strong> Zero crashes in 3 months</li>
+                        <li>⚡ <strong>Better Performance:</strong> 55GB OS cache improves reads</li>
+                        <li>📊 <strong>Predictable:</strong> Memory usage flat over time</li>
+                        <li>😊 <strong>Peace of Mind:</strong> Can predict memory needs</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Emma learned: Account for ALL memory, not just heap! 🎉</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="fundamentals" data-aos="fade-up">
+    <h2>💾 Memory Architecture</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding where Cassandra uses memory!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 Memory Categories</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Cassandra uses memory in 4 main categories: (1) JVM Heap (GC-managed), (2) Off-Heap (native, no GC), (3) OS Page Cache (kernel-managed), (4) OS Overhead (kernel + buffers). Understanding each is critical for capacity planning!
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Complete Memory Map</h3>
+
+    <div class="svg-container" data-aos="zoom-in">
+        <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">Cassandra Memory Architecture (128GB Server)</text>
+
+            <!-- JVM Heap -->
+            <rect x="50" y="70" width="200" height="120" rx="8" fill="rgba(139, 92, 246, 0.3)" stroke="#8b5cf6" stroke-width="3"/>
+            <text x="150" y="100" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">JVM Heap</text>
+            <text x="150" y="125" font-size="18" fill="#8b5cf6" text-anchor="middle" font-weight="700">16GB</text>
+            <text x="150" y="145" font-size="11" fill="#94a3b8" text-anchor="middle">Objects, GC-managed</text>
+            <text x="150" y="165" font-size="11" fill="#94a3b8" text-anchor="middle">Memtable refs, cache</text>
+
+            <!-- Off-Heap -->
+            <rect x="270" y="70" width="220" height="120" rx="8" fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="3"/>
+            <text x="380" y="100" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Off-Heap Native</text>
+            <text x="380" y="125" font-size="18" fill="#10b981" text-anchor="middle" font-weight="700">35GB</text>
+            <text x="380" y="145" font-size="11" fill="#94a3b8" text-anchor="middle">Memtables, bloom filters</text>
+            <text x="380" y="165" font-size="11" fill="#94a3b8" text-anchor="middle">Indexes, compression</text>
+
+            <!-- Caches -->
+            <rect x="510" y="70" width="240" height="120" rx="8" fill="rgba(13, 148, 136, 0.3)" stroke="#0d9488" stroke-width="3"/>
+            <text x="630" y="100" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Explicit Caches</text>
+            <text x="630" y="125" font-size="18" fill="#0d9488" text-anchor="middle" font-weight="700">10GB</text>
+            <text x="630" y="145" font-size="11" fill="#94a3b8" text-anchor="middle">Row cache, key cache</text>
+            <text x="630" y="165" font-size="11" fill="#94a3b8" text-anchor="middle">Chunk cache</text>
+
+            <!-- OS Overhead -->
+            <rect x="50" y="210" width="200" height="100" rx="8" fill="rgba(245, 158, 11, 0.3)" stroke="#f59e0b" stroke-width="3"/>
+            <text x="150" y="240" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">OS Overhead</text>
+            <text x="150" y="265" font-size="18" fill="#f59e0b" text-anchor="middle" font-weight="700">12GB</text>
+            <text x="150" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">Kernel, buffers, native</text>
+
+            <!-- OS Page Cache -->
+            <rect x="270" y="210" width="480" height="100" rx="8" fill="rgba(99, 102, 241, 0.3)" stroke="#6366f1" stroke-width="3"/>
+            <text x="510" y="240" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">OS Page Cache (Automatic)</text>
+            <text x="510" y="265" font-size="18" fill="#6366f1" text-anchor="middle" font-weight="700">55GB</text>
+            <text x="510" y="285" font-size="11" fill="#94a3b8" text-anchor="middle">Caches SSTable blocks from disk</text>
+
+            <!-- Breakdown -->
+            <text x="400" y="350" font-size="18" fill="#e2e8f0" text-anchor="middle" font-weight="700">Memory Allocation Breakdown</text>
+
+            <text x="50" y="385" font-size="13" fill="#8b5cf6" font-weight="700">JVM Heap (16GB - 12.5%)</text>
+            <text x="50" y="408" font-size="12" fill="#94a3b8">• Managed objects, references</text>
+            <text x="50" y="428" font-size="12" fill="#94a3b8">• Memtable headers, cache refs</text>
+            <text x="50" y="448" font-size="12" fill="#94a3b8">• GC overhead included</text>
+
+            <text x="280" y="385" font-size="13" fill="#10b981" font-weight="700">Off-Heap (35GB - 27%)</text>
+            <text x="280" y="408" font-size="12" fill="#94a3b8">• Memtable data: ~12GB</text>
+            <text x="280" y="428" font-size="12" fill="#94a3b8">• Bloom filters: ~8GB</text>
+            <text x="280" y="448" font-size="12" fill="#94a3b8">• Compression, index: ~15GB</text>
+
+            <text x="530" y="385" font-size="13" fill="#0d9488" font-weight="700">Caches (10GB - 8%)</text>
+            <text x="530" y="408" font-size="12" fill="#94a3b8">• Row cache: 4GB</text>
+            <text x="530" y="428" font-size="12" fill="#94a3b8">• Key cache: 1GB</text>
+            <text x="530" y="448" font-size="12" fill="#94a3b8">• Chunk cache: 5GB</text>
+
+            <text x="50" y="490" font-size="13" fill="#f59e0b" font-weight="700">OS Overhead (12GB - 9%)</text>
+            <text x="50" y="513" font-size="12" fill="#94a3b8">• Kernel structures</text>
+            <text x="50" y="533" font-size="12" fill="#94a3b8">• Network/disk buffers</text>
+            <text x="50" y="553" font-size="12" fill="#94a3b8">• Native libraries</text>
+
+            <text x="350" y="490" font-size="13" fill="#6366f1" font-weight="700">OS Page Cache (55GB - 43%)</text>
+            <text x="350" y="513" font-size="12" fill="#94a3b8">• Automatically caches frequently read SSTables</text>
+            <text x="350" y="533" font-size="12" fill="#94a3b8">• No configuration needed!</text>
+            <text x="350" y="553" font-size="12" fill="#94a3b8">• Largest performance contributor</text>
+        </svg>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Memory Category Details</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">☕</div>
+            <h3>JVM Heap</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 8-16GB fixed</li>
+                <li><strong>Contains:</strong> Java objects, references</li>
+                <li><strong>Managed:</strong> Garbage collector</li>
+                <li><strong>GC Impact:</strong> Pause times increase with size</li>
+                <li><strong>Typical:</strong> 12-15% of total RAM</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #10b981;">
+            <div class="comparison-icon">💎</div>
+            <h3>Off-Heap Native</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 25-40% of total RAM</li>
+                <li><strong>Contains:</strong> Memtables, bloom filters, indexes</li>
+                <li><strong>Managed:</strong> Cassandra directly</li>
+                <li><strong>GC Impact:</strong> Zero! No GC pauses</li>
+                <li><strong>Growth:</strong> Scales with data + writes</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #0d9488;">
+            <div class="comparison-icon">🔥</div>
+            <h3>Explicit Caches</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 5-10GB configured</li>
+                <li><strong>Contains:</strong> Row/key/chunk cache</li>
+                <li><strong>Managed:</strong> Configured by admin</li>
+                <li><strong>GC Impact:</strong> Zero (off-heap)</li>
+                <li><strong>Optional:</strong> Can be disabled</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">⚙️</div>
+            <h3>OS Overhead</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 8-12GB typical</li>
+                <li><strong>Contains:</strong> Kernel, drivers, buffers</li>
+                <li><strong>Managed:</strong> Operating system</li>
+                <li><strong>GC Impact:</strong> N/A</li>
+                <li><strong>Reserve:</strong> Always budget 10-15%</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #6366f1;">
+            <div class="comparison-icon">💾</div>
+            <h3>OS Page Cache</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> All remaining RAM</li>
+                <li><strong>Contains:</strong> SSTable blocks</li>
+                <li><strong>Managed:</strong> Kernel (LRU)</li>
+                <li><strong>GC Impact:</strong> Zero</li>
+                <li><strong>Goal:</strong> Maximize this!</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section id="off-heap" data-aos="fade-up">
+    <h2>💎 Off-Heap Memory Deep Dive</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The hidden memory that causes OOM errors!</p>
+
+    <div class="info-box warning" data-aos="fade-up">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Critical: Off-Heap Memory is Often Underestimated!</h4>
+        <p style="margin-top: 1rem;">Off-heap memory can easily consume 30-50GB on a busy node. It's not managed by GC, grows with data/writes, and is the #1 cause of unexpected OOM errors!</p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Off-Heap Components</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">1. Memtables (~25% of Heap)</h4>
+                <p style="color: var(--text-secondary);">In-memory write buffers before flushing to SSTables</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Memtable memory estimation:</span>
+memtable_memory = heap_size × <span class="number">0.25</span>
+
+<span class="comment">-- Example (16GB heap):</span>
+<span class="number">16</span>GB × <span class="number">0.25</span> = <span class="number">4</span>GB per memtable pool
+
+<span class="comment">-- With 3 pools (typical):</span>
+Total memtable memory = <span class="number">12</span>GB
+
+<span class="comment">-- Configuration (cassandra.yaml):</span>
+memtable_heap_space_in_mb: <span class="number">4096</span>  <span class="comment"># 25% of 16GB</span>
+memtable_offheap_space_in_mb: <span class="number">4096</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">2. Bloom Filters (Scales with SSTables)</h4>
+                <p style="color: var(--text-secondary);">Probabilistic data structures to avoid unnecessary disk reads</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Bloom filter memory estimation:</span>
+bloom_memory = num_partitions × <span class="number">10</span> bytes
+
+<span class="comment">-- Example scenarios:</span>
+<span class="number">100</span>M partitions = <span class="number">1</span>GB bloom filters
+<span class="number">500</span>M partitions = <span class="number">5</span>GB bloom filters
+<span class="number">1</span>B partitions = <span class="number">10</span>GB bloom filters
+
+<span class="comment">-- With 100 SSTables × 10M partitions each:</span>
+<span class="number">1</span>B total partitions = <span class="number">10</span>GB bloom filters
+
+<span class="comment">-- Check actual usage:</span>
+nodetool tablestats | grep "Bloom filter"
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">3. Compression Buffers</h4>
+                <p style="color: var(--text-secondary);">Buffers for compressing/decompressing data blocks</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Compression buffer estimation:</span>
+compression_memory = concurrent_reads × chunk_size × <span class="number">2</span>
+
+<span class="comment">-- Typical configuration:</span>
+concurrent_reads: <span class="number">32</span>
+chunk_size: <span class="number">64</span>KB
+buffers_per_thread: <span class="number">2</span>
+
+<span class="comment">-- Calculation:</span>
+<span class="number">32</span> threads × <span class="number">64</span>KB × <span class="number">2</span> buffers = <span class="number">4</span>MB per operation
+<span class="number">1000</span> concurrent operations = <span class="number">4</span>GB
+
+<span class="comment">-- High write load can use 5-8GB!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">4. SSTable Index & Summary</h4>
+                <p style="color: var(--text-secondary);">Partition index and sampling structures</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Index memory estimation:</span>
+index_memory = num_partitions × <span class="number">50</span> bytes
+
+<span class="comment">-- Example:</span>
+<span class="number">100</span>M partitions × <span class="number">50</span> bytes = <span class="number">5</span>GB
+<span class="number">500</span>M partitions × <span class="number">50</span> bytes = <span class="number">25</span>GB!
+
+<span class="comment">-- Grows with:</span>
+<span class="comment">// - Number of SSTables</span>
+<span class="comment">// - Number of partitions</span>
+<span class="comment">// - Index sampling rate</span>
+
+<span class="comment">-- Check usage:</span>
+nodetool tablestats | grep "Index"
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #ec4899;"></div>
+            <div class="timeline-content" style="border-left-color: #ec4899;">
+                <h4 style="color: #ec4899;">5. Network & Thread Buffers</h4>
+                <p style="color: var(--text-secondary);">Buffers for network I/O and thread pools</p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Network buffer estimation:</span>
+native_transport_threads: <span class="number">128</span>
+buffer_per_connection: <span class="number">256</span>KB
+
+<span class="comment">-- With 1000 active connections:</span>
+<span class="number">1000</span> × <span class="number">256</span>KB = <span class="number">256</span>MB
+
+<span class="comment">-- Streaming (repairs, bootstrap):</span>
+streaming_buffers = stream_throughput × <span class="number">2</span>
+<span class="number">200</span>MB/s × <span class="number">2</span> = <span class="number">400</span>MB
+
+<span class="comment">-- Total network: 2-4GB typical</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Off-Heap Memory Budget Calculator</h3>
+
+    <div class="code-block">
+<span class="comment">-- Calculate total off-heap memory needed:</span>
+
+<span class="comment"># 1. Memtables</span>
+heap_size = <span class="number">16</span>GB
+memtable_memory = heap_size × <span class="number">0.25</span> × <span class="number">3</span> = <span class="number">12</span>GB
+
+<span class="comment"># 2. Bloom Filters</span>
+partitions = <span class="number">500</span>M
+bloom_memory = partitions × <span class="number">10</span> bytes = <span class="number">5</span>GB
+
+<span class="comment"># 3. Compression Buffers</span>
+compression_memory = <span class="number">6</span>GB
+
+<span class="comment"># 4. SSTable Index</span>
+index_memory = partitions × <span class="number">50</span> bytes = <span class="number">25</span>GB
+
+<span class="comment"># 5. Network Buffers</span>
+network_memory = <span class="number">3</span>GB
+
+<span class="comment"># 6. Misc Native</span>
+native_overhead = <span class="number">4</span>GB
+
+<span class="comment">─────────────────────────</span>
+Total Off-Heap: <span class="number">55</span>GB!
+                </div>
+
+    <div class="info-box danger" data-aos="fade-up">
+        <h4><i class="fas fa-bomb" style="color: #dc2626;"></i> OOM Risk: Underestimating Off-Heap</h4>
+        <p style="margin-top: 1rem;"><strong>Common Mistake:</strong></p>
+        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Planning for 64GB server:</span>
+Heap: <span class="number">16</span>GB
+Caches: <span class="number">5</span>GB
+Expected free: <span class="number">43</span>GB for OS cache
+
+<span class="comment">-- Reality after 1 month:</span>
+Heap: <span class="number">16</span>GB
+Caches: <span class="number">5</span>GB
+Off-Heap: <span class="number">35</span>GB  <span class="comment">← SURPRISE!</span>
+OS: <span class="number">6</span>GB
+Total: <span class="number">62</span>GB
+Swap: <span class="number">2</span>GB  <span class="comment">← DISASTER!</span>
+
+<span class="comment">Result: OOM errors, node crashes! 💥</span>
+        </div>
+    </div>
+</section>
+
+<section id="budget" data-aos="fade-up">
+    <h2>📊 Memory Budget Planning</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How to budget memory for different server sizes!</p>
+
+    <h3 style="color: var(--accent-purple);">Memory Budget Templates</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">32GB Server (Minimum Production)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 32GB Total RAM</span>
+
+JVM Heap:           <span class="number">8</span>GB  (<span class="number">25</span>%)
+Row Cache:          <span class="number">1</span>GB  (<span class="number">3</span>%)
+Key Cache:          <span class="number">512</span>MB (<span class="number">1.5</span>%)
+Chunk Cache:        <span class="number">2</span>GB  (<span class="number">6</span>%)
+<span class="comment">─────────────────────────</span>
+Subtotal Heap:      <span class="number">11.5</span>GB
+
+Memtables:          <span class="number">6</span>GB  (<span class="number">3</span> × <span class="number">25</span>% heap)
+Bloom Filters:      <span class="number">2</span>GB
+Compression:        <span class="number">2</span>GB
+Index/Summary:      <span class="number">2</span>GB
+Network:            <span class="number">1</span>GB
+<span class="comment">─────────────────────────</span>
+Subtotal Off-Heap:  <span class="number">13</span>GB
+
+OS Overhead:        <span class="number">3</span>GB
+<span class="comment">─────────────────────────</span>
+OS Page Cache:      <span class="number">4.5</span>GB ⚠️ Limited!
+
+<span class="comment">Note: Tight! Monitor closely.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">64GB Server (Recommended) ⭐</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 64GB Total RAM</span>
+
+JVM Heap:           <span class="number">12</span>GB  (<span class="number">19</span>%)
+Row Cache:          <span class="number">2</span>GB  (<span class="number">3</span>%)
+Key Cache:          <span class="number">1</span>GB  (<span class="number">1.5</span>%)
+Chunk Cache:        <span class="number">4</span>GB  (<span class="number">6</span>%)
+<span class="comment">─────────────────────────</span>
+Subtotal Heap:      <span class="number">19</span>GB
+
+Memtables:          <span class="number">9</span>GB  (<span class="number">3</span> × <span class="number">25</span>% heap)
+Bloom Filters:      <span class="number">4</span>GB
+Compression:        <span class="number">4</span>GB
+Index/Summary:      <span class="number">5</span>GB
+Network:            <span class="number">2</span>GB
+Native:             <span class="number">3</span>GB
+<span class="comment">─────────────────────────</span>
+Subtotal Off-Heap:  <span class="number">27</span>GB
+
+OS Overhead:        <span class="number">4</span>GB
+<span class="comment">─────────────────────────</span>
+OS Page Cache:      <span class="number">14</span>GB ✅ Good!
+
+<span class="comment">Note: Balanced, good for most workloads</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">128GB Server (High Performance)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 128GB Total RAM</span>
+
+JVM Heap:           <span class="number">16</span>GB  (<span class="number">12.5</span>%)
+Row Cache:          <span class="number">4</span>GB  (<span class="number">3</span>%)
+Key Cache:          <span class="number">1</span>GB  (<span class="number">1</span>%)
+Chunk Cache:        <span class="number">5</span>GB  (<span class="number">4</span>%)
+<span class="comment">─────────────────────────</span>
+Subtotal Heap:      <span class="number">26</span>GB
+
+Memtables:          <span class="number">12</span>GB (<span class="number">3</span> × <span class="number">25</span>% heap)
+Bloom Filters:      <span class="number">8</span>GB
+Compression:        <span class="number">6</span>GB
+Index/Summary:      <span class="number">10</span>GB
+Network:            <span class="number">4</span>GB
+Native:             <span class="number">5</span>GB
+<span class="comment">─────────────────────────</span>
+Subtotal Off-Heap:  <span class="number">45</span>GB
+
+OS Overhead:        <span class="number">6</span>GB
+<span class="comment">─────────────────────────</span>
+OS Page Cache:      <span class="number">51</span>GB ⭐ Excellent!
+
+<span class="comment">Note: Ideal for read-heavy workloads</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">256GB Server (Premium)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 256GB Total RAM</span>
+
+JVM Heap:           <span class="number">16</span>GB  (<span class="number">6</span>%)
+Row Cache:          <span class="number">8</span>GB  (<span class="number">3</span>%)
+Key Cache:          <span class="number">2</span>GB  (<span class="number">1</span>%)
+Chunk Cache:        <span class="number">10</span>GB (<span class="number">4</span>%)
+<span class="comment">─────────────────────────</span>
+Subtotal Heap:      <span class="number">36</span>GB
+
+Memtables:          <span class="number">12</span>GB (<span class="number">3</span> × <span class="number">25</span>% heap)
+Bloom Filters:      <span class="number">15</span>GB
+Compression:        <span class="number">10</span>GB
+Index/Summary:      <span class="number">20</span>GB
+Network:            <span class="number">6</span>GB
+Native:             <span class="number">8</span>GB
+<span class="comment">─────────────────────────</span>
+Subtotal Off-Heap:  <span class="number">71</span>GB
+
+OS Overhead:        <span class="number">10</span>GB
+<span class="comment">─────────────────────────</span>
+OS Page Cache:      <span class="number">139</span>GB 🚀 Massive!
+
+<span class="comment">Note: Can cache 100GB+ datasets entirely!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Memory Budget Validation</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check actual memory usage (Linux):</span>
+
+<span class="comment"># 1. Overall memory</span>
+free -h
+<span class="comment">/*
+              total   used   free   buffers   cache
+Mem:          128G    73G    55G      2G       25G
+*/</span>
+
+<span class="comment"># 2. JVM heap usage</span>
+nodetool info | grep Heap
+<span class="comment">// Heap Memory (MB): 11245 / 12288  (91% - OK)</span>
+
+<span class="comment"># 3. Off-heap (estimate)</span>
+pmap -x <cassandra_pid> | tail -1
+<span class="comment">// Look at "total" RSS</span>
+
+<span class="comment"># 4. Detailed breakdown</span>
+nodetool tablestats
+<span class="comment">// Shows bloom filter size, index size</span>
+
+<span class="comment"># 5. Check for swap usage</span>
+swapon -s
+<span class="comment">// Should be EMPTY! Swap = disaster!</span>
+    </div>
+
+    <div class="info-box expert" data-aos="fade-up">
+        <h4><i class="fas fa-calculator" style="color: var(--accent-purple);"></i> Quick Memory Budget Formula</h4>
+        <p style="margin-top: 1rem;"><strong>Conservative Estimate:</strong></p>
+        <div class="code-block" style="margin-top: 0.5rem;">
+Heap + Caches:      <span class="number">15</span>-<span class="number">30</span>% of RAM
+Off-Heap:           <span class="number">25</span>-<span class="number">40</span>% of RAM
+OS Overhead:        <span class="number">10</span>-<span class="number">15</span>% of RAM
+<span class="comment">─────────────────────────</span>
+OS Page Cache:      <span class="number">30</span>-<span class="number">50</span>% of RAM (remaining)
+
+<span class="comment">Rule of Thumb: If OS cache < 30%, need more RAM!</span>
+        </div>
+    </div>
+</section>
+
+<section id="monitoring" data-aos="fade-up">
+    <h2>📈 Memory Monitoring</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential commands to track memory usage!</p>
+
+    <h3 style="color: var(--accent-purple);">Key Metrics to Monitor</h3>
+
+    <div class="code-block">
+<span class="comment">-- 1. System-wide memory</span>
+free -h
+<span class="comment">/*
+Watch for:
+- "used" approaching "total" (> 90% = problem!)
+- Any swap usage (swap = death spiral!)
+- "cache" shrinking (means other memory growing)
+*/</span>
+
+<span class="comment">-- 2. JVM heap usage</span>
+nodetool info | grep "Heap Memory"
+<span class="comment">// Target: 60-80% utilization</span>
+<span class="comment">// > 90% = frequent GC</span>
+<span class="comment">// < 40% = heap too large</span>
+
+<span class="comment">-- 3. Cache statistics</span>
+nodetool info | grep Cache
+<span class="comment">/*
+Row Cache: entries X, size Y GB, capacity Z GB
+Key Cache: entries X, size Y GB, capacity Z GB
+Check: size approaching capacity?
+*/</span>
+
+<span class="comment">-- 4. Table statistics</span>
+nodetool tablestats keyspace.table
+<span class="comment">/*
+Look for:
+- Bloom filter space used
+- Index summary size
+- Compression metadata
+*/</span>
+
+<span class="comment">-- 5. Process memory map</span>
+pmap -x $(pgrep -f cassandra) | tail -20
+<span class="comment">// Shows detailed memory breakdown</span>
+
+<span class="comment">-- 6. Swap usage (CRITICAL!)</span>
+vmstat 1
+<span class="comment">// si/so columns (swap in/out)</span>
+<span class="comment">// ANY activity = PROBLEM!</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Monitoring Checklist</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Healthy</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Warning</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Critical</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Total RAM Used</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 80% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">80-90% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 90% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Heap Usage</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">60-80% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">80-90% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 90% ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>OS Page Cache</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 30% RAM ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">20-30% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 20% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Swap Usage</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0 bytes ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Any usage ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Active I/O ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Cache Hit Rate</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 90% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-90% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 70% ❌</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Alert Thresholds</h3>
+
+    <div class="code-block">
+<span class="comment">-- Recommended alerts:</span>
+
+<span class="comment"># WARNING alerts:</span>
+<span class="comment">- Total RAM usage > 80%</span>
+<span class="comment">- Heap usage > 85%</span>
+<span class="comment">- OS page cache < 30% of RAM</span>
+<span class="comment">- Any swap usage detected</span>
+
+<span class="comment"># CRITICAL alerts:</span>
+<span class="comment">- Total RAM usage > 90%</span>
+<span class="comment">- Heap usage > 95%</span>
+<span class="comment">- Active swap I/O (si/so > 0)</span>
+<span class="comment">- OOM errors in logs</span>
+
+<span class="comment"># Example monitoring script:</span>
+#!/bin/bash
+MEM_PCT=$(free | grep Mem | awk '{print ($3/$2) * 100.0}')
+if (( $(echo "$MEM_PCT > 80" | bc -l) )); then
+  echo "WARNING: Memory at ${MEM_PCT}%"
+  <span class="comment"># Send alert</span>
+fi
+    </div>
+</section>
+
+<section id="troubleshooting" data-aos="fade-up">
+    <h2>🔧 Memory Troubleshooting</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How to diagnose and fix memory issues!</p>
+
+    <h3 style="color: var(--accent-purple);">Common Memory Problems</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 1: Out of Memory (OOM) Errors</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Node crashes with OOM</li>
+                    <li>Memory grows over time</li>
+                    <li>Logs show "java.lang.OutOfMemoryError"</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check system memory</span>
+free -h
+<span class="comment">// Total used > 95%?</span>
+
+<span class="comment">-- Check heap usage</span>
+nodetool info | grep Heap
+<span class="comment">// Heap at 100%?</span>
+
+<span class="comment">-- Check for memory leak indicators</span>
+grep -i "OutOfMemoryError" /var/log/cassandra/system.log
+
+<span class="comment">-- Analyze heap dump (if generated)</span>
+jhat /var/log/cassandra/heapdump.hprof
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solutions:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>✅ Increase server RAM (if undersized)</li>
+                    <li>✅ Reduce row cache if too large</li>
+                    <li>✅ Fix large partitions (data model issue)</li>
+                    <li>✅ Reduce write load or add nodes</li>
+                    <li>✅ Force compaction to reduce bloom filters</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 2: System Using Swap</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Extremely slow performance</li>
+                    <li>High disk I/O wait times</li>
+                    <li>Swap space being used</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check swap status</span>
+swapon -s
+<span class="comment">// ANY output = PROBLEM!</span>
+
+<span class="comment">-- Check swap activity</span>
+vmstat 1 10
+<span class="comment">// si/so columns > 0 = swapping actively!</span>
+
+free -h
+<span class="comment">// Look at "Swap" row</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solutions:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># IMMEDIATE: Disable swap</span>
+sudo swapoff -a
+
+<span class="comment"># PERMANENT: Edit /etc/fstab</span>
+<span class="comment"># Comment out swap line</span>
+
+<span class="comment"># Set swappiness to 1 (emergency only)</span>
+sudo sysctl vm.swappiness=<span class="number">1</span>
+echo "vm.swappiness=1" | sudo tee -a /etc/sysctl.conf
+
+<span class="comment"># Restart Cassandra</span>
+sudo systemctl restart cassandra
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 3: Memory Leak (Growing Over Time)</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Memory usage grows steadily</li>
+                    <li>Eventually leads to OOM</li>
+                    <li>Restart temporarily fixes</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Common Causes:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🔍 <strong>Too many SSTables:</strong> Bloom filters + indexes growing</li>
+                    <li>🔍 <strong>Large partitions:</strong> Memtables can't flush efficiently</li>
+                    <li>🔍 <strong>Data growth:</strong> Off-heap structures scale with data</li>
+                    <li>🔍 <strong>Bug:</strong> Actual memory leak in Cassandra or driver</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Solutions:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check SSTable count</span>
+nodetool tablestats | grep "SSTable count"
+<span class="comment">// > 100 per table = problem!</span>
+
+<span class="comment">-- Force compaction</span>
+nodetool compact keyspace table
+
+<span class="comment">-- Check partition sizes</span>
+nodetool tablestats | grep "partition"
+<span class="comment">// > 100MB = fix data model!</span>
+
+<span class="comment">-- Monitor bloom filter growth</span>
+nodetool tablestats | grep "Bloom filter"
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Problem 4: OS Page Cache Too Small</h4>
+                <p style="color: var(--text-secondary);"><strong>Symptoms:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>High read latency</li>
+                    <li>Excessive disk I/O</li>
+                    <li>OS cache < 30% of RAM</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Diagnosis:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+free -h
+<span class="comment">/*
+              total   used   free   cache
+Mem:           64G    60G     4G     8G
+                                     ↑
+                                Too small!
+*/</span>
+
+<span class="comment">-- Target: cache > 30% of total RAM</span>
+<span class="comment">// 64GB × 0.30 = 19GB minimum</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong>Solutions:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>✅ Reduce JVM heap (if > 16GB)</li>
+                    <li>✅ Reduce row cache size</li>
+                    <li>✅ Add more RAM to server</li>
+                    <li>✅ Reduce off-heap usage (tune memtables)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master memory management for your interview!</p>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">Explain the difference between heap and off-heap memory in Cassandra. Why is off-heap memory often underestimated?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Heap memory is GC-managed Java objects (8-16GB fixed), while off-heap is native memory outside JVM (memtables, bloom filters, indexes - can be 30-50GB). Off-heap is underestimated because it's invisible to 'nodetool info', grows with data/writes, and is the #1 cause of OOM errors.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Heap Memory:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Size:</strong> 8-16GB (fixed, configured)</li>
+                        <li><strong>Contains:</strong> Java objects, references, metadata</li>
+                        <li><strong>Management:</strong> Garbage collector</li>
+                        <li><strong>Visibility:</strong> 'nodetool info' shows it</li>
+                        <li><strong>Growth:</strong> Fixed size, doesn't grow</li>
+                        <li><strong>Performance:</strong> GC pauses affect it</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Off-Heap Memory:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Size:</strong> 25-50GB (dynamic, grows!)</li>
+                        <li><strong>Contains:</strong> Memtables, bloom filters, indexes, compression buffers, network buffers</li>
+                        <li><strong>Management:</strong> Cassandra directly (no GC)</li>
+                        <li><strong>Visibility:</strong> Not shown in nodetool info!</li>
+                        <li><strong>Growth:</strong> Scales with data, writes, SSTables</li>
+                        <li><strong>Performance:</strong> Zero GC overhead</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why Off-Heap is Underestimated:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Planning scenario (64GB server):</span>
+
+<span class="comment">// Visible memory (what people plan for):</span>
+Heap: <span class="number">16</span>GB      <span class="comment">← nodetool info shows this</span>
+Row cache: <span class="number">2</span>GB  <span class="comment">← nodetool info shows this</span>
+Key cache: <span class="number">1</span>GB  <span class="comment">← nodetool info shows this</span>
+Expected: <span class="number">19</span>GB
+
+<span class="comment">// Reality (what actually happens):</span>
+Heap: <span class="number">16</span>GB
+Caches: <span class="number">3</span>GB
+Memtables: <span class="number">12</span>GB     <span class="comment">← Hidden!</span>
+Bloom filters: <span class="number">8</span>GB  <span class="comment">← Hidden!</span>
+Compression: <span class="number">4</span>GB    <span class="comment">← Hidden!</span>
+Index: <span class="number">6</span>GB          <span class="comment">← Hidden!</span>
+Network: <span class="number">2</span>GB        <span class="comment">← Hidden!</span>
+Native: <span class="number">4</span>GB         <span class="comment">← Hidden!</span>
+Actual: <span class="number">55</span>GB!
+
+<span class="comment">Result: OOM crash! 💥</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Always budget for 25-40% of RAM as off-heap memory. It's not optional - it WILL be used!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">How would you size a Cassandra server? Walk through the complete memory budget for a 128GB server.</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: For 128GB server: 16GB heap + 10GB caches + 35-45GB off-heap + 12GB OS overhead = 73-83GB used, leaving 45-55GB for OS page cache. Always budget all categories including hidden off-heap memory.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Complete 128GB Memory Budget:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">========================================</span>
+<span class="comment">CATEGORY 1: JVM HEAP (16GB - 12.5%)</span>
+<span class="comment">========================================</span>
+JVM Heap:                 <span class="number">16</span>GB
+
+<span class="comment">Why 16GB not 32GB or 64GB?</span>
+<span class="comment">- Keeps GC pauses < 200ms</span>
+<span class="comment">- 32GB+ causes 5-10 second pauses!</span>
+<span class="comment">- Sweet spot regardless of total RAM</span>
+
+<span class="comment">========================================</span>
+<span class="comment">CATEGORY 2: EXPLICIT CACHES (10GB - 8%)</span>
+<span class="comment">========================================</span>
+Row Cache:                <span class="number">4</span>GB   <span class="comment"># Hot data</span>
+Key Cache:                <span class="number">1</span>GB   <span class="comment"># Partition locations</span>
+Chunk Cache:              <span class="number">5</span>GB   <span class="comment"># Compressed blocks</span>
+
+<span class="comment">========================================</span>
+<span class="comment">CATEGORY 3: OFF-HEAP (40GB - 31%)</span>
+<span class="comment">========================================</span>
+Memtables:               <span class="number">12</span>GB   <span class="comment"># 3 × 25% heap</span>
+Bloom Filters:            <span class="number">8</span>GB   <span class="comment"># ~10 bytes × partitions</span>
+Compression Buffers:      <span class="number">6</span>GB   <span class="comment"># Concurrent operations</span>
+SSTable Index/Summary:   <span class="number">10</span>GB   <span class="comment"># ~50 bytes × partitions</span>
+Network Buffers:          <span class="number">3</span>GB   <span class="comment"># Client connections</span>
+Native Memory:            <span class="number">1</span>GB   <span class="comment"># Misc native libs</span>
+
+<span class="comment">========================================</span>
+<span class="comment">CATEGORY 4: OS OVERHEAD (12GB - 9%)</span>
+<span class="comment">========================================</span>
+OS Kernel:                <span class="number">3</span>GB
+Disk/Network Buffers:     <span class="number">2</span>GB
+System Libraries:         <span class="number">3</span>GB
+Safety Buffer:            <span class="number">4</span>GB
+
+<span class="comment">========================================</span>
+<span class="comment">CATEGORY 5: OS PAGE CACHE (50GB - 39%)</span>
+<span class="comment">========================================</span>
+Available for Caching:   <span class="number">50</span>GB
+
+<span class="comment">This is THE MOST IMPORTANT part!</span>
+<span class="comment">- Automatically caches hot SSTables</span>
+<span class="comment">- Zero configuration needed</span>
+<span class="comment">- Benefits ALL reads</span>
+<span class="comment">- Maximize this by keeping heap small!</span>
+
+<span class="comment">========================================</span>
+<span class="comment">TOTAL: 128GB</span>
+<span class="comment">========================================</span>
+<span class="number">16</span> + <span class="number">10</span> + <span class="number">40</span> + <span class="number">12</span> + <span class="number">50</span> = <span class="number">128</span>GB ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Validation Steps:</strong></p>
+                    <ol style="line-height: 1.9;">
+                        <li><strong>Check Total:</strong> Sum should equal server RAM</li>
+                        <li><strong>OS Cache Check:</strong> Should be 30-50% of RAM minimum</li>
+                        <li><strong>Off-Heap Budget:</strong> 25-40% is realistic estimate</li>
+                        <li><strong>Monitor After Deploy:</strong> Watch actual usage vs budget</li>
+                    </ol>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Principle:</strong> If OS page cache < 30% of RAM, you need more RAM or must reduce heap/caches!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">Why should swap always be disabled on Cassandra nodes? What happens if swap is enabled?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Swap causes disk I/O for memory access (1000x slower), creating a death spiral where slow operations cause more memory pressure causing more swapping causing more slowness. Result: 10+ second queries, timeouts, node appears down. Always disable swap completely.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>What Happens With Swap Enabled:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- The Death Spiral:</span>
+
+<span class="comment">1. Memory fills up (> 95%)</span>
+<span class="comment">2. Kernel swaps pages to disk</span>
+<span class="comment">3. Memory access now requires disk I/O</span>
+   RAM: <span class="number">0.1</span>µs access time
+   Disk: <span class="number">10</span>ms access time
+   <span class="comment">↑ 100,000x slower!</span>
+
+<span class="comment">4. Queries slow down dramatically</span>
+   Normal: <span class="number">5</span>ms
+   Swapping: <span class="number">10</span>,<span class="number">000</span>ms (<span class="number">10</span> seconds!)
+
+<span class="comment">5. Slow queries hold resources longer</span>
+   <span class="comment">→ More threads blocked</span>
+   <span class="comment">→ More memory pressure</span>
+   <span class="comment">→ MORE swapping!</span>
+
+<span class="comment">6. Complete system collapse</span>
+   <span class="comment">→ All queries timeout</span>
+   <span class="comment">→ Clients mark node DOWN</span>
+   <span class="comment">→ Other nodes overwhelmed</span>
+   <span class="comment">→ Cascading failure! 💥</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Real-World Example:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Before swap disabled:</span>
+Query latency P99: <span class="number">12</span>s  <span class="comment">← Disaster!</span>
+Disk I/O wait: <span class="number">85</span>%
+Swap I/O: <span class="number">500</span>MB/s     <span class="comment">← Death spiral!</span>
+Client timeouts: <span class="number">95</span>%
+
+<span class="comment">-- After 'swapoff -a':</span>
+Query latency P99: <span class="number">15</span>ms ✅
+Disk I/O wait: <span class="number">15</span>%
+Swap I/O: <span class="number">0</span>MB/s        ✅
+Client timeouts: <span class="number">0</span>%    ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>How to Disable Swap:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># 1. Immediate (temporary)</span>
+sudo swapoff -a
+
+<span class="comment"># 2. Permanent (edit /etc/fstab)</span>
+sudo vi /etc/fstab
+<span class="comment"># Comment out swap line:</span>
+<span class="comment"># /dev/sda2  swap  swap  defaults  0 0</span>
+
+<span class="comment"># 3. Set vm.swappiness (emergency-only swap)</span>
+sudo sysctl vm.swappiness=<span class="number">1</span>
+echo "vm.swappiness=1" | sudo tee -a /etc/sysctl.conf
+
+<span class="comment"># 4. Verify</span>
+swapon -s
+<span class="comment"># Should show NOTHING</span>
+
+free -h
+<span class="comment">/*
+Swap:          0B      0B      0B  ✅ Perfect!
+*/</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why vm.swappiness=1 (not 0)?</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>swappiness=0: Kernel NEVER swaps (can cause OOM kills)</li>
+                        <li>swappiness=1: Only swap in absolute emergency</li>
+                        <li>Better to have emergency valve than sudden OOM kill</li>
+                        <li>But really: If swapping, need more RAM!</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Swap = death sentence for Cassandra. Always disable completely. If node needs swap, it needs more RAM!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">A Cassandra node is showing 95% memory usage but nodetool info shows heap at only 70%. Where is the memory going?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Memory is in off-heap structures invisible to nodetool info: memtables (~12GB), bloom filters (scales with partitions), compression buffers, SSTable indexes, and network buffers. Check with pmap, tablestats, and system monitoring tools.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Investigation Steps:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Check System Memory</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+free -h
+<span class="comment">/*
+              total   used   free   cache
+Mem:           64G    61G     3G     8G
+
+61GB used but heap only shows 11GB → 50GB unaccounted!
+*/</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Check Heap Usage</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool info | grep Heap
+<span class="comment">// Heap Memory (MB): 11245 / 16384  (69%)</span>
+
+<span class="comment">Only accounts for 11GB of 61GB used!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Check Caches</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool info | grep Cache
+<span class="comment">/*
+Row Cache: size 2.1 GB
+Key Cache: size 0.9 GB
+*/</span>
+
+<span class="comment">Caches account for 3GB.</span>
+<span class="comment">Running total: 11 + 3 = 14GB of 61GB</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Check Table Statistics</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool tablestats
+<span class="comment">/*
+Bloom filter space used: 8.5 GB  ← Found 8.5GB!
+Index summary size: 6.2 GB       ← Found 6.2GB!
+Compression metadata: 2.1 GB     ← Found 2.1GB!
+*/</span>
+
+<span class="comment">Running total: 14 + 8.5 + 6.2 + 2.1 = 30.8GB</span>
+<span class="comment">Still missing: 61 - 30.8 = 30.2GB!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 5: Estimate Memtables</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Memtable memory (not shown directly):</span>
+Memtable pools: <span class="number">3</span>
+Size per pool: <span class="number">25</span>% of heap = <span class="number">4</span>GB
+Total memtables: <span class="number">12</span>GB  <span class="comment">← Found 12GB!</span>
+
+<span class="comment">Running total: 30.8 + 12 = 42.8GB</span>
+<span class="comment">Still missing: 61 - 42.8 = 18.2GB</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 6: Check Process Memory Map</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+pmap -x $(pgrep -f cassandra) | tail -20
+<span class="comment">/*
+Shows detailed memory breakdown:
+- Native libraries: 3GB
+- Thread stacks: 2GB
+- Network buffers: 4GB
+- Compression buffers: 5GB
+- Misc native: 4GB
+Total: ~18GB  ← Found the rest!
+*/</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Complete Breakdown:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 61GB total used explained:</span>
+
+Heap:                 <span class="number">11</span>GB   <span class="comment">✓ nodetool info</span>
+Row + Key Cache:       <span class="number">3</span>GB   <span class="comment">✓ nodetool info</span>
+Bloom Filters:       <span class="number">8.5</span>GB   <span class="comment">✓ tablestats</span>
+Index Summary:       <span class="number">6.2</span>GB   <span class="comment">✓ tablestats</span>
+Compression Meta:    <span class="number">2.1</span>GB   <span class="comment">✓ tablestats</span>
+Memtables:            <span class="number">12</span>GB   <span class="comment">✓ estimated</span>
+Native/Buffers:       <span class="number">18</span>GB   <span class="comment">✓ pmap</span>
+<span class="comment">─────────────────────────</span>
+Total:               <span class="number">60.8</span>GB ≈ <span class="number">61</span>GB ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Most memory is off-heap and invisible to nodetool info. Always use system tools (free, pmap) + tablestats to see complete picture!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">What are the warning signs that a Cassandra cluster is running out of memory? How would you prevent it?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Warning signs: memory usage > 80%, OS page cache < 30%, heap > 85%, any swap usage, GC pauses increasing, slow queries. Prevention: proper capacity planning with complete memory budget, monitoring all memory types, disabling swap, and adding RAM before reaching 80% usage.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Early Warning Signs:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Warning Sign</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Threshold</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Total RAM usage</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 80%</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Plan for more RAM/nodes</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">OS page cache</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 30% of RAM</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Reduce heap/caches</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Heap usage</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 85%</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Investigate memory leak</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Swap usage</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Any usage</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">CRITICAL - disable immediately</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">GC pause times</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Increasing trend</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Heap pressure building</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Query latency P99</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Increasing trend</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cache eviction, disk I/O up</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Prevention Strategy:</strong></p>
+
+                    <div style="margin-top: 1rem;">
+                        <p><strong style="color: #059669;">1. Proper Capacity Planning</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Create complete memory budget BEFORE deploying:</span>
+
+Heap:               <span class="number">16</span>GB  (<span class="number">12.5</span>%)
+Caches:             <span class="number">10</span>GB  (<span class="number">8</span>%)
+Off-Heap Est:       <span class="number">40</span>GB  (<span class="number">31</span>%)
+OS Overhead:        <span class="number">12</span>GB  (<span class="number">9</span>%)
+<span class="comment">─────────────────────────</span>
+Used:               <span class="number">78</span>GB
+OS Page Cache:      <span class="number">50</span>GB  (<span class="number">39</span>%) ✅
+
+<span class="comment">Rule: If OS cache < 30%, need more RAM!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">2. Comprehensive Monitoring</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># Monitor ALL memory categories:</span>
+
+<span class="comment">- Total system memory (free -h)</span>
+<span class="comment">- Heap usage (nodetool info)</span>
+<span class="comment">- Cache sizes (nodetool info)</span>
+<span class="comment">- Off-heap estimates (tablestats)</span>
+<span class="comment">- OS page cache size</span>
+<span class="comment">- Swap usage (MUST be zero!)</span>
+<span class="comment">- GC pause trends</span>
+<span class="comment">- Query latency P99</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">3. Proactive Actions</strong></p>
+                        <ul style="line-height: 1.9;">
+                            <li>✅ Set alerts at 80% memory usage</li>
+                            <li>✅ Disable swap completely</li>
+                            <li>✅ Review memory budget monthly</li>
+                            <li>✅ Plan capacity 6 months ahead</li>
+                            <li>✅ Add RAM/nodes before 85% usage</li>
+                            <li>✅ Test memory limits in staging first</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: #059669;">4. Emergency Response Plan</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment"># If memory reaches 90%:</span>
+<span class="comment">1. Check for swap - disable immediately</span>
+sudo swapoff -a
+<span class="comment">2. Reduce row cache if large</span>
+nodetool setcachecapacity <span class="number">0</span> <span class="number">0</span>
+<span class="comment">3. Force compaction (reduce bloom filters)</span>
+nodetool compact
+<span class="comment">4. Emergency: Restart node (clears memtables)</span>
+<span class="comment">5. Long-term: Add RAM or scale out</span>
+</div>
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Don't wait for OOM! Monitor continuously, act at 80% usage, and always have complete memory budget including off-heap estimates.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Memory Management Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now understand Cassandra memory management at a production level!</strong></p>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">The Five Memory Categories:</h4>
+    <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+        <ul style="line-height: 2; margin: 0;">
+            <li>☕ <strong>JVM Heap:</strong> 8-16GB (12-15% of RAM)</li>
+            <li>💎 <strong>Off-Heap:</strong> 25-40% (memtables, bloom, indexes)</li>
+            <li>🔥 <strong>Caches:</strong> 5-10% (row, key, chunk)</li>
+            <li>⚙️ <strong>OS Overhead:</strong> 10-15% (kernel, buffers)</li>
+            <li>💾 <strong>OS Page Cache:</strong> 30-50% (maximize this!)</li>
+        </ul>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Critical Rules:</h4>
+    <ul style="line-height: 1.9;">
+        <li>❌ <strong>Disable swap always</strong> - death spiral guaranteed</li>
+        <li>📊 <strong>Budget ALL memory</strong> - off-heap is 25-40%!</li>
+        <li>⚠️ <strong>Alert at 80% RAM</strong> - act before 90%</li>
+        <li>🎯 <strong>OS cache > 30%</strong> - or need more RAM</li>
+    </ul>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">128GB Server Example:</h4>
+    <p style="margin-top: 0.5rem;">16GB heap + 10GB caches + 40GB off-heap + 12GB OS = 78GB used, 50GB for OS cache ✅</p>
+
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+        <strong style="color: var(--accent-purple);">Remember Emma: Account for ALL memory, not just heap! 🚀</strong>
+    </p>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="backup-restore.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Backup & Restore</div>
+        </div>
+    </a>
+    <a href="adding-nodes.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Adding Nodes</div>
+        </div>
+    </a>
+</div>
+                            <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                    </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

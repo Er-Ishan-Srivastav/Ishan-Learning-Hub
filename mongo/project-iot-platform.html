@@ -1,0 +1,3148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Platform Project - MongoDB Time-Series Implementation | myPathshala</title>
+     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+      <style>
+         /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-green);
+            border-left-color: var(--primary-green);
+            padding-left: 1.25rem;
+        }
+        /* Quick Navigation Buttons */
+        .quick-nav {
+            margin: 2rem 0;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        /* Command Card */
+        .command-card {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .command-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .command-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .command-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .command-badge {
+            background: rgba(0, 237, 100, 0.15);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        .command-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* Live Console */
+        .live-console {
+            background: var(--bg-darker);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid var(--border-light);
+            margin: 1.5rem 0;
+        }
+
+        .console-header {
+            background: var(--code-bg);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .console-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .console-dots {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot.red { background: #EF4444; }
+        .dot.yellow { background: #F59E0B; }
+        .dot.green { background: #10B981; }
+
+        .console-body {
+            padding: 1.5rem;
+        }
+
+        .console-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .console-prompt {
+            color: var(--primary-green);
+            user-select: none;
+        }
+
+        .console-output {
+            background: rgba(0, 237, 100, 0.05);
+            border-left: 3px solid var(--primary-green);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 6px;
+        }
+
+        .copy-btn {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        /* Syntax highlighting */
+        .comment { color: #6A9955; }
+        .string { color: #CE9178; }
+        .number { color: #B5CEA8; }
+        .keyword { color: #569CD6; }
+        .field { color: #9CDCFE; }
+        .operator { color: #D4D4D4; }
+
+        /* Category Section */
+        .category-section {
+            margin: 4rem 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .category-title h2 {
+            font-size: 2rem;
+            color: var(--primary-green);
+            margin: 0;
+        }
+
+        .category-title p {
+            color: var(--text-secondary);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Reference Table */
+        .reference-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .reference-table th {
+            background: linear-gradient(135deg, var(--dark-green), var(--primary-green));
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .reference-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .reference-table tr:hover {
+            background: rgba(0, 237, 100, 0.05);
+        }
+
+        .reference-table code {
+            background: var(--bg-darker);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stats Box */
+        .stats-box {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary-green);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-box strong {
+            color: var(--info-blue);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+            border-left: 4px solid var(--warning-orange);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box strong {
+            color: var(--warning-orange);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .nav-grid { grid-template-columns: 1fr; }
+            .print-btn { bottom: 1rem; right: 1rem; padding: 0.75rem 1.25rem; }
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .print-btn, .quick-nav, .page-hero, .breadcrumb-modern { display: none; }
+        }
+
+        /* Schema Cards Styling */
+        .schema-card {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .schema-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 8px 24px rgba(0, 237, 100, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .schema-card h4 {
+            color: var(--primary-green);
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .field-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+
+        .field-list li {
+            padding: 0.6rem 1rem;
+            background: var(--code-darker);
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .field-list li:hover {
+            background: rgba(0, 237, 100, 0.05);
+            padding-left: 1.2rem;
+        }
+
+        .field-type {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            background: rgba(0, 237, 100, 0.1);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .metric-card {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .metric-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.2);
+        }
+
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.05), rgba(0, 104, 74, 0.02));
+            border: 2px solid var(--border-light);
+            border-left: 4px solid var(--primary-green);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .story-box h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+        }
+
+        .story-box p {
+            color: var(--text-primary);
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .story-box ul {
+            color: var(--text-primary);
+        }
+
+        .story-box ul li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 237, 100, 0.15);
+        }
+
+        .feature-card h4 {
+            color: var(--primary-green);
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* Code Block Improvements */
+        .code-block {
+            position: relative;
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .code-block:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 8px 24px rgba(0, 237, 100, 0.1);
+        }
+
+        .code-label {
+            display: block;
+            background: var(--code-darker);
+            padding: 0.75rem 1.5rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+        }
+
+        /* Step Container */
+        .step-container {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-left: 4px solid var(--primary-green);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .step-container h4 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+        }
+
+        /* Success and Info Boxes */
+        .success-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid var(--success-green);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .success-box strong {
+            color: var(--success-green);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .schema-card {
+                padding: 1.5rem;
+            }
+        }
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.1);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+        
+        :root {
+            --primary-green: #00ED64;
+            --dark-green: #00684A;
+            --deep-navy: #001E2B;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.7; color: var(--text-primary); background: var(--bg-darker); }
+        html { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: var(--code-darker); }
+        ::-webkit-scrollbar-thumb { background: var(--primary-green); border-radius: 5px; }
+        .progress-indicator { position: fixed; top: 0; left: 0; width: 100%; height: 4px; background: rgba(0, 237, 100, 0.1); z-index: 9999; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary-green), var(--dark-green)); width: 0%; transition: width 0.2s ease; }
+        h1, h2, h3 { font-weight: 700; line-height: 1.3; color: var(--text-primary); }
+        h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); margin-bottom: 1.5rem; position: relative; padding-bottom: 1rem; }
+        h2::after { content: ''; position: absolute; bottom: 0; left: 0; width: 60px; height: 4px; background: linear-gradient(90deg, var(--primary-green), var(--dark-green)); border-radius: 2px; }
+        h3 { font-size: clamp(1.25rem, 2.5vw, 1.75rem); margin-top: 2rem; margin-bottom: 1rem; }
+        code { font-family: 'JetBrains Mono', monospace; background: var(--code-darker); color: var(--primary-green); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.9em; }
+        pre { background: var(--code-darker); border: 1px solid var(--border-light); border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+        pre code { background: none; padding: 0; color: #E2E8F0; }
+        .page-hero { background: linear-gradient(135deg, #001E2B 0%, #00684A 100%); padding: 5rem 0 4rem; position: relative; overflow: hidden; }
+        .page-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>'); }
+        .page-hero-content { position: relative; z-index: 2; color: white; text-align: center; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem; background: rgba(0, 237, 100, 0.15); border: 1px solid var(--primary-green); border-radius: 50px; color: var(--primary-green); font-size: 0.875rem; font-weight: 600; margin-bottom: 1.5rem; }
+        .page-hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 900; line-height: 1.1; margin-bottom: 1rem; background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .page-hero p { font-size: clamp(1.1rem, 2vw, 1.4rem); color: rgba(255, 255, 255, 0.85); max-width: 800px; margin: 0 auto; }
+        .breadcrumb-modern { background: var(--code-darker); padding: 1rem 0; font-size: 0.9rem; border-bottom: 1px solid var(--border-light); }
+        .breadcrumb-modern a { color: var(--text-secondary); text-decoration: none; transition: color 0.3s; }
+        .breadcrumb-modern a:hover { color: var(--primary-green); }
+        .breadcrumb-modern .separator { margin: 0 0.75rem; color: var(--text-muted); }
+        .breadcrumb-modern .current { color: var(--text-primary); font-weight: 600; }
+        .toc-floating { position: sticky; top: 2rem; background: var(--code-bg); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border-light); max-height: calc(100vh - 4rem); overflow-y: auto; }
+        .toc-floating h3 { font-size: 1.1rem; color: var(--primary-green); margin: 0 0 1rem 0; }
+        .toc-floating ul { list-style: none; padding: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+        .toc-link { color: var(--text-secondary); text-decoration: none; font-size: 0.95rem; transition: all 0.3s; display: block; padding: 0.5rem; border-radius: 6px; }
+        .toc-link:hover, .toc-link.active { color: var(--primary-green); background: rgba(0, 237, 100, 0.1); transform: translateX(5px); }
+        .page-navigation { display: flex; justify-content: space-between; gap: 2rem; margin-top: 4rem; padding-top: 3rem; border-top: 2px solid var(--border-light); }
+        .nav-button { display: flex; align-items: center; gap: 1rem; padding: 1.5rem 2rem; background: var(--code-bg); border: 2px solid var(--border-light); border-radius: 12px; text-decoration: none; color: var(--text-primary); transition: all 0.3s; flex: 1; max-width: 400px; }
+        .nav-button:hover { border-color: var(--primary-green); transform: translateY(-2px); color: var(--text-primary); }
+        .nav-button.next { margin-left: auto; }
+        .nav-icon { font-size: 2rem; color: var(--primary-green); }
+        .scroll-top { position: fixed; bottom: 30px; right: 30px; width: 55px; height: 55px; background: var(--primary-green); color: var(--deep-navy); border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; opacity: 0; visibility: hidden; transition: all 0.3s; z-index: 1000; }
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+        
+        /* Live Console Styles */
+        .live-console { background: var(--code-bg); border: 2px solid var(--border-light); border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+        .console-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light); }
+        .console-title { color: var(--primary-green); font-weight: 700; font-size: 1.1rem; }
+        .example-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .example-btn { background: var(--code-darker); color: var(--text-secondary); border: 1px solid var(--border-light); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.3s; }
+        .example-btn:hover { background: var(--primary-green); color: var(--deep-navy); border-color: var(--primary-green); }
+        .console-input { background: var(--code-darker); border: 1px solid var(--border-light); color: var(--text-primary); padding: 1rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; width: 100%; min-height: 120px; resize: vertical; }
+        .console-actions { display: flex; gap: 1rem; margin: 1rem 0; }
+        .action-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .run-btn { background: var(--success-green); color: white; }
+        .run-btn:hover { background: #059669; transform: translateY(-2px); }
+        .clear-btn { background: var(--code-darker); color: var(--text-secondary); border: 1px solid var(--border-light); }
+        .clear-btn:hover { background: var(--border-light); }
+        .console-output { background: var(--code-darker); border: 1px solid var(--border-light); border-radius: 8px; padding: 1rem; min-height: 150px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--success-green); white-space: pre-wrap; }
+        .output-error { color: var(--error-red); }
+        .output-success { color: var(--success-green); }
+        .output-info { color: var(--info-blue); }
+        .student-card { background: var(--code-bg); border: 2px solid var(--border-light); border-radius: 12px; padding: 1.5rem; margin: 1rem 0; }
+        .student-card:hover { border-color: var(--primary-green); }
+        @media (max-width: 992px) { .toc-floating { display: none; } }
+  </style>
+</head>
+<body>
+    <div class="progress-indicator"><div class="progress-fill" id="progressBar"></div></div>
+    <button class="mobile-menu-toggle"><span></span><span></span><span></span></button>
+     <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed" >🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                         <li><a href="practical-example.html" data-page="practical-example">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html"  data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html"   data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html"  data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" class="active" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat" >📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content">
+                    <span class="hero-badge"><i class="fas fa-graduation-cap"></i> Section 11: Projects</span>
+                    <h1>🌐 IoT Platform Project</h1>
+                    <p>Build a Scalable MongoDB-Powered IoT Data Management System</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html">Home</a><span class="separator">›</span>
+                <a href="index.html">Section 11: Projects</a><span class="separator">›</span>
+                <span class="current">Food Delivery</span>
+            </div>
+        </div>
+        
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#introduction" class="nav-btn" style="color: white;">Project Overview</a></li>
+                            <li><a href="#scenario" class="nav-btn" style="color: white;">Real-World Scenario</a></li>
+                            <li><a href="#objectives" class="nav-btn" style="color: white;">Learning Objectives</a></li>
+                            <li><a href="#schema" class="nav-btn" style="color: white;">Database Schema Design</a></li>
+                            <li><a href="#setup" class="nav-btn" style="color: white;">Initial Setup</a></li>
+                            <li><a href="#phase1" class="nav-btn" style="color: white;">Phase 1: Device Management</a></li>
+                            <li><a href="#phase2" class="nav-btn" style="color: white;">Phase 2: Sensor Data</a></li>
+                            <li><a href="#phase3" class="nav-btn" style="color: white;">Phase 3: Alerts & Rules</a></li>
+                            <li><a href="#phase4" class="nav-btn" style="color: white;">Phase 4: Time-Series Analytics</a></li>
+                            <li><a href="#phase5" class="nav-btn" style="color: white;">Phase 5: Device Commands</a></li>
+                            <li><a href="#phase6" class="nav-btn" style="color: white;">Phase 6: Dashboard Analytics</a></li>
+                            <li><a href="#optimization" class="nav-btn" style="color: white;">Performance Optimization</a></li>
+                            <li><a href="#challenges" class="nav-btn" style="color: white;">Advanced Challenges</a></li>
+                        </ul>
+                    </aside>
+                    </div>
+
+        <div class="col-lg-9">
+
+            <section id="introduction">
+                <h2>🎯 Project Overview</h2>
+                <p>Welcome to the IoT Platform project! In this comprehensive hands-on tutorial, you'll build a production-ready Internet of Things data management system similar to AWS IoT, Azure IoT Hub, or Google Cloud IoT. You'll implement device registration, real-time sensor data collection, time-series analysis, alert systems, remote device control, and comprehensive monitoring dashboards.</p>
+
+                <div class="info-box">
+                    <strong>💡 What Makes This Project Unique?</strong>
+                    <p>This project introduces MongoDB's time-series collections for efficient IoT data storage, window functions for advanced analytics, TTL indexes for automatic data expiration, and aggregation pipelines for real-time monitoring. You'll learn patterns used by industrial IoT platforms managing millions of devices.</p>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">6</div>
+                        <div class="metric-label">Collections</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">30+</div>
+                        <div class="metric-label">Features</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">80+</div>
+                        <div class="metric-label">Queries</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">Time-Series</div>
+                        <div class="metric-label">Optimized</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="scenario">
+                <div class="story-box">
+                    <h3>📖 Meet SmartFactory: Your IoT Management Platform</h3>
+                    <p><strong>The Challenge:</strong> Sarah is deploying SmartFactory, an IoT platform for industrial monitoring. The system needs to manage thousands of sensors across multiple facilities, collect temperature, humidity, pressure, and vibration data in real-time, detect anomalies and trigger automated alerts, store historical data for trend analysis, enable remote device configuration and control, and generate insights from billions of sensor readings.</p>
+                    
+                    <p style="margin-top: 15px;"><strong>Your Mission:</strong> As the database architect, you'll design a MongoDB backend that supports:</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>✅ Device registration and lifecycle management</li>
+                        <li>✅ High-frequency sensor data ingestion (1000s per second)</li>
+                        <li>✅ Real-time alerting based on threshold rules</li>
+                        <li>✅ Time-series data analysis and aggregation</li>
+                        <li>✅ Remote device commands and firmware updates</li>
+                        <li>✅ Historical data retention and archival</li>
+                        <li>✅ Dashboard analytics and reporting</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="objectives">
+                <h2>🎓 Learning Objectives</h2>
+                <p>By completing this project, you will master:</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📊 Time-Series Collections</h4>
+                        <p>Use MongoDB's specialized time-series collections for optimized IoT data storage</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🪟 Window Functions</h4>
+                        <p>Calculate moving averages, running totals, and trend analysis</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⏱️ TTL Indexes</h4>
+                        <p>Automatically expire old data to manage storage costs</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔔 Alert Systems</h4>
+                        <p>Build rule-based alerting for threshold violations</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📈 Data Aggregation</h4>
+                        <p>Create complex pipelines for downsampling and analytics</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚡ High Throughput</h4>
+                        <p>Optimize for millions of writes per day</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="schema">
+                <h2>📐 Database Schema Design</h2>
+                <p>Our IoT platform consists of 6 collections optimized for device and sensor data:</p>
+
+                <div class="schema-card">
+                    <h4>📱 devices - Device Registry</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">Store device metadata, configuration, and status</p>
+                    <ul class="field-list">
+                        <li>_id <span class="field-type">ObjectId</span></li>
+                        <li>deviceId <span class="field-type">String (unique, indexed)</span></li>
+                        <li>name <span class="field-type">String</span></li>
+                        <li>type <span class="field-type">String (sensor/actuator/gateway)</span></li>
+                        <li>manufacturer <span class="field-type">String</span></li>
+                        <li>model <span class="field-type">String</span></li>
+                        <li>firmwareVersion <span class="field-type">String</span></li>
+                        <li>location <span class="field-type">Object {facility, zone, coordinates}</span></li>
+                        <li>status <span class="field-type">String (online/offline/maintenance) (indexed)</span></li>
+                        <li>lastHeartbeat <span class="field-type">Date (indexed)</span></li>
+                        <li>configuration <span class="field-type">Object {samplingRate, thresholds}</span></li>
+                        <li>metadata <span class="field-type">Object (custom fields)</span></li>
+                        <li>registeredAt <span class="field-type">Date</span></li>
+                        <li>isActive <span class="field-type">Boolean</span></li>
+                    </ul>
+                </div>
+
+                <div class="schema-card">
+                    <h4>📡 sensorReadings - Time-Series Data</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">High-frequency sensor measurements (Time-Series Collection)</p>
+                    <ul class="field-list">
+                        <li>timestamp <span class="field-type">Date (timeField)</span></li>
+                        <li>deviceId <span class="field-type">String (metaField)</span></li>
+                        <li>temperature <span class="field-type">Number</span></li>
+                        <li>humidity <span class="field-type">Number</span></li>
+                        <li>pressure <span class="field-type">Number</span></li>
+                        <li>vibration <span class="field-type">Number</span></li>
+                        <li>voltage <span class="field-type">Number</span></li>
+                        <li>current <span class="field-type">Number</span></li>
+                        <li>metadata <span class="field-type">Object {facility, zone, sensorType}</span></li>
+                    </ul>
+                </div>
+
+                <div class="schema-card">
+                    <h4>🔔 alerts - Alert Definitions & History</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">Alert rules and triggered alerts</p>
+                    <ul class="field-list">
+                        <li>_id <span class="field-type">ObjectId</span></li>
+                        <li>alertId <span class="field-type">String (unique)</span></li>
+                        <li>deviceId <span class="field-type">String (indexed)</span></li>
+                        <li>ruleId <span class="field-type">ObjectId (reference)</span></li>
+                        <li>severity <span class="field-type">String (critical/warning/info)</span></li>
+                        <li>metric <span class="field-type">String (temperature/humidity/etc)</span></li>
+                        <li>value <span class="field-type">Number</span></li>
+                        <li>threshold <span class="field-type">Number</span></li>
+                        <li>message <span class="field-type">String</span></li>
+                        <li>status <span class="field-type">String (active/acknowledged/resolved)</span></li>
+                        <li>triggeredAt <span class="field-type">Date (indexed)</span></li>
+                        <li>acknowledgedAt <span class="field-type">Date</span></li>
+                        <li>resolvedAt <span class="field-type">Date</span></li>
+                    </ul>
+                </div>
+
+                <div class="schema-card">
+                    <h4>⚙️ alertRules - Alert Configuration</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">Define threshold-based alert rules</p>
+                    <ul class="field-list">
+                        <li>_id <span class="field-type">ObjectId</span></li>
+                        <li>name <span class="field-type">String</span></li>
+                        <li>description <span class="field-type">String</span></li>
+                        <li>deviceFilter <span class="field-type">Object {type, facility, zone}</span></li>
+                        <li>metric <span class="field-type">String</span></li>
+                        <li>condition <span class="field-type">String (gt/lt/eq/gte/lte)</span></li>
+                        <li>threshold <span class="field-type">Number</span></li>
+                        <li>duration <span class="field-type">Number (seconds)</span></li>
+                        <li>severity <span class="field-type">String</span></li>
+                        <li>isEnabled <span class="field-type">Boolean (indexed)</span></li>
+                        <li>createdAt <span class="field-type">Date</span></li>
+                    </ul>
+                </div>
+
+                <div class="schema-card">
+                    <h4>📤 deviceCommands - Remote Control</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">Commands sent to devices for remote control</p>
+                    <ul class="field-list">
+                        <li>_id <span class="field-type">ObjectId</span></li>
+                        <li>commandId <span class="field-type">String (unique)</span></li>
+                        <li>deviceId <span class="field-type">String (indexed)</span></li>
+                        <li>commandType <span class="field-type">String (config/reboot/update)</span></li>
+                        <li>payload <span class="field-type">Object</span></li>
+                        <li>status <span class="field-type">String (pending/sent/ack/failed)</span></li>
+                        <li>createdAt <span class="field-type">Date</span></li>
+                        <li>sentAt <span class="field-type">Date</span></li>
+                        <li>acknowledgedAt <span class="field-type">Date</span></li>
+                        <li>response <span class="field-type">Object</span></li>
+                    </ul>
+                </div>
+
+                <div class="schema-card">
+                    <h4>📊 deviceMetrics - Aggregated Statistics</h4>
+                    <p style="color: #b0b0b0; margin-bottom: 15px;">Pre-computed hourly/daily aggregates for performance</p>
+                    <ul class="field-list">
+                        <li>_id <span class="field-type">ObjectId</span></li>
+                        <li>deviceId <span class="field-type">String (indexed)</span></li>
+                        <li>date <span class="field-type">Date (indexed)</span></li>
+                        <li>interval <span class="field-type">String (hourly/daily)</span></li>
+                        <li>metrics <span class="field-type">Object {temperature, humidity, etc}</span></li>
+                        <li>statistics <span class="field-type">Object {min, max, avg, count}</span></li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <strong>🎯 Key Design Decisions:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Time-Series Collection:</strong> sensorReadings uses time-series for optimal storage and query performance</li>
+                        <li><strong>Separate Metrics:</strong> Pre-aggregated data for fast dashboard queries</li>
+                        <li><strong>TTL on Readings:</strong> Auto-expire raw data after retention period (e.g., 90 days)</li>
+                        <li><strong>Device Heartbeat:</strong> Track online/offline status with lastHeartbeat</li>
+                        <li><strong>Command Queue:</strong> Async command delivery with status tracking</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="setup">
+                <h2>🔧 Initial Setup</h2>
+                
+                <div class="step-container">
+                    <h3><span class="step-number">1</span>Create the Database</h3>
+                    <div class="code-block">
+                        <span class="code-label">Initialize SmartFactory Database</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>
+use smartFactory
+
+// Verify creation
+db.getName()
+// Output: "smartFactory"</pre>
+                    </div>
+                </div>
+
+                <div class="step-container">
+                    <h3><span class="step-number">2</span>Create Time-Series Collection</h3>
+                    <div class="code-block">
+                        <span class="code-label">Critical: Time-series collection for sensor data</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>
+// Create time-series collection for sensor readings
+db.createCollection("sensorReadings", {
+  timeseries: {
+    timeField: "timestamp",
+    metaField: "deviceId",
+    granularity: "seconds"  // seconds, minutes, or hours
+  },
+  expireAfterSeconds: 7776000  // 90 days (90 * 24 * 60 * 60)
+})</pre>
+                    </div>
+                </div>
+
+                <div class="step-container">
+                    <h3><span class="step-number">3</span>Create Regular Collections</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>
+db.createCollection("devices")
+db.createCollection("alerts")
+db.createCollection("alertRules")
+db.createCollection("deviceCommands")
+db.createCollection("deviceMetrics")</pre>
+                    </div>
+                </div>
+
+                <div class="step-container">
+                    <h3><span class="step-number">4</span>Create Indexes</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>
+// Devices
+db.devices.createIndex({ deviceId: 1 }, { unique: true })
+db.devices.createIndex({ status: 1 })
+db.devices.createIndex({ lastHeartbeat: -1 })
+db.devices.createIndex({ "location.facility": 1, "location.zone": 1 })
+db.devices.createIndex({ type: 1 })
+
+// Alerts
+db.alerts.createIndex({ deviceId: 1, triggeredAt: -1 })
+db.alerts.createIndex({ status: 1, severity: 1 })
+db.alerts.createIndex({ triggeredAt: -1 })
+db.alerts.createIndex({ alertId: 1 }, { unique: true })
+
+// Alert Rules
+db.alertRules.createIndex({ isEnabled: 1 })
+db.alertRules.createIndex({ "deviceFilter.type": 1 })
+
+// Device Commands
+db.deviceCommands.createIndex({ commandId: 1 }, { unique: true })
+db.deviceCommands.createIndex({ deviceId: 1, createdAt: -1 })
+db.deviceCommands.createIndex({ status: 1 })
+
+// Device Metrics
+db.deviceMetrics.createIndex({ deviceId: 1, date: -1 })
+db.deviceMetrics.createIndex({ date: -1, interval: 1 })</pre>
+                    </div>
+                </div>
+
+                <div class="success-box">
+                    <strong>✅ Setup Complete!</strong>
+                    <p>Your SmartFactory database is ready with time-series collections and all necessary indexes for high-performance IoT data management!</p>
+                </div>
+            </section>
+
+            <section id="phase1">
+                <h2>📱 Phase 1: Device Management</h2>
+                <p>Register and manage IoT devices across facilities.</p>
+
+                <h3>Register Devices</h3>
+                <div class="code-block">
+                    <span class="code-label">Add IoT Devices to Registry</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.devices.insertMany([
+  {
+    deviceId: "TEMP-SENSOR-001",
+    name: "Assembly Line Temperature Sensor",
+    type: "sensor",
+    manufacturer: "IndustrialSensors Inc",
+    model: "TS-4000",
+    firmwareVersion: "2.1.3",
+    location: {
+      facility: "Factory-A",
+      zone: "Assembly-Line-1",
+      coordinates: { lat: 37.7749, lng: -122.4194 }
+    },
+    status: "online",
+    lastHeartbeat: new Date(),
+    configuration: {
+      samplingRate: 5,  // seconds
+      thresholds: {
+        temperature: { min: 15, max: 30 },
+        humidity: { min: 30, max: 70 }
+      }
+    },
+    metadata: {
+      installDate: new Date("2024-01-15"),
+      warrantyExpires: new Date("2026-01-15")
+    },
+    registeredAt: new Date(),
+    isActive: true
+  },
+  {
+    deviceId: "HUM-SENSOR-002",
+    name: "Warehouse Humidity Monitor",
+    type: "sensor",
+    manufacturer: "IndustrialSensors Inc",
+    model: "HM-3500",
+    firmwareVersion: "1.8.2",
+    location: {
+      facility: "Warehouse-B",
+      zone: "Storage-A",
+      coordinates: { lat: 37.7750, lng: -122.4195 }
+    },
+    status: "online",
+    lastHeartbeat: new Date(),
+    configuration: {
+      samplingRate: 10,
+      thresholds: {
+        humidity: { min: 40, max: 60 },
+        temperature: { min: 18, max: 25 }
+      }
+    },
+    metadata: {
+      installDate: new Date("2024-02-01"),
+      warrantyExpires: new Date("2026-02-01")
+    },
+    registeredAt: new Date(),
+    isActive: true
+  },
+  {
+    deviceId: "PRESS-SENSOR-003",
+    name: "Hydraulic Pressure Monitor",
+    type: "sensor",
+    manufacturer: "PressureTech",
+    model: "PT-9000",
+    firmwareVersion: "3.2.1",
+    location: {
+      facility: "Factory-A",
+      zone: "Hydraulics-Bay",
+      coordinates: { lat: 37.7751, lng: -122.4196 }
+    },
+    status: "online",
+    lastHeartbeat: new Date(),
+    configuration: {
+      samplingRate: 2,
+      thresholds: {
+        pressure: { min: 2000, max: 5000 }  // PSI
+      }
+    },
+    metadata: {
+      installDate: new Date("2023-11-10"),
+      warrantyExpires: new Date("2025-11-10"),
+      calibrationDate: new Date("2024-11-01")
+    },
+    registeredAt: new Date(),
+    isActive: true
+  },
+  {
+    deviceId: "VIB-SENSOR-004",
+    name: "Motor Vibration Sensor",
+    type: "sensor",
+    manufacturer: "VibrationSystems",
+    model: "VS-2200",
+    firmwareVersion: "2.0.5",
+    location: {
+      facility: "Factory-A",
+      zone: "Motor-Room-1",
+      coordinates: { lat: 37.7749, lng: -122.4193 }
+    },
+    status: "online",
+    lastHeartbeat: new Date(),
+    configuration: {
+      samplingRate: 1,  // High frequency for vibration
+      thresholds: {
+        vibration: { min: 0, max: 15 }  // mm/s
+      }
+    },
+    metadata: {
+      installDate: new Date("2024-03-20"),
+      warrantyExpires: new Date("2026-03-20")
+    },
+    registeredAt: new Date(),
+    isActive: true
+  },
+  {
+    deviceId: "GATEWAY-001",
+    name: "Main Gateway - Factory A",
+    type: "gateway",
+    manufacturer: "IoTGateways Corp",
+    model: "GW-5000",
+    firmwareVersion: "4.1.0",
+    location: {
+      facility: "Factory-A",
+      zone: "Server-Room",
+      coordinates: { lat: 37.7750, lng: -122.4194 }
+    },
+    status: "online",
+    lastHeartbeat: new Date(),
+    configuration: {
+      connectedDevices: 25,
+      protocol: "MQTT"
+    },
+    metadata: {
+      installDate: new Date("2023-10-01"),
+      uptime: "99.98%"
+    },
+    registeredAt: new Date(),
+    isActive: true
+  }
+])</pre>
+                </div>
+
+                <h3>Query Devices</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Get all online sensors
+db.devices.find({ 
+  type: "sensor",
+  status: "online" 
+})
+
+// Find devices by facility and zone
+db.devices.find({
+  "location.facility": "Factory-A",
+  "location.zone": "Assembly-Line-1"
+})
+
+// Get devices that haven't sent heartbeat in 5 minutes
+var fiveMinutesAgo = new Date(Date.now() - 5 * 60000)
+
+db.devices.find({
+  lastHeartbeat: { $lt: fiveMinutesAgo },
+  isActive: true
+})</pre>
+                </div>
+
+                <h3>Update Device Status</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Update heartbeat (device check-in)
+db.devices.updateOne(
+  { deviceId: "TEMP-SENSOR-001" },
+  { 
+    $set: { 
+      lastHeartbeat: new Date(),
+      status: "online"
+    } 
+  }
+)
+
+// Mark device offline
+db.devices.updateOne(
+  { deviceId: "HUM-SENSOR-002" },
+  { 
+    $set: { 
+      status: "offline"
+    } 
+  }
+)
+
+// Update firmware version
+db.devices.updateOne(
+  { deviceId: "TEMP-SENSOR-001" },
+  { 
+    $set: { 
+      firmwareVersion: "2.2.0",
+      "metadata.lastFirmwareUpdate": new Date()
+    } 
+  }
+)
+
+// Update configuration
+db.devices.updateOne(
+  { deviceId: "TEMP-SENSOR-001" },
+  {
+    $set: {
+      "configuration.samplingRate": 3,
+      "configuration.thresholds.temperature.max": 35
+    }
+  }
+)</pre>
+                </div>
+
+                <h3>Decommission Device</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Soft delete device
+db.devices.updateOne(
+  { deviceId: "TEMP-SENSOR-001" },
+  {
+    $set: {
+      isActive: false,
+      status: "decommissioned",
+      "metadata.decommissionedAt": new Date()
+    }
+  }
+)</pre>
+                </div>
+            </section>
+
+            <section id="phase2">
+                <h2>📡 Phase 2: Sensor Data Collection</h2>
+                <p>Ingest and query time-series sensor data at scale.</p>
+
+                <h3>Insert Sensor Readings</h3>
+                <div class="code-block">
+                    <span class="code-label">High-Frequency Data Ingestion</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Single reading
+db.sensorReadings.insertOne({
+  timestamp: new Date(),
+  deviceId: "TEMP-SENSOR-001",
+  temperature: 23.5,
+  humidity: 45.2,
+  metadata: {
+    facility: "Factory-A",
+    zone: "Assembly-Line-1",
+    sensorType: "temperature"
+  }
+})
+
+// Batch insert (more efficient for high throughput)
+db.sensorReadings.insertMany([
+  {
+    timestamp: new Date(),
+    deviceId: "TEMP-SENSOR-001",
+    temperature: 24.1,
+    humidity: 46.3,
+    metadata: {
+      facility: "Factory-A",
+      zone: "Assembly-Line-1",
+      sensorType: "temperature"
+    }
+  },
+  {
+    timestamp: new Date(),
+    deviceId: "HUM-SENSOR-002",
+    temperature: 22.8,
+    humidity: 52.7,
+    metadata: {
+      facility: "Warehouse-B",
+      zone: "Storage-A",
+      sensorType: "humidity"
+    }
+  },
+  {
+    timestamp: new Date(),
+    deviceId: "PRESS-SENSOR-003",
+    pressure: 3245.5,
+    temperature: 28.3,
+    metadata: {
+      facility: "Factory-A",
+      zone: "Hydraulics-Bay",
+      sensorType: "pressure"
+    }
+  },
+  {
+    timestamp: new Date(),
+    deviceId: "VIB-SENSOR-004",
+    vibration: 8.2,
+    temperature: 35.6,
+    metadata: {
+      facility: "Factory-A",
+      zone: "Motor-Room-1",
+      sensorType: "vibration"
+    }
+  }
+])
+
+// Simulate continuous readings over time
+for (let i = 0; i < 100; i++) {
+  let timestamp = new Date(Date.now() - (100 - i) * 5000) // 5 second intervals
+  
+  db.sensorReadings.insertOne({
+    timestamp: timestamp,
+    deviceId: "TEMP-SENSOR-001",
+    temperature: 22 + Math.random() * 8,  // Random between 22-30
+    humidity: 40 + Math.random() * 20,     // Random between 40-60
+    metadata: {
+      facility: "Factory-A",
+      zone: "Assembly-Line-1",
+      sensorType: "temperature"
+    }
+  })
+}</pre>
+                </div>
+
+                <h3>Query Recent Readings</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Get last 10 readings for a device
+db.sensorReadings.find({
+  deviceId: "TEMP-SENSOR-001"
+})
+.sort({ timestamp: -1 })
+.limit(10)
+
+// Get readings from last hour
+var oneHourAgo = new Date(Date.now() - 60 * 60000)
+
+db.sensorReadings.find({
+  deviceId: "TEMP-SENSOR-001",
+  timestamp: { $gte: oneHourAgo }
+})
+.sort({ timestamp: -1 })
+
+// Get readings in time range
+db.sensorReadings.find({
+  deviceId: "TEMP-SENSOR-001",
+  timestamp: {
+    $gte: new Date("2024-12-22T10:00:00Z"),
+    $lte: new Date("2024-12-22T11:00:00Z")
+  }
+})</pre>
+                </div>
+
+                <h3>Calculate Statistics</h3>
+                <div class="code-block">
+                    <span class="code-label">Aggregation on Time-Series Data</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Average temperature over last hour
+var oneHourAgo = new Date(Date.now() - 60 * 60000)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001",
+      timestamp: { $gte: oneHourAgo }
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      avgTemp: { $avg: "$temperature" },
+      minTemp: { $min: "$temperature" },
+      maxTemp: { $max: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      count: { $sum: 1 }
+    }
+  }
+])
+
+// Hourly averages for the day
+var startOfDay = new Date()
+startOfDay.setHours(0, 0, 0, 0)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001",
+      timestamp: { $gte: startOfDay }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        year: { $year: "$timestamp" },
+        month: { $month: "$timestamp" },
+        day: { $dayOfMonth: "$timestamp" },
+        hour: { $hour: "$timestamp" }
+      },
+      avgTemp: { $avg: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      hour: "$_id.hour",
+      avgTemp: { $round: ["$avgTemp", 2] },
+      avgHumidity: { $round: ["$avgHumidity", 2] },
+      readingCount: "$count"
+    }
+  },
+  { $sort: { hour: 1 } }
+])</pre>
+                </div>
+
+                <h3>Detect Anomalies</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Find readings outside normal range
+db.sensorReadings.find({
+  deviceId: "TEMP-SENSOR-001",
+  $or: [
+    { temperature: { $gt: 30 } },  // Too hot
+    { temperature: { $lt: 15 } },  // Too cold
+    { humidity: { $gt: 70 } },     // Too humid
+    { humidity: { $lt: 30 } }      // Too dry
+  ]
+})
+.sort({ timestamp: -1 })
+.limit(20)</pre>
+                </div>
+
+                <h3>Moving Average (Window Function)</h3>
+                <div class="code-block">
+                    <span class="code-label">Calculate 5-Reading Moving Average</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001"
+    }
+  },
+  { $sort: { timestamp: 1 } },
+  {
+    $setWindowFields: {
+      partitionBy: "$deviceId",
+      sortBy: { timestamp: 1 },
+      output: {
+        movingAvgTemp: {
+          $avg: "$temperature",
+          window: {
+            documents: [-2, 2]  // 2 before, current, 2 after = 5 readings
+          }
+        },
+        movingAvgHumidity: {
+          $avg: "$humidity",
+          window: {
+            documents: [-2, 2]
+          }
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      timestamp: 1,
+      temperature: { $round: ["$temperature", 2] },
+      humidity: { $round: ["$humidity", 2] },
+      movingAvgTemp: { $round: ["$movingAvgTemp", 2] },
+      movingAvgHumidity: { $round: ["$movingAvgHumidity", 2] }
+    }
+  },
+  { $limit: 50 }
+])</pre>
+                </div>
+            </section>
+
+            <section id="phase3">
+                <h2>🔔 Phase 3: Alerts & Monitoring Rules</h2>
+                <p>Create automated alert rules and track triggered alerts.</p>
+
+                <h3>Create Alert Rules</h3>
+                <div class="code-block">
+                    <span class="code-label">Define Threshold-Based Rules</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.alertRules.insertMany([
+  {
+    name: "High Temperature Alert",
+    description: "Trigger when temperature exceeds 30°C",
+    deviceFilter: {
+      type: "sensor",
+      facility: "Factory-A"
+    },
+    metric: "temperature",
+    condition: "gt",  // greater than
+    threshold: 30,
+    duration: 60,  // Must persist for 60 seconds
+    severity: "warning",
+    isEnabled: true,
+    createdAt: new Date()
+  },
+  {
+    name: "Critical Temperature Alert",
+    description: "Critical alert when temperature exceeds 35°C",
+    deviceFilter: {
+      type: "sensor",
+      facility: "Factory-A"
+    },
+    metric: "temperature",
+    condition: "gt",
+    threshold: 35,
+    duration: 30,
+    severity: "critical",
+    isEnabled: true,
+    createdAt: new Date()
+  },
+  {
+    name: "Low Humidity Alert",
+    description: "Alert when humidity drops below 30%",
+    deviceFilter: {
+      type: "sensor"
+    },
+    metric: "humidity",
+    condition: "lt",  // less than
+    threshold: 30,
+    duration: 120,
+    severity: "info",
+    isEnabled: true,
+    createdAt: new Date()
+  },
+  {
+    name: "High Pressure Alert",
+    description: "Pressure exceeds safe operating threshold",
+    deviceFilter: {
+      type: "sensor",
+      zone: "Hydraulics-Bay"
+    },
+    metric: "pressure",
+    condition: "gt",
+    threshold: 5000,
+    duration: 10,
+    severity: "critical",
+    isEnabled: true,
+    createdAt: new Date()
+  },
+  {
+    name: "Excessive Vibration Alert",
+    description: "Motor vibration indicates potential failure",
+    deviceFilter: {
+      type: "sensor",
+      zone: "Motor-Room-1"
+    },
+    metric: "vibration",
+    condition: "gt",
+    threshold: 15,
+    duration: 5,
+    severity: "critical",
+    isEnabled: true,
+    createdAt: new Date()
+  }
+])</pre>
+                </div>
+
+                <h3>Trigger Alerts</h3>
+                <div class="code-block">
+                    <span class="code-label">Create Alert When Rule Violated</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Simulate alert trigger
+var rule = db.alertRules.findOne({ name: "High Temperature Alert" })
+
+db.alerts.insertOne({
+  alertId: "ALERT-" + new Date().getTime(),
+  deviceId: "TEMP-SENSOR-001",
+  ruleId: rule._id,
+  severity: rule.severity,
+  metric: rule.metric,
+  value: 32.5,
+  threshold: rule.threshold,
+  message: "Temperature 32.5°C exceeds threshold of 30°C",
+  status: "active",
+  triggeredAt: new Date(),
+  acknowledgedAt: null,
+  resolvedAt: null
+})
+
+// Critical pressure alert
+var pressureRule = db.alertRules.findOne({ name: "High Pressure Alert" })
+
+db.alerts.insertOne({
+  alertId: "ALERT-" + new Date().getTime(),
+  deviceId: "PRESS-SENSOR-003",
+  ruleId: pressureRule._id,
+  severity: "critical",
+  metric: "pressure",
+  value: 5250,
+  threshold: 5000,
+  message: "CRITICAL: Pressure 5250 PSI exceeds safe limit of 5000 PSI",
+  status: "active",
+  triggeredAt: new Date(),
+  acknowledgedAt: null,
+  resolvedAt: null
+})</pre>
+                </div>
+
+                <h3>Query Active Alerts</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Get all active alerts
+db.alerts.find({ 
+  status: "active" 
+})
+.sort({ triggeredAt: -1 })
+
+// Get critical alerts only
+db.alerts.find({
+  status: "active",
+  severity: "critical"
+})
+.sort({ triggeredAt: -1 })
+
+// Get alerts for specific device
+db.alerts.find({
+  deviceId: "TEMP-SENSOR-001"
+})
+.sort({ triggeredAt: -1 })
+
+// Get unacknowledged alerts
+db.alerts.find({
+  status: "active",
+  acknowledgedAt: null
+})
+.sort({ severity: 1, triggeredAt: -1 })</pre>
+                </div>
+
+                <h3>Acknowledge and Resolve Alerts</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Acknowledge alert
+db.alerts.updateOne(
+  { alertId: "ALERT-1734876543210" },
+  {
+    $set: {
+      status: "acknowledged",
+      acknowledgedAt: new Date(),
+      acknowledgedBy: "operator@smartfactory.com"
+    }
+  }
+)
+
+// Resolve alert
+db.alerts.updateOne(
+  { alertId: "ALERT-1734876543210" },
+  {
+    $set: {
+      status: "resolved",
+      resolvedAt: new Date(),
+      resolvedBy: "operator@smartfactory.com",
+      resolution: "Temperature normalized after HVAC adjustment"
+    }
+  }
+)</pre>
+                </div>
+
+                <h3>Alert Analytics</h3>
+                <div class="code-block">
+                    <span class="code-label">Alert Summary and Trends</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Alerts by severity
+db.alerts.aggregate([
+  {
+    $group: {
+      _id: "$severity",
+      count: { $sum: 1 },
+      activeCount: {
+        $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] }
+      }
+    }
+  },
+  { $sort: { count: -1 } }
+])
+
+// Most problematic devices
+db.alerts.aggregate([
+  {
+    $group: {
+      _id: "$deviceId",
+      alertCount: { $sum: 1 },
+      criticalCount: {
+        $sum: { $cond: [{ $eq: ["$severity", "critical"] }, 1, 0] }
+      }
+    }
+  },
+  {
+    $lookup: {
+      from: "devices",
+      localField: "_id",
+      foreignField: "deviceId",
+      as: "device"
+    }
+  },
+  { $unwind: "$device" },
+  {
+    $project: {
+      _id: 0,
+      deviceId: "$_id",
+      deviceName: "$device.name",
+      alertCount: 1,
+      criticalCount: 1
+    }
+  },
+  { $sort: { alertCount: -1 } },
+  { $limit: 10 }
+])</pre>
+                </div>
+            </section>
+
+            <section id="phase4">
+                <h2>📊 Phase 4: Time-Series Analytics</h2>
+                <p>Advanced analytics on sensor data using aggregation pipelines.</p>
+
+                <h3>Hourly Aggregations</h3>
+                <div class="code-block">
+                    <span class="code-label">Downsample Data to Hourly Averages</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Calculate hourly averages for last 24 hours
+var oneDayAgo = new Date(Date.now() - 24 * 60 * 60000)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001",
+      timestamp: { $gte: oneDayAgo }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        year: { $year: "$timestamp" },
+        month: { $month: "$timestamp" },
+        day: { $dayOfMonth: "$timestamp" },
+        hour: { $hour: "$timestamp" }
+      },
+      avgTemperature: { $avg: "$temperature" },
+      minTemperature: { $min: "$temperature" },
+      maxTemperature: { $max: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      readingCount: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      timestamp: {
+        $dateFromParts: {
+          year: "$_id.year",
+          month: "$_id.month",
+          day: "$_id.day",
+          hour: "$_id.hour"
+        }
+      },
+      avgTemperature: { $round: ["$avgTemperature", 2] },
+      minTemperature: { $round: ["$minTemperature", 2] },
+      maxTemperature: { $round: ["$maxTemperature", 2] },
+      avgHumidity: { $round: ["$avgHumidity", 2] },
+      readingCount: 1
+    }
+  },
+  { $sort: { timestamp: 1 } }
+])</pre>
+                </div>
+
+                <h3>Store Aggregated Metrics</h3>
+                <div class="code-block">
+                    <span class="code-label">Pre-compute for Dashboard Performance</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Save hourly metrics
+var startOfHour = new Date()
+startOfHour.setMinutes(0, 0, 0)
+var endOfHour = new Date(startOfHour.getTime() + 60 * 60000)
+
+var hourlyStats = db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001",
+      timestamp: {
+        $gte: startOfHour,
+        $lt: endOfHour
+      }
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      avgTemp: { $avg: "$temperature" },
+      minTemp: { $min: "$temperature" },
+      maxTemp: { $max: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      count: { $sum: 1 }
+    }
+  }
+]).toArray()[0]
+
+if (hourlyStats) {
+  db.deviceMetrics.insertOne({
+    deviceId: "TEMP-SENSOR-001",
+    date: startOfHour,
+    interval: "hourly",
+    metrics: {
+      temperature: hourlyStats.avgTemp,
+      humidity: hourlyStats.avgHumidity
+    },
+    statistics: {
+      min: hourlyStats.minTemp,
+      max: hourlyStats.maxTemp,
+      avg: hourlyStats.avgTemp,
+      count: hourlyStats.count
+    }
+  })
+}</pre>
+                </div>
+
+                <h3>Multi-Device Comparison</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Compare all sensors in a facility
+var oneHourAgo = new Date(Date.now() - 60 * 60000)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      "metadata.facility": "Factory-A",
+      timestamp: { $gte: oneHourAgo }
+    }
+  },
+  {
+    $group: {
+      _id: "$deviceId",
+      avgTemp: { $avg: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      avgPressure: { $avg: "$pressure" },
+      avgVibration: { $avg: "$vibration" },
+      readingCount: { $sum: 1 }
+    }
+  },
+  {
+    $lookup: {
+      from: "devices",
+      localField: "_id",
+      foreignField: "deviceId",
+      as: "device"
+    }
+  },
+  { $unwind: "$device" },
+  {
+    $project: {
+      _id: 0,
+      deviceId: "$_id",
+      deviceName: "$device.name",
+      zone: "$device.location.zone",
+      avgTemp: { $round: ["$avgTemp", 2] },
+      avgHumidity: { $round: ["$avgHumidity", 2] },
+      avgPressure: { $round: ["$avgPressure", 2] },
+      avgVibration: { $round: ["$avgVibration", 2] },
+      readingCount: 1
+    }
+  },
+  { $sort: { avgTemp: -1 } }
+])</pre>
+                </div>
+
+                <h3>Trend Analysis</h3>
+                <div class="code-block">
+                    <span class="code-label">Calculate Rate of Change</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Temperature trend using window functions
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001"
+    }
+  },
+  { $sort: { timestamp: 1 } },
+  { $limit: 100 },
+  {
+    $setWindowFields: {
+      partitionBy: "$deviceId",
+      sortBy: { timestamp: 1 },
+      output: {
+        previousTemp: {
+          $shift: {
+            output: "$temperature",
+            by: -1
+          }
+        },
+        previousTime: {
+          $shift: {
+            output: "$timestamp",
+            by: -1
+          }
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      timestamp: 1,
+      temperature: 1,
+      tempChange: {
+        $cond: [
+          { $ne: ["$previousTemp", null] },
+          { $subtract: ["$temperature", "$previousTemp"] },
+          0
+        ]
+      },
+      timeElapsed: {
+        $cond: [
+          { $ne: ["$previousTime", null] },
+          {
+            $divide: [
+              { $subtract: ["$timestamp", "$previousTime"] },
+              1000  // Convert to seconds
+            ]
+          },
+          0
+        ]
+      }
+    }
+  },
+  {
+    $project: {
+      timestamp: 1,
+      temperature: { $round: ["$temperature", 2] },
+      tempChange: { $round: ["$tempChange", 2] },
+      rateOfChange: {
+        $cond: [
+          { $gt: ["$timeElapsed", 0] },
+          { $round: [{ $divide: ["$tempChange", "$timeElapsed"] }, 4] },
+          0
+        ]
+      }
+    }
+  }
+])</pre>
+                </div>
+
+                <h3>Percentile Analysis</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Calculate temperature percentiles
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      deviceId: "TEMP-SENSOR-001",
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60000) }
+    }
+  },
+  {
+    $group: {
+      _id: "$deviceId",
+      temps: { $push: "$temperature" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      deviceId: "$_id",
+      p50: { $percentile: { input: "$temps", p: [0.5], method: "approximate" } },
+      p75: { $percentile: { input: "$temps", p: [0.75], method: "approximate" } },
+      p90: { $percentile: { input: "$temps", p: [0.90], method: "approximate" } },
+      p95: { $percentile: { input: "$temps", p: [0.95], method: "approximate" } },
+      p99: { $percentile: { input: "$temps", p: [0.99], method: "approximate" } }
+    }
+  }
+])</pre>
+                </div>
+            </section>
+
+            <section id="phase5">
+                <h2>📤 Phase 5: Device Commands & Control</h2>
+                <p>Send remote commands to devices and track execution.</p>
+
+                <h3>Send Configuration Command</h3>
+                <div class="code-block">
+                    <span class="code-label">Update Device Settings Remotely</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.deviceCommands.insertOne({
+  commandId: "CMD-" + new Date().getTime(),
+  deviceId: "TEMP-SENSOR-001",
+  commandType: "config",
+  payload: {
+    samplingRate: 3,  // Change from 5 to 3 seconds
+    thresholds: {
+      temperature: { min: 15, max: 35 }
+    }
+  },
+  status: "pending",
+  createdAt: new Date(),
+  sentAt: null,
+  acknowledgedAt: null,
+  response: null
+})</pre>
+                </div>
+
+                <h3>Send Reboot Command</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.deviceCommands.insertOne({
+  commandId: "CMD-" + new Date().getTime(),
+  deviceId: "GATEWAY-001",
+  commandType: "reboot",
+  payload: {
+    reason: "Scheduled maintenance",
+    delay: 60  // Wait 60 seconds before reboot
+  },
+  status: "pending",
+  createdAt: new Date(),
+  sentAt: null,
+  acknowledgedAt: null,
+  response: null
+})</pre>
+                </div>
+
+                <h3>Send Firmware Update</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+db.deviceCommands.insertOne({
+  commandId: "CMD-" + new Date().getTime(),
+  deviceId: "TEMP-SENSOR-001",
+  commandType: "update",
+  payload: {
+    firmwareVersion: "2.3.0",
+    downloadUrl: "https://updates.smartfactory.com/firmware/ts-4000-v2.3.0.bin",
+    checksum: "a3b5c7d9e1f2..."
+  },
+  status: "pending",
+  createdAt: new Date(),
+  sentAt: null,
+  acknowledgedAt: null,
+  response: null
+})</pre>
+                </div>
+
+                <h3>Update Command Status</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+var cmdId = "CMD-1734876543210"
+
+// Mark as sent
+db.deviceCommands.updateOne(
+  { commandId: cmdId },
+  {
+    $set: {
+      status: "sent",
+      sentAt: new Date()
+    }
+  }
+)
+
+// Device acknowledges command
+db.deviceCommands.updateOne(
+  { commandId: cmdId },
+  {
+    $set: {
+      status: "acknowledged",
+      acknowledgedAt: new Date(),
+      response: {
+        message: "Configuration updated successfully",
+        appliedAt: new Date()
+      }
+    }
+  }
+)
+
+// Command failed
+db.deviceCommands.updateOne(
+  { commandId: cmdId },
+  {
+    $set: {
+      status: "failed",
+      response: {
+        error: "Invalid parameter: samplingRate must be >= 1",
+        failedAt: new Date()
+      }
+    }
+  }
+)</pre>
+                </div>
+
+                <h3>Query Commands</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Get pending commands for device
+db.deviceCommands.find({
+  deviceId: "TEMP-SENSOR-001",
+  status: "pending"
+})
+.sort({ createdAt: 1 })
+
+// Get command history
+db.deviceCommands.find({
+  deviceId: "TEMP-SENSOR-001"
+})
+.sort({ createdAt: -1 })
+.limit(20)
+
+// Failed commands
+db.deviceCommands.find({
+  status: "failed"
+})
+.sort({ createdAt: -1 })</pre>
+                </div>
+            </section>
+
+            <section id="phase6">
+                <h2>📊 Phase 6: Dashboard Analytics</h2>
+                <p>Generate comprehensive insights for monitoring dashboards.</p>
+
+                <h3>System Overview</h3>
+                <div class="code-block">
+                    <span class="code-label">Fleet Health Summary</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Device status summary
+db.devices.aggregate([
+  {
+    $group: {
+      _id: "$status",
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      statusCounts: {
+        $push: { status: "$_id", count: "$count" }
+      },
+      totalDevices: { $sum: "$count" }
+    }
+  }
+])
+
+// Devices by type and status
+db.devices.aggregate([
+  {
+    $group: {
+      _id: { type: "$type", status: "$status" },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      type: "$_id.type",
+      status: "$_id.status",
+      count: 1
+    }
+  },
+  { $sort: { type: 1, status: 1 } }
+])</pre>
+                </div>
+
+                <h3>Facility Performance</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Average conditions by facility
+var oneHourAgo = new Date(Date.now() - 60 * 60000)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      timestamp: { $gte: oneHourAgo }
+    }
+  },
+  {
+    $group: {
+      _id: "$metadata.facility",
+      avgTemp: { $avg: "$temperature" },
+      avgHumidity: { $avg: "$humidity" },
+      avgPressure: { $avg: "$pressure" },
+      readingCount: { $sum: 1 },
+      deviceCount: { $addToSet: "$deviceId" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      facility: "$_id",
+      avgTemp: { $round: ["$avgTemp", 2] },
+      avgHumidity: { $round: ["$avgHumidity", 2] },
+      avgPressure: { $round: ["$avgPressure", 2] },
+      readingCount: 1,
+      activeDevices: { $size: "$deviceCount" }
+    }
+  },
+  { $sort: { facility: 1 } }
+])</pre>
+                </div>
+
+                <h3>Data Quality Metrics</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Calculate expected vs actual readings
+db.devices.aggregate([
+  {
+    $match: {
+      type: "sensor",
+      isActive: true
+    }
+  },
+  {
+    $lookup: {
+      from: "sensorReadings",
+      let: { devId: "$deviceId", rate: "$configuration.samplingRate" },
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $and: [
+                { $eq: ["$deviceId", "$$devId"] },
+                { $gte: ["$timestamp", new Date(Date.now() - 60 * 60000)] }
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            actualReadings: { $sum: 1 }
+          }
+        }
+      ],
+      as: "readings"
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      name: 1,
+      samplingRate: "$configuration.samplingRate",
+      expectedReadings: {
+        $divide: [3600, "$configuration.samplingRate"]  // 1 hour / rate
+      },
+      actualReadings: {
+        $ifNull: [{ $arrayElemAt: ["$readings.actualReadings", 0] }, 0]
+      }
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      name: 1,
+      expectedReadings: { $round: ["$expectedReadings", 0] },
+      actualReadings: 1,
+      dataQuality: {
+        $round: [
+          {
+            $multiply: [
+              { $divide: ["$actualReadings", "$expectedReadings"] },
+              100
+            ]
+          },
+          2
+        ]
+      }
+    }
+  },
+  { $sort: { dataQuality: 1 } }
+])</pre>
+                </div>
+
+                <h3>Alert Response Times</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Average time to acknowledge and resolve alerts
+db.alerts.aggregate([
+  {
+    $match: {
+      acknowledgedAt: { $ne: null }
+    }
+  },
+  {
+    $project: {
+      severity: 1,
+      timeToAcknowledge: {
+        $divide: [
+          { $subtract: ["$acknowledgedAt", "$triggeredAt"] },
+          60000  // Convert to minutes
+        ]
+      },
+      timeToResolve: {
+        $cond: [
+          { $ne: ["$resolvedAt", null] },
+          {
+            $divide: [
+              { $subtract: ["$resolvedAt", "$triggeredAt"] },
+              60000
+            ]
+          },
+          null
+        ]
+      }
+    }
+  },
+  {
+    $group: {
+      _id: "$severity",
+      avgAckTime: { $avg: "$timeToAcknowledge" },
+      avgResolveTime: { $avg: "$timeToResolve" },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      severity: "$_id",
+      avgAckTimeMinutes: { $round: ["$avgAckTime", 2] },
+      avgResolveTimeMinutes: { $round: ["$avgResolveTime", 2] },
+      alertCount: "$count"
+    }
+  },
+  { $sort: { severity: 1 } }
+])</pre>
+                </div>
+
+                <h3>Device Uptime Analysis</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Calculate uptime percentage based on heartbeat
+var last7Days = new Date(Date.now() - 7 * 24 * 60 * 60000)
+
+db.devices.aggregate([
+  {
+    $match: {
+      type: "sensor",
+      registeredAt: { $lte: last7Days }
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      name: 1,
+      daysSinceRegistration: {
+        $divide: [
+          { $subtract: [new Date(), "$registeredAt"] },
+          86400000  // milliseconds in a day
+        ]
+      },
+      hoursSinceHeartbeat: {
+        $divide: [
+          { $subtract: [new Date(), "$lastHeartbeat"] },
+          3600000  // milliseconds in an hour
+        ]
+      },
+      isCurrentlyOnline: { $eq: ["$status", "online"] }
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      name: 1,
+      isCurrentlyOnline: 1,
+      estimatedUptime: {
+        $cond: [
+          { $lt: ["$hoursSinceHeartbeat", 1] },
+          99.9,  // Recently checked in
+          {
+            $multiply: [
+              {
+                $divide: [
+                  {
+                    $subtract: [
+                      "$daysSinceRegistration",
+                      { $divide: ["$hoursSinceHeartbeat", 24] }
+                    ]
+                  },
+                  "$daysSinceRegistration"
+                ]
+              },
+              100
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      name: 1,
+      isCurrentlyOnline: 1,
+      uptimePercentage: { $round: ["$estimatedUptime", 2] }
+    }
+  },
+  { $sort: { uptimePercentage: 1 } }
+])</pre>
+                </div>
+
+                <h3>Energy Consumption Estimate</h3>
+                <div class="code-block">
+                    <span class="code-label">Calculate Power Usage from Voltage/Current</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Devices with voltage and current readings
+var oneDayAgo = new Date(Date.now() - 24 * 60 * 60000)
+
+db.sensorReadings.aggregate([
+  {
+    $match: {
+      voltage: { $exists: true },
+      current: { $exists: true },
+      timestamp: { $gte: oneDayAgo }
+    }
+  },
+  {
+    $project: {
+      deviceId: 1,
+      timestamp: 1,
+      powerWatts: { $multiply: ["$voltage", "$current"] }
+    }
+  },
+  {
+    $group: {
+      _id: "$deviceId",
+      avgPowerWatts: { $avg: "$powerWatts" },
+      maxPowerWatts: { $max: "$powerWatts" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      deviceId: "$_id",
+      avgPowerWatts: { $round: ["$avgPowerWatts", 2] },
+      maxPowerWatts: { $round: ["$maxPowerWatts", 2] },
+      dailyEnergyKWh: {
+        $round: [
+          { $multiply: ["$avgPowerWatts", 24, 0.001] },  // 24 hours, convert to kWh
+          2
+        ]
+      }
+    }
+  },
+  { $sort: { dailyEnergyKWh: -1 } }
+])</pre>
+                </div>
+            </section>
+
+            <section id="optimization">
+                <h2>⚡ Performance Optimization</h2>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📊 Time-Series Collections</h4>
+                        <p>Optimized storage and compression for high-frequency sensor data</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⏱️ TTL Indexes</h4>
+                        <p>Automatic expiration of old data prevents unbounded growth</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📇 Compound Indexes</h4>
+                        <p>{deviceId: 1, timestamp: -1} for efficient time-range queries</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📦 Pre-Aggregation</h4>
+                        <p>Store hourly/daily metrics for fast dashboard loading</p>
+                    </div>
+                </div>
+
+                <h3>Batch Insert Optimization</h3>
+                <div class="code-block">
+                    <span class="code-label">High Throughput Data Ingestion</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Use ordered: false for parallel inserts
+var readings = []
+for (let i = 0; i < 1000; i++) {
+  readings.push({
+    timestamp: new Date(Date.now() - i * 5000),
+    deviceId: "TEMP-SENSOR-001",
+    temperature: 22 + Math.random() * 8,
+    humidity: 40 + Math.random() * 20,
+    metadata: {
+      facility: "Factory-A",
+      zone: "Assembly-Line-1",
+      sensorType: "temperature"
+    }
+  })
+}
+
+db.sensorReadings.insertMany(readings, { ordered: false })</pre>
+                </div>
+
+                <h3>Query Performance Analysis</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Check query execution plan
+db.sensorReadings.find({
+  deviceId: "TEMP-SENSOR-001",
+  timestamp: { $gte: new Date(Date.now() - 60 * 60000) }
+})
+.sort({ timestamp: -1 })
+.explain("executionStats")
+
+// Verify time-series collection benefits
+db.sensorReadings.stats()</pre>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ Performance Best Practices:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Use time-series collections for all sensor data - significant storage savings</li>
+                        <li>Set appropriate TTL for data retention (90 days for raw data)</li>
+                        <li>Pre-aggregate data into hourly/daily summaries for dashboards</li>
+                        <li>Use bulk inserts (insertMany) instead of individual inserts</li>
+                        <li>Archive historical data to cold storage after 6-12 months</li>
+                        <li>Monitor collection size and adjust granularity if needed</li>
+                        <li>Use projection to limit fields returned in queries</li>
+                    </ul>
+                </div>
+
+                <h3>Data Retention Strategy</h3>
+                <div class="code-block">
+                    <span class="code-label">Multi-Tier Data Storage</span>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>
+// Raw data: 90 days (auto-expires via TTL)
+// Already set: expireAfterSeconds: 7776000
+
+// Hourly aggregates: 1 year
+db.deviceMetrics.createIndex(
+  { date: 1 },
+  { expireAfterSeconds: 31536000 }  // 365 days
+)
+
+// Daily aggregates: Keep forever (small size)
+// No TTL - permanent retention</pre>
+                </div>
+            </section>
+
+            <section id="challenges">
+                <h2>🏆 Advanced Challenges</h2>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>Challenge 1: Predictive Maintenance</h4>
+                        <p>Use vibration trends to predict equipment failure 24 hours in advance</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Challenge 2: Anomaly Detection</h4>
+                        <p>Implement statistical outlier detection using standard deviation</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Challenge 3: Energy Optimization</h4>
+                        <p>Identify devices consuming more power than expected based on usage patterns</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Challenge 4: Geofencing</h4>
+                        <p>Alert when mobile sensors leave designated facility boundaries</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Challenge 5: Data Streaming</h4>
+                        <p>Use Change Streams to trigger real-time alerts on data ingestion</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Challenge 6: Custom Metrics</h4>
+                        <p>Build a flexible metrics engine supporting user-defined formulas</p>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>💡 Challenge Hints:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Predictive Maintenance:</strong> Use $setWindowFields to calculate moving average and standard deviation of vibration, flag when current reading exceeds avg + 2*stddev</li>
+                        <li><strong>Anomaly Detection:</strong> Aggregate last 1000 readings, calculate mean/stddev, identify readings outside 3 standard deviations</li>
+                        <li><strong>Energy Optimization:</strong> Compare actual power consumption vs baseline, use $lookup to join device metadata with consumption data</li>
+                        <li><strong>Geofencing:</strong> Add 2dsphere index on device location, use $geoWithin to check if coordinates are inside facility polygon</li>
+                        <li><strong>Data Streaming:</strong> Create change stream on sensorReadings, evaluate alert rules in real-time using watch()</li>
+                        <li><strong>Custom Metrics:</strong> Store formula as string in configuration, use $function aggregation operator to evaluate JavaScript expressions</li>
+                    </ul>
+                </div>
+            </section>
+
+             <div class="page-navigation">
+                        <a href="project-chat-app.html" class="nav-button prev">
+                            <span class="nav-icon">←</span>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Project Chat App</E-commerce></div>
+                            </div>
+                        </a>
+                        <a href="practice-mcqs.html" class="nav-button next">
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Practice MCQs</div>
+                            </div>
+                            <span class="nav-icon">→</span>
+                        </a>
+            </div>
+        </div>
+    </div>
+</main>
+    
+    <button class="scroll-top" id="scrollTop"><i class="fas fa-arrow-up"></i></button>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js" onerror="this.remove()"></script>
+
+    <script>
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block');
+            const code = codeBlock.querySelector('pre').textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(0, 237, 100, 0.4)';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(0, 237, 100, 0.2)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

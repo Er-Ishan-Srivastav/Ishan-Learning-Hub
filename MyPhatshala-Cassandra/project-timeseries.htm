@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-World Project: Time-Series Analytics with Cassandra - Financial market data at scale!">
+    <title>Project: Time-Series Analytics | myPathshala</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --finance-gold: #d4af37;
+            --finance-green: #10b981;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--finance-gold), var(--finance-green));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--finance-gold), var(--finance-green));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--finance-gold), var(--finance-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--finance-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(212, 175, 55, 0.15);
+            border-color: var(--finance-gold);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--finance-gold);
+            background: rgba(212, 175, 55, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #d4af37 0%, #c9a532 25%, #b89429 50%, #10b981 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #d4af37;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(212, 175, 55, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(212, 175, 55, 0.2);
+            border: 2px solid rgba(212, 175, 55, 0.4);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #fffacd 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--finance-gold); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--finance-gold), var(--finance-green));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--finance-gold);
+            border-left-color: var(--finance-gold);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(16, 185, 129, 0.08));
+            border-left: 5px solid var(--finance-gold);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '📈';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--finance-gold);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--finance-gold);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--finance-gold), var(--finance-green));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--finance-gold);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--finance-gold);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--finance-gold), var(--finance-green));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--finance-gold);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(212, 175, 55, 0.05);
+            border-left: 3px solid var(--finance-gold);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--finance-gold);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--finance-gold);
+            box-shadow: 0 15px 40px rgba(212, 175, 55, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--finance-gold);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--finance-gold), var(--finance-green));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(212, 175, 55, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        table {
+            width: 100%;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+
+        td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(71, 85, 105, 0.05);
+        }
+
+        .architecture-diagram {
+            background: rgba(212, 175, 55, 0.05);
+            border: 2px solid var(--finance-gold);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .architecture-diagram pre {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin: 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">📈</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">Time-Series Analytics</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search project..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html" class="active">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-chart-line"></i>
+                        Real-World Project
+                    </span>
+                    <h1><span class="gradient-text">Financial Time-Series Analytics</span></h1>
+                    <p>Build a high-performance stock market data platform with Cassandra!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="#projects">Real-World Projects</a>
+                <span class="separator">›</span>
+                <span class="current">Time-Series Analytics</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#overview">📖 Project Overview</a></li>
+                            <li><a href="#requirements">🎯 Requirements</a></li>
+                            <li><a href="#data-model">🗺️ Data Model</a></li>
+                            <li><a href="#schema">📋 Schema Design</a></li>
+                            <li><a href="#implementation">💻 Implementation</a></li>
+                            <li><a href="#candles">📊 Candlestick Data</a></li>
+                            <li><a href="#optimization">⚡ Optimization</a></li>
+                            <li><a href="#deployment">🚀 Deployment</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+
+<section id="overview" data-aos="fade-up">
+    <h2>📖 Project Overview</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Build a real-world financial platform!</p>
+
+    <div class="story-box" data-aos="fade-up">
+        <h3>The Challenge: FinTrack Pro</h3>
+        <p style="color: var(--text-secondary); margin-top: 1rem;"><strong>FinTrack Pro</strong> provides real-time stock market data to 100,000+ traders worldwide. They need to:</p>
+        <ul style="color: var(--text-secondary); line-height: 2; margin-top: 1rem;">
+            <li>💹 <strong>Track 10,000 stocks:</strong> Real-time tick data</li>
+            <li>📊 <strong>OHLC candlesticks:</strong> 1-min, 5-min, 15-min, 1-hour, 1-day</li>
+            <li>📈 <strong>Technical indicators:</strong> Moving averages, volume, etc</li>
+            <li>🔔 <strong>Price alerts:</strong> Notify on price movements</li>
+            <li>📱 <strong>Historical data:</strong> 10 years of daily data</li>
+        </ul>
+
+        <div style="background: rgba(212, 175, 55, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
+            <h4 style="color: var(--finance-gold); margin-top: 0;">Scale Requirements</h4>
+            <table style="margin-top: 1rem;">
+                <tbody>
+                    <tr>
+                        <td><strong>Stocks Tracked:</strong></td>
+                        <td>10,000 symbols (NYSE, NASDAQ, etc)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tick Data/Second:</strong></td>
+                        <td>~50,000 writes/second (peak market hours)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Points/Day:</strong></td>
+                        <td>1.8 billion ticks (6.5 hours × 50K/sec)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Retention:</strong></td>
+                        <td>Ticks: 7 days, Candles: 10 years</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Query Pattern:</strong></td>
+                        <td>Real-time charts, historical analysis</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Users:</strong></td>
+                        <td>100,000 concurrent traders</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p style="color: var(--text-secondary); margin-top: 2rem;"><strong>Why Cassandra?</strong></p>
+        <ul style="color: var(--text-secondary); line-height: 2;">
+            <li>✅ <strong>High write throughput:</strong> 50K+ writes/second</li>
+            <li>✅ <strong>Time-series optimized:</strong> TWCS + clustering by time</li>
+            <li>✅ <strong>Fast range queries:</strong> Get candles for chart</li>
+            <li>✅ <strong>Multi-resolution:</strong> Different time buckets</li>
+            <li>✅ <strong>No downtime:</strong> 24/7 trading data availability</li>
+        </ul>
+    </div>
+</section>
+
+<section id="requirements" data-aos="fade-up">
+    <h2>🎯 Requirements & Use Cases</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">What we need to build!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--finance-gold);">
+            <div class="comparison-icon">📝</div>
+            <h3>Data Ingestion</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Ingest tick data (50K/sec)</li>
+                <li>Calculate OHLC candles</li>
+                <li>Store multiple timeframes</li>
+                <li>Handle late data arrivals</li>
+                <li>Batch processing pipelines</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--finance-green);">
+            <div class="comparison-icon">📊</div>
+            <h3>Chart Queries</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Get candles for date range</li>
+                <li>Real-time price updates</li>
+                <li>Volume analysis</li>
+                <li>Technical indicators</li>
+                <li>Multiple resolution charts</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-teal);">
+            <div class="comparison-icon">🔍</div>
+            <h3>Analytics</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Moving averages (SMA, EMA)</li>
+                <li>Price change % calculations</li>
+                <li>Volume-weighted averages</li>
+                <li>Historical comparisons</li>
+                <li>Statistical analysis</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-purple);">
+            <div class="comparison-icon">🔔</div>
+            <h3>Alerts & Triggers</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Price threshold alerts</li>
+                <li>Volume spike detection</li>
+                <li>Technical indicator signals</li>
+                <li>Real-time notifications</li>
+                <li>Watchlist monitoring</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section id="data-model" data-aos="fade-up">
+    <h2>🗺️ Data Model Design</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Financial time-series modeling!</p>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Time-Series Data Modeling Principles</h4>
+        <ol style="font-size: 1.05rem; line-height: 2;">
+            <li><strong>Bucketing:</strong> Partition by symbol + time window (day/week/month)</li>
+            <li><strong>Clustering:</strong> Order by timestamp DESC (recent first)</li>
+            <li><strong>Multi-resolution:</strong> Separate tables for each timeframe</li>
+            <li><strong>Denormalization:</strong> Store calculated values (open, close, high, low)</li>
+            <li><strong>TTL strategy:</strong> Different retention per resolution</li>
+        </ol>
+    </div>
+
+    <h3 style="color: var(--finance-gold);">Query Patterns → Table Design</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Query Pattern</th>
+                <th>Access Pattern</th>
+                <th>Table Design</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Q1:</strong> Real-time tick data</td>
+                <td>By symbol + timestamp</td>
+                <td>ticks_by_symbol_day</td>
+            </tr>
+            <tr>
+                <td><strong>Q2:</strong> 1-minute candles</td>
+                <td>By symbol + time range</td>
+                <td>candles_1min</td>
+            </tr>
+            <tr>
+                <td><strong>Q3:</strong> Daily OHLC</td>
+                <td>By symbol + date</td>
+                <td>candles_daily</td>
+            </tr>
+            <tr>
+                <td><strong>Q4:</strong> Latest price</td>
+                <td>By symbol (most recent)</td>
+                <td>latest_prices</td>
+            </tr>
+            <tr>
+                <td><strong>Q5:</strong> Historical range</td>
+                <td>By symbol + date range</td>
+                <td>candles_daily</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="architecture-diagram" style="margin-top: 2rem;">
+        <h4 style="color: var(--finance-gold); margin-top: 0; text-align: center;">Data Flow Architecture</h4>
+        <pre>
+    Market Data Feed
+           │
+           ▼
+    ┌──────────────┐
+    │ Tick Ingester│ ← 50K writes/sec
+    └──────┬───────┘
+           │
+           ▼
+    ┌──────────────────────────────────────┐
+    │     Cassandra Cluster                │
+    │  ┌────────────────────────────────┐  │
+    │  │  ticks_by_symbol_day (7 days)  │  │
+    │  └────────────────────────────────┘  │
+    └──────────────┬───────────────────────┘
+                   │
+                   ▼
+    ┌──────────────────────────────────────┐
+    │   Aggregation Pipeline (Spark)       │
+    │   - Group by 1-min windows           │
+    │   - Calculate OHLC, Volume           │
+    │   - Compute indicators               │
+    └──────────────┬───────────────────────┘
+                   │
+      ┌────────────┼────────────┐
+      │            │            │
+      ▼            ▼            ▼
+  candles_1min  candles_5min  candles_daily
+  (30 days)     (90 days)     (10 years)
+        </pre>
+    </div>
+</section>
+
+<section id="schema" data-aos="fade-up">
+    <h2>📋 Schema Design</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete table schemas!</p>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">1</div>
+        <div class="step-content">
+            <h3>Keyspace Creation</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Create keyspace</span>
+<span class="keyword">CREATE KEYSPACE</span> fintrack_data
+<span class="keyword">WITH</span> replication = {
+    <span class="string">'class'</span>: <span class="string">'NetworkTopologyStrategy'</span>,
+    <span class="string">'datacenter1'</span>: <span class="number">3</span>,
+    <span class="string">'datacenter2'</span>: <span class="number">3</span>
+};
+
+<span class="keyword">USE</span> fintrack_data;
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">2</div>
+        <div class="step-content">
+            <h3>Tick Data Table (Raw Market Data)</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Raw tick data partitioned by symbol + day</span>
+<span class="keyword">CREATE TABLE</span> ticks_by_symbol_day (
+    symbol <span class="type">TEXT</span>,                  <span class="comment">-- Stock symbol (AAPL, GOOGL)</span>
+    day <span class="type">DATE</span>,                     <span class="comment">-- Trading day (partition bucket)</span>
+    tick_time <span class="type">TIMESTAMP</span>,          <span class="comment">-- Exact time of trade</span>
+    price <span class="type">DECIMAL</span>,                <span class="comment">-- Trade price</span>
+    volume <span class="type">BIGINT</span>,                <span class="comment">-- Trade volume</span>
+    bid <span class="type">DECIMAL</span>,                  <span class="comment">-- Bid price</span>
+    ask <span class="type">DECIMAL</span>,                  <span class="comment">-- Ask price</span>
+    exchange <span class="type">TEXT</span>,                <span class="comment">-- Exchange (NYSE, NASDAQ)</span>
+    <span class="keyword">PRIMARY KEY</span> ((symbol, day), tick_time)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (tick_time <span class="keyword">DESC</span>)
+  <span class="keyword">AND</span> default_time_to_live = <span class="number">604800</span>     <span class="comment">-- 7 days</span>
+  <span class="keyword">AND</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'TimeWindowCompactionStrategy'</span>,
+    <span class="string">'compaction_window_unit'</span>: <span class="string">'DAYS'</span>,
+    <span class="string">'compaction_window_size'</span>: <span class="number">1</span>
+  };
+
+<span class="comment">-- Design notes:</span>
+<span class="comment">-- ✅ Partition: (symbol, day) - one partition per stock per day</span>
+<span class="comment">-- ✅ Clustering: tick_time DESC - newest ticks first</span>
+<span class="comment">-- ✅ TTL: 7 days - ticks only for recent analysis</span>
+<span class="comment">-- ✅ Bucket size: ~280K ticks/day/stock (manageable)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">3</div>
+        <div class="step-content">
+            <h3>1-Minute Candlestick Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- 1-minute OHLC candles</span>
+<span class="keyword">CREATE TABLE</span> candles_1min (
+    symbol <span class="type">TEXT</span>,
+    week <span class="type">DATE</span>,                   <span class="comment">-- Week bucket (partition)</span>
+    candle_time <span class="type">TIMESTAMP</span>,       <span class="comment">-- Start of 1-min window</span>
+    open <span class="type">DECIMAL</span>,
+    high <span class="type">DECIMAL</span>,
+    low <span class="type">DECIMAL</span>,
+    close <span class="type">DECIMAL</span>,
+    volume <span class="type">BIGINT</span>,
+    trades <span class="type">INT</span>,                  <span class="comment">-- Number of trades in candle</span>
+    vwap <span class="type">DECIMAL</span>,                 <span class="comment">-- Volume-weighted average price</span>
+    <span class="keyword">PRIMARY KEY</span> ((symbol, week), candle_time)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (candle_time <span class="keyword">DESC</span>)
+  <span class="keyword">AND</span> default_time_to_live = <span class="number">2592000</span>    <span class="comment">-- 30 days</span>
+  <span class="keyword">AND</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'TimeWindowCompactionStrategy'</span>,
+    <span class="string">'compaction_window_unit'</span>: <span class="string">'DAYS'</span>,
+    <span class="string">'compaction_window_size'</span>: <span class="number">7</span>
+  };
+
+<span class="comment">-- Design notes:</span>
+<span class="comment">-- ✅ Partition: (symbol, week) - ~2K candles/partition</span>
+<span class="comment">-- ✅ Week bucketing - prevents partition from growing too large</span>
+<span class="comment">-- ✅ Pre-calculated OHLC - fast chart rendering</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">4</div>
+        <div class="step-content">
+            <h3>Daily Candlestick Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Daily OHLC candles (10 years history)</span>
+<span class="keyword">CREATE TABLE</span> candles_daily (
+    symbol <span class="type">TEXT</span>,
+    year <span class="type">INT</span>,                    <span class="comment">-- Year bucket (partition)</span>
+    candle_date <span class="type">DATE</span>,            <span class="comment">-- Trading date</span>
+    open <span class="type">DECIMAL</span>,
+    high <span class="type">DECIMAL</span>,
+    low <span class="type">DECIMAL</span>,
+    close <span class="type">DECIMAL</span>,
+    volume <span class="type">BIGINT</span>,
+    adjusted_close <span class="type">DECIMAL</span>,      <span class="comment">-- Adjusted for splits/dividends</span>
+    <span class="keyword">PRIMARY KEY</span> ((symbol, year), candle_date)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (candle_date <span class="keyword">DESC</span>);
+
+<span class="comment">-- No TTL - keep 10 years of daily data!</span>
+<span class="comment">-- Partition: ~252 trading days/year = manageable size</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">5</div>
+        <div class="step-content">
+            <h3>Latest Prices Table (Real-Time)</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Current price snapshot (fast lookup)</span>
+<span class="keyword">CREATE TABLE</span> latest_prices (
+    symbol <span class="type">TEXT</span> <span class="keyword">PRIMARY KEY</span>,
+    last_price <span class="type">DECIMAL</span>,
+    last_update <span class="type">TIMESTAMP</span>,
+    day_open <span class="type">DECIMAL</span>,
+    day_high <span class="type">DECIMAL</span>,
+    day_low <span class="type">DECIMAL</span>,
+    day_volume <span class="type">BIGINT</span>,
+    prev_close <span class="type">DECIMAL</span>,
+    change_percent <span class="type">DECIMAL</span>
+);
+
+<span class="comment">-- Simple table - one row per symbol</span>
+<span class="comment">-- Updated in real-time for dashboard</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">6</div>
+        <div class="step-content">
+            <h3>Price Alerts Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- User-configured price alerts</span>
+<span class="keyword">CREATE TABLE</span> price_alerts_by_user (
+    user_id <span class="type">UUID</span>,
+    alert_id <span class="type">TIMEUUID</span>,
+    symbol <span class="type">TEXT</span>,
+    alert_type <span class="type">TEXT</span>,            <span class="comment">-- 'above', 'below', 'change%'</span>
+    threshold <span class="type">DECIMAL</span>,
+    triggered <span class="type">BOOLEAN</span>,
+    created_at <span class="type">TIMESTAMP</span>,
+    <span class="keyword">PRIMARY KEY</span> (user_id, alert_id)
+);
+
+<span class="comment">-- Also need alerts by symbol for efficient checking</span>
+<span class="keyword">CREATE TABLE</span> price_alerts_by_symbol (
+    symbol <span class="type">TEXT</span>,
+    alert_id <span class="type">TIMEUUID</span>,
+    user_id <span class="type">UUID</span>,
+    alert_type <span class="type">TEXT</span>,
+    threshold <span class="type">DECIMAL</span>,
+    <span class="keyword">PRIMARY KEY</span> (symbol, alert_id)
+);
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="implementation" data-aos="fade-up">
+    <h2>💻 Implementation</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Python implementation!</p>
+
+    <h3 style="color: var(--finance-gold);">Tick Data Ingestion</h3>
+
+    <div class="code-block">
+<span class="comment"># tick_ingestion.py</span>
+<span class="keyword">from</span> cassandra.cluster <span class="keyword">import</span> Cluster
+<span class="keyword">from</span> cassandra.query <span class="keyword">import</span> BatchStatement
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, date
+<span class="keyword">from</span> decimal <span class="keyword">import</span> Decimal
+
+<span class="keyword">class</span> <span class="type">TickIngestion</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, contact_points):
+        cluster = Cluster(contact_points)
+        <span class="keyword">self</span>.session = cluster.connect(<span class="string">'fintrack_data'</span>)
+        
+        <span class="comment"># Prepared statements</span>
+        <span class="keyword">self</span>.insert_tick = <span class="keyword">self</span>.session.prepare(<span class="string">"""
+            INSERT INTO ticks_by_symbol_day
+            (symbol, day, tick_time, price, volume, bid, ask, exchange)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """</span>)
+        
+        <span class="keyword">self</span>.update_latest = <span class="keyword">self</span>.session.prepare(<span class="string">"""
+            UPDATE latest_prices
+            SET last_price = ?,
+                last_update = ?,
+                day_high = ?,
+                day_low = ?,
+                day_volume = day_volume + ?
+            WHERE symbol = ?
+        """</span>)
+    
+    <span class="keyword">def</span> <span class="function">ingest_tick</span>(<span class="keyword">self</span>, tick):
+        <span class="string">"""Insert single tick and update latest price"""</span>
+        symbol = tick[<span class="string">'symbol'</span>]
+        tick_time = tick[<span class="string">'timestamp'</span>]
+        today = tick_time.date()
+        
+        <span class="comment"># Insert tick data</span>
+        <span class="keyword">self</span>.session.execute(
+            <span class="keyword">self</span>.insert_tick,
+            (
+                symbol,
+                today,
+                tick_time,
+                Decimal(<span class="function">str</span>(tick[<span class="string">'price'</span>])),
+                tick[<span class="string">'volume'</span>],
+                Decimal(<span class="function">str</span>(tick[<span class="string">'bid'</span>])),
+                Decimal(<span class="function">str</span>(tick[<span class="string">'ask'</span>])),
+                tick[<span class="string">'exchange'</span>]
+            )
+        )
+        
+        <span class="comment"># Update latest price (for real-time dashboard)</span>
+        <span class="keyword">self</span>.session.execute(
+            <span class="keyword">self</span>.update_latest,
+            (
+                Decimal(<span class="function">str</span>(tick[<span class="string">'price'</span>])),
+                tick_time,
+                Decimal(<span class="function">str</span>(tick[<span class="string">'price'</span>])),  <span class="comment"># Update high</span>
+                Decimal(<span class="function">str</span>(tick[<span class="string">'price'</span>])),  <span class="comment"># Update low</span>
+                tick[<span class="string">'volume'</span>],
+                symbol
+            )
+        )
+    
+    <span class="keyword">def</span> <span class="function">ingest_batch</span>(<span class="keyword">self</span>, ticks):
+        <span class="string">"""Batch insert for high throughput"""</span>
+        batch = BatchStatement()
+        
+        <span class="keyword">for</span> tick <span class="keyword">in</span> ticks:
+            today = tick[<span class="string">'timestamp'</span>].date()
+            batch.add(
+                <span class="keyword">self</span>.insert_tick,
+                (
+                    tick[<span class="string">'symbol'</span>],
+                    today,
+                    tick[<span class="string">'timestamp'</span>],
+                    Decimal(<span class="function">str</span>(tick[<span class="string">'price'</span>])),
+                    tick[<span class="string">'volume'</span>],
+                    Decimal(<span class="function">str</span>(tick[<span class="string">'bid'</span>])),
+                    Decimal(<span class="function">str</span>(tick[<span class="string">'ask'</span>])),
+                    tick[<span class="string">'exchange'</span>]
+                )
+            )
+        
+        <span class="keyword">self</span>.session.execute(batch)
+
+<span class="comment"># Usage</span>
+ingestion = TickIngestion([<span class="string">'localhost'</span>])
+
+<span class="comment"># Real-time tick from market feed</span>
+tick = {
+    <span class="string">'symbol'</span>: <span class="string">'AAPL'</span>,
+    <span class="string">'timestamp'</span>: datetime.now(),
+    <span class="string">'price'</span>: <span class="number">178.25</span>,
+    <span class="string">'volume'</span>: <span class="number">100</span>,
+    <span class="string">'bid'</span>: <span class="number">178.24</span>,
+    <span class="string">'ask'</span>: <span class="number">178.26</span>,
+    <span class="string">'exchange'</span>: <span class="string">'NASDAQ'</span>
+}
+
+ingestion.ingest_tick(tick)
+    </div>
+
+    <h3 style="color: var(--finance-gold);">Query Service</h3>
+
+    <div class="code-block">
+<span class="comment"># market_queries.py</span>
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta
+
+<span class="keyword">class</span> <span class="type">MarketQueries</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, contact_points):
+        cluster = Cluster(contact_points)
+        <span class="keyword">self</span>.session = cluster.connect(<span class="string">'fintrack_data'</span>)
+    
+    <span class="keyword">def</span> <span class="function">get_latest_price</span>(<span class="keyword">self</span>, symbol):
+        <span class="string">"""Get current price"""</span>
+        query = <span class="string">"SELECT * FROM latest_prices WHERE symbol = ?"</span>
+        row = <span class="keyword">self</span>.session.execute(query, (symbol,)).one()
+        
+        <span class="keyword">if</span> row:
+            <span class="keyword">return</span> {
+                <span class="string">'symbol'</span>: row.symbol,
+                <span class="string">'price'</span>: <span class="function">float</span>(row.last_price),
+                <span class="string">'change_percent'</span>: <span class="function">float</span>(row.change_percent),
+                <span class="string">'volume'</span>: row.day_volume,
+                <span class="string">'high'</span>: <span class="function">float</span>(row.day_high),
+                <span class="string">'low'</span>: <span class="function">float</span>(row.day_low)
+            }
+        <span class="keyword">return</span> <span class="keyword">None</span>
+    
+    <span class="keyword">def</span> <span class="function">get_intraday_candles</span>(<span class="keyword">self</span>, symbol, minutes=<span class="number">60</span>):
+        <span class="string">"""Get 1-minute candles for last N minutes"""</span>
+        now = datetime.now()
+        start_time = now - timedelta(minutes=minutes)
+        
+        <span class="comment"># Calculate week bucket</span>
+        week_start = now - timedelta(days=now.weekday())
+        week = week_start.date()
+        
+        query = <span class="string">"""
+            SELECT * FROM candles_1min
+            WHERE symbol = ? AND week = ?
+              AND candle_time >= ? AND candle_time <= ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(
+            query,
+            (symbol, week, start_time, now)
+        )
+        
+        <span class="keyword">return</span> [
+            {
+                <span class="string">'time'</span>: row.candle_time,
+                <span class="string">'open'</span>: <span class="function">float</span>(row.open),
+                <span class="string">'high'</span>: <span class="function">float</span>(row.high),
+                <span class="string">'low'</span>: <span class="function">float</span>(row.low),
+                <span class="string">'close'</span>: <span class="function">float</span>(row.close),
+                <span class="string">'volume'</span>: row.volume
+            }
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows
+        ]
+    
+    <span class="keyword">def</span> <span class="function">get_daily_candles</span>(<span class="keyword">self</span>, symbol, start_date, end_date):
+        <span class="string">"""Get daily candles for date range"""</span>
+        <span class="comment"># Query across multiple year partitions if needed</span>
+        years = <span class="function">range</span>(start_date.year, end_date.year + <span class="number">1</span>)
+        
+        all_candles = []
+        <span class="keyword">for</span> year <span class="keyword">in</span> years:
+            query = <span class="string">"""
+                SELECT * FROM candles_daily
+                WHERE symbol = ? AND year = ?
+                  AND candle_date >= ? AND candle_date <= ?
+            """</span>
+            
+            rows = <span class="keyword">self</span>.session.execute(
+                query,
+                (symbol, year, start_date, end_date)
+            )
+            
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows:
+                all_candles.append({
+                    <span class="string">'date'</span>: row.candle_date,
+                    <span class="string">'open'</span>: <span class="function">float</span>(row.open),
+                    <span class="string">'high'</span>: <span class="function">float</span>(row.high),
+                    <span class="string">'low'</span>: <span class="function">float</span>(row.low),
+                    <span class="string">'close'</span>: <span class="function">float</span>(row.close),
+                    <span class="string">'volume'</span>: row.volume
+                })
+        
+        <span class="keyword">return</span> <span class="function">sorted</span>(all_candles, key=<span class="keyword">lambda</span> x: x[<span class="string">'date'</span>])
+
+<span class="comment"># Usage</span>
+queries = MarketQueries([<span class="string">'localhost'</span>])
+
+<span class="comment"># Latest price</span>
+price = queries.get_latest_price(<span class="string">'AAPL'</span>)
+<span class="function">print</span>(<span class="function">f</span><span class="string">"AAPL: ${price['price']} ({price['change_percent']}%)"</span>)
+
+<span class="comment"># Intraday chart (last hour)</span>
+candles = queries.get_intraday_candles(<span class="string">'AAPL'</span>, minutes=<span class="number">60</span>)
+    </div>
+</section>
+
+<section id="candles" data-aos="fade-up">
+    <h2>📊 Candlestick Aggregation</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Convert ticks to OHLC candles!</p>
+
+    <div class="code-block">
+<span class="comment"># candle_aggregator.py - Real-time aggregation</span>
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta
+<span class="keyword">from</span> decimal <span class="keyword">import</span> Decimal
+
+<span class="keyword">class</span> <span class="type">CandleAggregator</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, session):
+        <span class="keyword">self</span>.session = session
+        
+        <span class="keyword">self</span>.insert_1min = session.prepare(<span class="string">"""
+            INSERT INTO candles_1min
+            (symbol, week, candle_time, open, high, low, close, volume, trades, vwap)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """</span>)
+    
+    <span class="keyword">def</span> <span class="function">aggregate_1min_candle</span>(<span class="keyword">self</span>, symbol, candle_start):
+        <span class="string">"""Aggregate 1-minute candle from tick data"""</span>
+        candle_end = candle_start + timedelta(minutes=<span class="number">1</span>)
+        day = candle_start.date()
+        
+        <span class="comment"># Get all ticks in 1-minute window</span>
+        query = <span class="string">"""
+            SELECT price, volume FROM ticks_by_symbol_day
+            WHERE symbol = ? AND day = ?
+              AND tick_time >= ? AND tick_time < ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(
+            query,
+            (symbol, day, candle_start, candle_end)
+        )
+        
+        ticks = <span class="function">list</span>(rows)
+        <span class="keyword">if</span> <span class="keyword">not</span> ticks:
+            <span class="keyword">return</span>
+        
+        <span class="comment"># Calculate OHLC</span>
+        prices = [<span class="function">float</span>(t.price) <span class="keyword">for</span> t <span class="keyword">in</span> ticks]
+        volumes = [t.volume <span class="keyword">for</span> t <span class="keyword">in</span> ticks]
+        
+        ohlc = {
+            <span class="string">'open'</span>: prices[<span class="number">0</span>],                       <span class="comment"># First tick</span>
+            <span class="string">'high'</span>: <span class="function">max</span>(prices),
+            <span class="string">'low'</span>: <span class="function">min</span>(prices),
+            <span class="string">'close'</span>: prices[-<span class="number">1</span>],                      <span class="comment"># Last tick</span>
+            <span class="string">'volume'</span>: <span class="function">sum</span>(volumes),
+            <span class="string">'trades'</span>: <span class="function">len</span>(ticks)
+        }
+        
+        <span class="comment"># Calculate VWAP (Volume-Weighted Average Price)</span>
+        total_value = <span class="function">sum</span>(p * v <span class="keyword">for</span> p, v <span class="keyword">in</span> <span class="function">zip</span>(prices, volumes))
+        ohlc[<span class="string">'vwap'</span>] = total_value / ohlc[<span class="string">'volume'</span>] <span class="keyword">if</span> ohlc[<span class="string">'volume'</span>] > <span class="number">0</span> <span class="keyword">else</span> <span class="number">0</span>
+        
+        <span class="comment"># Calculate week bucket</span>
+        week_start = candle_start - timedelta(days=candle_start.weekday())
+        week = week_start.date()
+        
+        <span class="comment"># Insert candle</span>
+        <span class="keyword">self</span>.session.execute(
+            <span class="keyword">self</span>.insert_1min,
+            (
+                symbol,
+                week,
+                candle_start,
+                Decimal(<span class="function">str</span>(ohlc[<span class="string">'open'</span>])),
+                Decimal(<span class="function">str</span>(ohlc[<span class="string">'high'</span>])),
+                Decimal(<span class="function">str</span>(ohlc[<span class="string">'low'</span>])),
+                Decimal(<span class="function">str</span>(ohlc[<span class="string">'close'</span>])),
+                ohlc[<span class="string">'volume'</span>],
+                ohlc[<span class="string">'trades'</span>],
+                Decimal(<span class="function">str</span>(ohlc[<span class="string">'vwap'</span>]))
+            )
+        )
+        
+        <span class="keyword">return</span> ohlc
+    
+    <span class="keyword">def</span> <span class="function">run_aggregation_job</span>(<span class="keyword">self</span>, symbols):
+        <span class="string">"""Run every minute to aggregate previous minute"""</span>
+        now = datetime.now()
+        <span class="comment"># Round down to last complete minute</span>
+        candle_start = now.replace(second=<span class="number">0</span>, microsecond=<span class="number">0</span>) - timedelta(minutes=<span class="number">1</span>)
+        
+        <span class="keyword">for</span> symbol <span class="keyword">in</span> symbols:
+            <span class="keyword">self</span>.aggregate_1min_candle(symbol, candle_start)
+        
+        <span class="function">print</span>(<span class="function">f</span><span class="string">"Aggregated {len(symbols)} symbols for {candle_start}"</span>)
+
+<span class="comment"># Schedule to run every minute</span>
+<span class="keyword">import</span> schedule
+aggregator = CandleAggregator(session)
+symbols = [<span class="string">'AAPL'</span>, <span class="string">'GOOGL'</span>, <span class="string">'MSFT'</span>, <span class="string">'TSLA'</span>, <span class="comment">...]</span>
+schedule.every().minute.at(<span class="string">":05"</span>).do(aggregator.run_aggregation_job, symbols)
+    </div>
+</section>
+
+<section id="optimization" data-aos="fade-up">
+    <h2>⚡ Performance Optimization</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production optimization!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--finance-gold);">
+            <div class="comparison-icon">📊</div>
+            <h3>Bucketing Strategy</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Ticks:</strong> By symbol + day (~280K/partition)</li>
+                <li><strong>1-min candles:</strong> By symbol + week (~2K/partition)</li>
+                <li><strong>Daily candles:</strong> By symbol + year (~252/partition)</li>
+                <li><strong>Why?</strong> Keep partitions < 100MB</li>
+                <li><strong>Benefit:</strong> Fast queries, efficient compaction</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--finance-green);">
+            <div class="comparison-icon">💾</div>
+            <h3>Storage Optimization</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>TTL:</strong> Ticks 7d, 1-min 30d, daily forever</li>
+                <li><strong>TWCS:</strong> Time-window compaction</li>
+                <li><strong>Compression:</strong> LZ4 (3:1 ratio)</li>
+                <li><strong>Bloom filters:</strong> Reduce reads</li>
+                <li><strong>Result:</strong> 1TB/day → 330GB compressed</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-teal);">
+            <div class="comparison-icon">⚡</div>
+            <h3>Query Optimization</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Prepared statements:</strong> 10x faster</li>
+                <li><strong>Latest prices table:</strong> No range scan</li>
+                <li><strong>Batch inserts:</strong> 100 ticks/batch</li>
+                <li><strong>Async writes:</strong> Non-blocking</li>
+                <li><strong>Read consistency:</strong> ONE (fast)</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-purple);">
+            <div class="comparison-icon">🔄</div>
+            <h3>Caching Layer</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Redis:</strong> Latest prices (sub-second)</li>
+                <li><strong>CDN:</strong> Static historical candles</li>
+                <li><strong>Application cache:</strong> Hot stocks</li>
+                <li><strong>TTL:</strong> 1-5 seconds for real-time data</li>
+                <li><strong>Hit rate:</strong> 95%+ on popular stocks</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section id="deployment" data-aos="fade-up">
+    <h2>🚀 Deployment Architecture</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production deployment!</p>
+
+    <div class="architecture-diagram">
+        <h4 style="color: var(--finance-gold); margin-top: 0; text-align: center;">Production Architecture</h4>
+        <pre>
+                Market Data Providers
+                  (NASDAQ, NYSE)
+                         │
+                         ▼
+                ┌────────────────┐
+                │ Load Balancer  │
+                └────────┬───────┘
+                         │
+            ┌────────────┼────────────┐
+            │            │            │
+            ▼            ▼            ▼
+    ┌───────────┐ ┌───────────┐ ┌───────────┐
+    │ Ingestor 1│ │ Ingestor 2│ │ Ingestor 3│
+    │ (50K/sec) │ │ (50K/sec) │ │ (50K/sec) │
+    └─────┬─────┘ └─────┬─────┘ └─────┬─────┘
+          │             │             │
+          └─────────────┼─────────────┘
+                        │
+            ┌───────────┴───────────┐
+            │   Cassandra Cluster   │
+            │  ┌─────────────────┐  │
+            │  │ DC1: 6 nodes    │  │
+            │  │ DC2: 6 nodes    │  │
+            │  └─────────────────┘  │
+            └───────────┬───────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+        ▼               ▼               ▼
+ ┌──────────┐   ┌──────────┐   ┌──────────┐
+ │  Redis   │   │ Spark    │   │ Query    │
+ │ (Cache)  │   │(Candles) │   │   API    │
+ └──────────┘   └──────────┘   └─────┬────┘
+                                      │
+                               ┌──────┴──────┐
+                               │   Clients   │
+                               │ 100K users  │
+                               └─────────────┘
+        </pre>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-rocket" style="color: #059669;"></i> Production Checklist</h4>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Configuration</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Cluster Size</strong></td>
+                    <td>12 nodes (6 per DC)</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Replication</strong></td>
+                    <td>RF=3 per DC</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Write Throughput</strong></td>
+                    <td>50K writes/second</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Read Latency</strong></td>
+                    <td>p99 < 50ms</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Compaction</strong></td>
+                    <td>TWCS (1-day windows)</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Caching</strong></td>
+                    <td>Redis + CDN</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Monitoring</strong></td>
+                    <td>Prometheus + Grafana</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Backup</strong></td>
+                    <td>Daily snapshots to S3</td>
+                    <td>✅</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Summary Box -->
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(16, 185, 129, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--finance-gold);">🎉 Project Complete!</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You built a production-ready financial time-series analytics platform!</strong></p>
+
+        <h4 style="color: var(--finance-gold); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Built:</h4>
+        <ul style="line-height: 1.9;">
+            <li>📈 <strong>Scale:</strong> 50K writes/sec, 1.8B ticks/day, 10K stocks</li>
+            <li>🗺️ <strong>Data model:</strong> Multi-resolution (ticks, 1-min, daily)</li>
+            <li>📋 <strong>Schema:</strong> 6 tables with smart bucketing (day/week/year)</li>
+            <li>💻 <strong>Implementation:</strong> Tick ingestion + candle aggregation</li>
+            <li>📊 <strong>OHLC candles:</strong> Real-time 1-min + historical daily</li>
+            <li>⚡ <strong>Optimization:</strong> TWCS, TTL, caching, bucketing</li>
+            <li>🚀 <strong>Deployment:</strong> Multi-DC with 12 nodes</li>
+        </ul>
+
+        <h4 style="color: var(--finance-gold); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Learnings:</h4>
+        <ol style="line-height: 1.9;">
+            <li><strong>Bucketing strategy:</strong> Partition by symbol + time window</li>
+            <li><strong>Multi-resolution:</strong> Different tables per timeframe</li>
+            <li><strong>Pre-calculated OHLC:</strong> Store open/high/low/close</li>
+            <li><strong>Smart TTL:</strong> Ticks 7d, candles 30d-10y</li>
+            <li><strong>Latest prices table:</strong> Fast lookup, no range scan</li>
+            <li><strong>Aggregation pipeline:</strong> Convert ticks → candles</li>
+            <li><strong>Caching layer:</strong> Redis for sub-second latency</li>
+        </ol>
+
+        <h4 style="color: var(--finance-gold); margin-top: 2rem; margin-bottom: 1rem;">📊 Architecture Highlights:</h4>
+        <div style="background: rgba(212, 175, 55, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+            <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                <li>✅ <strong>6 tables:</strong> ticks, candles_1min/daily, latest_prices, alerts</li>
+                <li>✅ <strong>Bucketing:</strong> Day (ticks), Week (1-min), Year (daily)</li>
+                <li>✅ <strong>Write path:</strong> 50K/sec with batch + async</li>
+                <li>✅ <strong>Read path:</strong> Single-partition queries (p99 < 50ms)</li>
+                <li>✅ <strong>Aggregation:</strong> Spark job every minute for candles</li>
+                <li>✅ <strong>Caching:</strong> Redis (latest) + CDN (historical)</li>
+            </ul>
+        </div>
+
+        <h4 style="color: var(--finance-gold); margin-top: 2rem; margin-bottom: 1rem;">🚀 Next Steps:</h4>
+        <ul style="line-height: 1.9;">
+            <li>📊 Add technical indicators (SMA, EMA, RSI, MACD)</li>
+            <li>🔔 Build real-time alert notification system</li>
+            <li>📱 Create mobile app for traders</li>
+            <li>🤖 Add ML for price prediction</li>
+            <li>📈 Build advanced charting with TradingView</li>
+            <li>🌍 Expand to crypto, forex, commodities</li>
+        </ul>
+
+        <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: var(--finance-gold); font-weight: 700;">
+            🎯 You're ready to build financial platforms! 📈<br>
+            Apply this to ANY time-series use case!
+        </p>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="page-navigation">
+    <a href="project-messaging.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous Project</div>
+            <div class="nav-title">Project Messaging</div>
+        </div>
+    </a>
+    <a href="project-ecommerce.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next Project</div>
+            <div class="nav-title">Project E-commerce</div>
+        </div>
+    </a>
+</div>
+<!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

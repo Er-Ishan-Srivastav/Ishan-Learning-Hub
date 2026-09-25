@@ -1,0 +1,2310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Cassandra Troubleshooting - Debug and fix issues like a pro!">
+    <title>Troubleshooting Cassandra | myPathshala</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 25%, #991b1b 50%, #7f1d1d 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #dc2626;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(185, 28, 28, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🔍';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        table {
+            width: 100%;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+
+        td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(71, 85, 105, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🔍</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">Troubleshooting</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search issues..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+         <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html" class="active">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-tools"></i>
+                        Fix It Fast
+                    </span>
+                    <h1><span class="gradient-text">Troubleshooting</span></h1>
+                    <p>Debug and solve Cassandra issues like a pro!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="#operations">Operations</a>
+                <span class="separator">›</span>
+                <span class="current">Troubleshooting</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#methodology">🎯 Debug Methodology</a></li>
+                            <li><a href="#node-wont-start">🚫 Node Won't Start</a></li>
+                            <li><a href="#high-latency">⏱️ High Latency</a></li>
+                            <li><a href="#oom-errors">💥 Out of Memory</a></li>
+                            <li><a href="#cluster-issues">🔗 Cluster Problems</a></li>
+                            <li><a href="#data-inconsistency">📊 Data Inconsistency</a></li>
+                            <li><a href="#toolbox">🛠️ Troubleshooting Toolbox</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-left-color: #dc2626;">
+        <h2 style="color: #dc2626;">📖 The Troubleshooting Framework</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Troubleshooting Cassandra can feel overwhelming. But with a systematic approach, you can debug ANY issue. This guide teaches you the framework used by expert DBAs to solve problems fast.</p>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The 5-Step Debug Process</h3>
+                
+                <ol style="color: var(--text-secondary); line-height: 2; font-size: 1.05rem;">
+                    <li><strong style="color: var(--text-primary);">Identify:</strong> What exactly is broken?</li>
+                    <li><strong style="color: var(--text-primary);">Isolate:</strong> Which component has the problem?</li>
+                    <li><strong style="color: var(--text-primary);">Investigate:</strong> Gather evidence (logs, metrics)</li>
+                    <li><strong style="color: var(--text-primary);">Fix:</strong> Apply the solution</li>
+                    <li><strong style="color: var(--text-primary);">Verify:</strong> Confirm it's resolved</li>
+                </ol>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Follow this process every time, and you'll solve issues 10x faster! 🎯</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="methodology" data-aos="fade-up">
+    <h2>🎯 Troubleshooting Methodology</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Your systematic approach!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Step 1: Identify the Problem</h4>
+                <p style="color: var(--text-secondary); margin-top: 1rem;"><strong>Ask the right questions:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>What's the symptom? (Errors, slow queries, crashes)</li>
+                    <li>When did it start? (After deploy, gradually, suddenly)</li>
+                    <li>Is it intermittent or constant?</li>
+                    <li>Which nodes/keyspaces/tables affected?</li>
+                    <li>Can you reproduce it?</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Step 2: Check the Obvious First</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Quick health checks:</span>
+
+<span class="comment"># 1. Are all nodes up?</span>
+$ nodetool status
+
+<span class="comment"># 2. Any errors in logs?</span>
+$ tail -<span class="number">100</span> /var/log/cassandra/system.log | grep ERROR
+
+<span class="comment"># 3. Disk space OK?</span>
+$ df -h
+
+<span class="comment"># 4. Memory OK?</span>
+$ free -h
+
+<span class="comment"># 5. High CPU?</span>
+$ top
+
+<span class="comment">-- Fix the obvious before digging deeper!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Step 3: Gather Evidence</h4>
+                <ul style="color: var(--text-secondary); line-height: 1.9; margin-top: 1rem;">
+                    <li><strong>Logs:</strong> system.log, debug.log, gc.log</li>
+                    <li><strong>Metrics:</strong> Grafana dashboards, JMX metrics</li>
+                    <li><strong>System:</strong> CPU, memory, disk, network</li>
+                    <li><strong>Queries:</strong> Slow query logs, tracing</li>
+                    <li><strong>Config:</strong> Recent changes?</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Step 4: Form Hypothesis</h4>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Based on evidence, what's the likely cause?</p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>Memory issue? → Check heap usage, GC logs</li>
+                    <li>Disk issue? → Check space, I/O stats</li>
+                    <li>Network issue? → Check connectivity, dropped messages</li>
+                    <li>Query issue? → Check query patterns, tombstones</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Step 5: Test & Fix</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Test your hypothesis:</span>
+<span class="number">1</span>. Try fix in staging/test environment
+<span class="number">2</span>. Monitor impact
+<span class="number">3</span>. If works → apply to production
+<span class="number">4</span>. If doesn't work → back to hypothesis
+
+<span class="comment">-- Always verify fix worked!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="node-wont-start" data-aos="fade-up">
+    <h2>🚫 Issue: Node Won't Start</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Most common startup problems!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem 1: Port Already in Use</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM in system.log:</span>
+ERROR Failed to bind to: /<span class="number">0.0</span>.<span class="number">0</span>.<span class="number">0</span>:<span class="number">9042</span>
+java.net.BindException: Address already in use
+
+<span class="comment">-- CAUSE: Another process using port 9042</span>
+
+<span class="comment">-- DIAGNOSE:</span>
+$ sudo lsof -i :<span class="number">9042</span>
+<span class="comment"># OR</span>
+$ sudo netstat -tlnp | grep <span class="number">9042</span>
+
+<span class="comment">-- FIX Option 1: Kill old Cassandra process</span>
+$ ps aux | grep cassandra
+$ sudo kill -<span class="number">9</span> <PID>
+
+<span class="comment">-- FIX Option 2: Change port in cassandra.yaml</span>
+native_transport_port: <span class="number">9043</span>
+
+<span class="comment">-- Restart:</span>
+$ sudo systemctl start cassandra
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem 2: Permission Denied</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+ERROR Unable to create commit log directory
+java.io.IOException: Permission denied
+
+<span class="comment">-- CAUSE: Wrong ownership/permissions</span>
+
+<span class="comment">-- DIAGNOSE:</span>
+$ ls -la /var/lib/cassandra/
+
+<span class="comment">-- FIX: Set correct ownership</span>
+$ sudo chown -R cassandra:cassandra /var/lib/cassandra
+$ sudo chown -R cassandra:cassandra /var/log/cassandra
+
+<span class="comment">-- Verify:</span>
+$ ls -la /var/lib/cassandra/ | head
+drwxr-xr-x cassandra cassandra ...
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem 3: Config Syntax Error</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+ERROR Cannot start node. Invalid yaml
+org.yaml.snakeyaml.error.YAMLException
+
+<span class="comment">-- CAUSE: Typo in cassandra.yaml</span>
+
+<span class="comment">-- DIAGNOSE: Check YAML syntax</span>
+$ sudo vim /etc/cassandra/cassandra.yaml
+
+<span class="comment">-- Common mistakes:</span>
+<span class="comment"># Wrong indentation</span>
+<span class="comment"># Missing colon</span>
+<span class="comment"># Unquoted special characters</span>
+
+<span class="comment">-- FIX: Restore from backup</span>
+$ sudo cp /etc/cassandra/cassandra.yaml.bak \
+  /etc/cassandra/cassandra.yaml
+
+<span class="comment">-- OR validate YAML online:</span>
+<span class="comment"># Copy contents to yamllint.com</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem 4: Disk Full</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+ERROR Cannot write to commit log
+java.io.IOException: No space left on device
+
+<span class="comment">-- DIAGNOSE:</span>
+$ df -h
+Filesystem      Size  Used Avail Use%
+/dev/sda1       <span class="number">100</span>G  <span class="number">100</span>G     <span class="number">0</span>  <span class="number">100</span>%  <span class="comment">← FULL!</span>
+
+<span class="comment">-- FIX: Free up space</span>
+
+<span class="comment"># 1. Clear old snapshots:</span>
+$ nodetool clearsnapshot --all
+
+<span class="comment"># 2. Check what's using space:</span>
+$ du -sh /var/lib/cassandra/* | sort -h
+
+<span class="comment"># 3. Clear old logs:</span>
+$ sudo find /var/log/cassandra -name <span class="string">"*.log.*"</span> -mtime +<span class="number">7</span> -delete
+
+<span class="comment"># 4. If data directory too big, add disk or scale out</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem 5: Wrong Java Version</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+ERROR Cassandra <span class="number">4.0</span> requires Java <span class="number">11</span> or later
+
+<span class="comment">-- DIAGNOSE:</span>
+$ java -version
+openjdk version <span class="string">"1.8.0_292"</span>  <span class="comment">← Too old!</span>
+
+<span class="comment">-- FIX: Install Java 11</span>
+$ sudo apt install openjdk-<span class="number">11</span>-jdk
+
+<span class="comment">-- Set as default:</span>
+$ sudo update-alternatives --config java
+<span class="comment"># Select Java 11</span>
+
+<span class="comment">-- Verify:</span>
+$ java -version
+openjdk version <span class="string">"11.0.11"</span>  <span class="comment">← Good!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="high-latency" data-aos="fade-up">
+    <h2>⏱️ Issue: High Latency / Slow Queries</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Performance degradation troubleshooting!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Cause 1: Long GC Pauses</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: P99 latency spikes</span>
+
+<span class="comment">-- DIAGNOSE: Check GC logs</span>
+$ grep <span class="string">"GC for"</span> /var/log/cassandra/system.log | tail -<span class="number">20</span>
+
+<span class="number">2024</span>-<span class="number">01</span>-<span class="number">15</span> <span class="number">14</span>:<span class="number">32</span>:<span class="number">15</span> GC <span class="keyword">for</span> ConcurrentMarkSweep: <span class="number">5230</span>ms
+<span class="comment">→ 5 second pause! 💥</span>
+
+<span class="comment">-- Check heap usage:</span>
+$ nodetool info | grep Heap
+Heap Memory (MB): <span class="number">7850</span>/<span class="number">8192</span>  <span class="comment">← 96% full!</span>
+
+<span class="comment">-- FIX: Increase heap size</span>
+$ sudo vim /etc/cassandra/jvm.options
+
+<span class="comment"># Change from:</span>
+-Xms8G
+-Xmx8G
+
+<span class="comment"># To:</span>
+-Xms16G
+-Xmx16G
+
+<span class="comment">-- Restart:</span>
+$ sudo systemctl restart cassandra
+
+<span class="comment">-- Monitor GC after restart</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Cause 2: Excessive Tombstones</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Slow reads, timeouts</span>
+
+<span class="comment">-- DIAGNOSE: Check for tombstone warnings</span>
+$ grep tombstone /var/log/cassandra/system.log
+
+Read <span class="number">5000</span> live rows and <span class="number">50000</span> tombstone cells
+<span class="comment">→ 10x more tombstones than data! 💥</span>
+
+<span class="comment">-- Enable tracing on slow query:</span>
+cqlsh> TRACING ON;
+cqlsh> SELECT * FROM users WHERE user_id=<span class="string">'123'</span>;
+
+<span class="comment">/* Look for:
+"Scanned 50000 tombstones"
+*/</span>
+
+<span class="comment">-- FIX Option 1: Reduce gc_grace_seconds</span>
+<span class="keyword">ALTER</span> <span class="keyword">TABLE</span> users 
+<span class="keyword">WITH</span> gc_grace_seconds = <span class="number">86400</span>;  <span class="comment">-- 1 day</span>
+
+<span class="comment">-- FIX Option 2: Run compaction</span>
+$ nodetool compact my_keyspace users
+
+<span class="comment">-- FIX Option 3: Review deletion patterns</span>
+<span class="comment"># Too many DELETEs? Consider TTL instead</span>
+<span class="comment"># Or redesign data model</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Cause 3: Large Partitions</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Specific queries very slow</span>
+
+<span class="comment">-- DIAGNOSE: Find large partitions</span>
+$ nodetool tablehistograms my_keyspace users
+
+Partition Size:
+   <span class="number">5</span>MB: <span class="number">1000</span>
+  <span class="number">10</span>MB: <span class="number">500</span>
+ <span class="number">100</span>MB: <span class="number">10</span>   <span class="comment">← Problem!</span>
+<span class="number">1000</span>MB: <span class="number">2</span>    <span class="comment">← BIG PROBLEM!</span>
+
+<span class="comment">-- Check specific partition:</span>
+$ nodetool cfstats my_keyspace.users | grep -i partition
+
+<span class="comment">-- FIX: Redesign data model</span>
+<span class="comment"># Break large partition into multiple partitions</span>
+<span class="comment"># Add time bucket to partition key</span>
+
+<span class="comment">-- Example BAD:</span>
+<span class="keyword">PRIMARY</span> <span class="keyword">KEY</span> (user_id)  <span class="comment">← All data for user in 1 partition</span>
+
+<span class="comment">-- Example GOOD:</span>
+<span class="keyword">PRIMARY</span> <span class="keyword">KEY</span> ((user_id, year_month), timestamp)
+<span class="comment">← Data spread across monthly partitions</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Cause 4: Disk I/O Saturation</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: All queries slow</span>
+
+<span class="comment">-- DIAGNOSE: Check I/O wait</span>
+$ iostat -x <span class="number">1</span>
+
+Device  %util
+sda     <span class="number">98</span>.<span class="number">5</span>   <span class="comment">← Disk maxed out!</span>
+
+<span class="comment">-- Check pending compactions:</span>
+$ nodetool compactionstats
+pending tasks: <span class="number">500</span>  <span class="comment">← Backlog!</span>
+
+<span class="comment">-- FIX Option 1: Increase compaction throughput</span>
+$ nodetool setcompactionthroughput <span class="number">32</span>  <span class="comment"># MB/s</span>
+
+<span class="comment">-- FIX Option 2: Upgrade to faster disks</span>
+<span class="comment"># SSD > HDD for Cassandra</span>
+
+<span class="comment">-- FIX Option 3: Add more nodes</span>
+<span class="comment"># Distribute I/O load</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Cause 5: Network Issues</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Intermittent timeouts</span>
+
+<span class="comment">-- DIAGNOSE: Check dropped messages</span>
+$ nodetool tpstats | grep -i dropped
+
+Dropped Messages:
+MUTATION: <span class="number">1250</span>  <span class="comment">← Dropping writes!</span>
+
+<span class="comment">-- Check network connectivity:</span>
+$ nodetool netstats
+
+<span class="comment">-- FIX: Increase timeouts</span>
+$ vim /etc/cassandra/cassandra.yaml
+
+read_request_timeout_in_ms: <span class="number">10000</span>   <span class="comment"># Increase from 5000</span>
+write_request_timeout_in_ms: <span class="number">4000</span>   <span class="comment"># Increase from 2000</span>
+
+<span class="comment">-- Check for network packet loss:</span>
+$ ping -c <span class="number">100</span> other_node_ip
+<span class="comment"># Should see 0% packet loss</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="oom-errors" data-aos="fade-up">
+    <h2>💥 Issue: Out of Memory (OOM)</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Memory exhaustion troubleshooting!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Diagnosis</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Node crashes, can't restart</span>
+
+<span class="comment">-- Check logs:</span>
+$ grep -i <span class="string">"OutOfMemory"</span> /var/log/cassandra/system.log
+
+ERROR OutOfMemoryError: Java heap space
+  at org.apache.cassandra.db.Memtable
+
+<span class="comment">-- OR check system logs:</span>
+$ sudo journalctl -u cassandra | grep -i <span class="string">"OutOfMemory"</span>
+
+<span class="comment">-- Check heap dump (if exists):</span>
+$ ls -lh /var/lib/cassandra/*.hprof
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Common Causes</h4>
+                <ul style="color: var(--text-secondary); line-height: 1.9; margin-top: 1rem;">
+                    <li><strong>Heap too small:</strong> Need to increase -Xmx</li>
+                    <li><strong>Large queries:</strong> Fetching too much data</li>
+                    <li><strong>Memory leak:</strong> Bug in Cassandra or driver</li>
+                    <li><strong>Too many memtables:</strong> High write load</li>
+                    <li><strong>Large partitions:</strong> Reading huge partitions</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Fixes</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- FIX 1: Increase heap size</span>
+$ sudo vim /etc/cassandra/jvm.options
+
+<span class="comment"># Rule of thumb: 1/4 to 1/2 of system RAM</span>
+<span class="comment"># Or max 32GB (due to Java compressed OOPs)</span>
+
+<span class="comment"># For 64GB RAM machine:</span>
+-Xms16G
+-Xmx16G
+
+<span class="comment">-- FIX 2: Enable heap dump on OOM</span>
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/lib/cassandra/
+
+<span class="comment">-- FIX 3: Reduce memtable sizes</span>
+$ vim /etc/cassandra/cassandra.yaml
+
+memtable_heap_space_in_mb: <span class="number">2048</span>   <span class="comment"># Reduce if needed</span>
+memtable_offheap_space_in_mb: <span class="number">2048</span>
+
+<span class="comment">-- FIX 4: Add query limits</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users <span class="keyword">LIMIT</span> <span class="number">1000</span>;  <span class="comment">← ALWAYS use LIMIT!</span>
+
+<span class="comment">-- FIX 5: Upgrade Cassandra version</span>
+<span class="comment"># Memory leaks fixed in newer versions</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="cluster-issues" data-aos="fade-up">
+    <h2>🔗 Issue: Cluster Connectivity Problems</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Node communication issues!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem: Nodes Can't See Each Other</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM:</span>
+$ nodetool status
+<span class="comment"># Only shows 1 node (should show all nodes)</span>
+
+<span class="comment">-- DIAGNOSE: Check gossip</span>
+$ nodetool gossipinfo | grep STATUS
+
+<span class="comment">-- Check network connectivity:</span>
+$ telnet other_node_ip <span class="number">7000</span>  <span class="comment">← Gossip port</span>
+$ telnet other_node_ip <span class="number">9042</span>  <span class="comment">← CQL port</span>
+
+<span class="comment">-- FIX: Check firewall</span>
+$ sudo ufw status
+<span class="comment"># Make sure ports 7000, 7001, 9042 are open</span>
+
+$ sudo ufw allow <span class="number">7000</span>/tcp
+$ sudo ufw allow <span class="number">7001</span>/tcp
+$ sudo ufw allow <span class="number">9042</span>/tcp
+
+<span class="comment">-- Check seed nodes in cassandra.yaml:</span>
+seed_provider:
+  - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      - seeds: <span class="string">"node1_ip,node2_ip"</span>  <span class="comment">← Must be correct!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Problem: Node Flapping (UP/DOWN/UP/DOWN)</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM in logs:</span>
+Node /<span class="number">10.0</span>.<span class="number">1</span>.<span class="number">11</span> DOWN
+Node /<span class="number">10.0</span>.<span class="number">1</span>.<span class="number">11</span> UP
+Node /<span class="number">10.0</span>.<span class="number">1</span>.<span class="number">11</span> DOWN
+<span class="comment">← Flapping!</span>
+
+<span class="comment">-- CAUSES:</span>
+<span class="comment"># 1. Long GC pauses (node unresponsive)</span>
+<span class="comment"># 2. Network packet loss</span>
+<span class="comment"># 3. Disk I/O saturation</span>
+<span class="comment"># 4. CPU maxed out</span>
+
+<span class="comment">-- DIAGNOSE:</span>
+<span class="comment"># Check GC on flapping node:</span>
+$ grep <span class="string">"GC for"</span> /var/log/cassandra/system.log
+
+<span class="comment"># Check system resources:</span>
+$ top
+$ iostat -x <span class="number">1</span>
+
+<span class="comment">-- FIX: Address root cause</span>
+<span class="comment"># If GC → increase heap</span>
+<span class="comment"># If I/O → faster disks or reduce compaction</span>
+<span class="comment"># If network → check switches/routers</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="data-inconsistency" data-aos="fade-up">
+    <h2>📊 Issue: Data Inconsistency</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Replicas out of sync!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Diagnosis</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- SYMPTOM: Different results from different nodes</span>
+
+<span class="comment">-- Test consistency:</span>
+cqlsh> CONSISTENCY ALL;
+cqlsh> SELECT * FROM users WHERE user_id=<span class="string">'123'</span>;
+
+<span class="comment">/* If fails:
+ReadTimeout: code=1200 ...
+→ Replicas don't agree!
+*/</span>
+
+<span class="comment">-- Check for hints:</span>
+$ nodetool statusbinary
+$ nodetool statusgossip
+
+<span class="comment">-- Check repair history:</span>
+$ grep repair /var/log/cassandra/system.log
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Fix: Run Repair</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Option 1: Repair single table</span>
+$ nodetool repair -pr my_keyspace users
+
+<span class="comment">-- Option 2: Repair entire keyspace</span>
+$ nodetool repair -pr my_keyspace
+
+<span class="comment">-- Option 3: Full repair (all keyspaces)</span>
+$ nodetool repair -pr
+
+<span class="comment">-- Monitor progress:</span>
+$ nodetool compactionstats
+
+<span class="comment">-- Note: -pr = primary range only (prevents duplicates)</span>
+
+<span class="comment">-- Schedule regular repairs:</span>
+<span class="comment"># Cron job to run weekly</span>
+<span class="number">0</span> <span class="number">2</span> * * <span class="number">0</span> nodetool repair -pr
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="toolbox" data-aos="fade-up">
+    <h2>🛠️ Troubleshooting Toolbox</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential commands!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--accent-teal);">
+            <div class="comparison-icon">🔍</div>
+            <h3>Health Checks</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Cluster status</span>
+nodetool status
+
+<span class="comment"># Node info</span>
+nodetool info
+
+<span class="comment"># Ring state</span>
+nodetool ring
+
+<span class="comment"># Gossip info</span>
+nodetool gossipinfo
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-purple);">
+            <div class="comparison-icon">📊</div>
+            <h3>Performance</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Thread pools</span>
+nodetool tpstats
+
+<span class="comment"># Table stats</span>
+nodetool tablestats
+
+<span class="comment"># Compaction stats</span>
+nodetool compactionstats
+
+<span class="comment"># GC stats</span>
+nodetool gcstats
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-orange);">
+            <div class="comparison-icon">📜</div>
+            <h3>Logs</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Errors</span>
+grep ERROR system.log
+
+<span class="comment"># Warnings</span>
+grep WARN system.log
+
+<span class="comment"># GC pauses</span>
+grep <span class="string">"GC for"</span> system.log
+
+<span class="comment"># Tombstones</span>
+grep tombstone system.log
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: #3b82f6;">
+            <div class="comparison-icon">💻</div>
+            <h3>System</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Disk space</span>
+df -h
+
+<span class="comment"># Memory</span>
+free -h
+
+<span class="comment"># CPU</span>
+top
+
+<span class="comment"># Disk I/O</span>
+iostat -x <span class="number">1</span>
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">🔧</div>
+            <h3>Repairs</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Single table</span>
+nodetool repair -pr ks table
+
+<span class="comment"># Keyspace</span>
+nodetool repair -pr ks
+
+<span class="comment"># Full repair</span>
+nodetool repair -pr
+
+<span class="comment"># Monitor</span>
+nodetool compactionstats
+            </div>
+        </div>
+
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">🐛</div>
+            <h3>Debugging</h3>
+            <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Enable tracing</span>
+cqlsh> TRACING ON;
+
+<span class="comment"># Query tracing</span>
+SELECT * FROM ...;
+
+<span class="comment"># Check consistency</span>
+CONSISTENCY ALL;
+
+<span class="comment"># Network stats</span>
+nodetool netstats
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Quick Reference Cheat Sheet</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Problem</th>
+                <th>Quick Check</th>
+                <th>Common Fix</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Node down</strong></td>
+                <td>nodetool status</td>
+                <td>Check logs, restart node</td>
+            </tr>
+            <tr>
+                <td><strong>Slow queries</strong></td>
+                <td>grep tombstone logs</td>
+                <td>Run compaction, check GC</td>
+            </tr>
+            <tr>
+                <td><strong>High latency</strong></td>
+                <td>nodetool tpstats</td>
+                <td>Check pending tasks, GC</td>
+            </tr>
+            <tr>
+                <td><strong>OOM errors</strong></td>
+                <td>grep OutOfMemory logs</td>
+                <td>Increase heap size</td>
+            </tr>
+            <tr>
+                <td><strong>Disk full</strong></td>
+                <td>df -h</td>
+                <td>Clear snapshots, add disk</td>
+            </tr>
+            <tr>
+                <td><strong>Dropped messages</strong></td>
+                <td>nodetool tpstats</td>
+                <td>Increase timeouts, scale out</td>
+            </tr>
+            <tr>
+                <td><strong>Inconsistent data</strong></td>
+                <td>CONSISTENCY ALL</td>
+                <td>Run repair</td>
+            </tr>
+            <tr>
+                <td><strong>Node flapping</strong></td>
+                <td>grep "GC for" logs</td>
+                <td>Fix GC pauses, network</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- Summary Box -->
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎉 Master Cassandra Troubleshooting!</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now have a systematic approach to debug ANY issue!</strong></p>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Learned:</h4>
+        <ul style="line-height: 1.9;">
+            <li>🎯 <strong>Methodology:</strong> The 5-step debug process</li>
+            <li>🚫 <strong>Node won't start:</strong> 5 common causes + fixes</li>
+            <li>⏱️ <strong>High latency:</strong> GC, tombstones, large partitions, I/O, network</li>
+            <li>💥 <strong>OOM errors:</strong> Diagnosis and heap tuning</li>
+            <li>🔗 <strong>Cluster issues:</strong> Connectivity and flapping nodes</li>
+            <li>📊 <strong>Data inconsistency:</strong> When and how to repair</li>
+            <li>🛠️ <strong>Toolbox:</strong> Essential commands for every scenario</li>
+        </ul>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">💡 The 5-Step Process:</h4>
+        <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+            <ol style="color: var(--text-secondary); line-height: 2; margin: 0; font-size: 1.05rem;">
+                <li><strong style="color: var(--text-primary);">Identify:</strong> What exactly is broken?</li>
+                <li><strong style="color: var(--text-primary);">Isolate:</strong> Which component?</li>
+                <li><strong style="color: var(--text-primary);">Investigate:</strong> Gather logs, metrics, evidence</li>
+                <li><strong style="color: var(--text-primary);">Fix:</strong> Apply solution (test in staging first!)</li>
+                <li><strong style="color: var(--text-primary);">Verify:</strong> Confirm it's actually fixed</li>
+            </ol>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🔍 Essential Commands:</h4>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Quick health check:</span>
+nodetool status              <span class="comment"># Cluster status</span>
+tail -<span class="number">100</span> system.log | grep ERROR  <span class="comment"># Recent errors</span>
+df -h                        <span class="comment"># Disk space</span>
+nodetool tpstats             <span class="comment"># Thread pools</span>
+grep <span class="string">"GC for"</span> system.log     <span class="comment"># GC pauses</span>
+
+<span class="comment"># When things go wrong:</span>
+nodetool repair -pr          <span class="comment"># Fix inconsistency</span>
+nodetool compact ks table    <span class="comment"># Remove tombstones</span>
+nodetool clearsnapshot --all <span class="comment"># Free disk space</span>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🚨 Most Common Issues:</h4>
+        <table style="margin-top: 1rem; font-size: 0.95rem;">
+            <thead>
+                <tr>
+                    <th>Issue</th>
+                    <th>First Thing to Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Node won't start</td>
+                    <td>tail system.log (look for ERROR)</td>
+                </tr>
+                <tr>
+                    <td>Slow queries</td>
+                    <td>grep tombstone system.log</td>
+                </tr>
+                <tr>
+                    <td>Node crashes</td>
+                    <td>grep OutOfMemory system.log</td>
+                </tr>
+                <tr>
+                    <td>High latency</td>
+                    <td>grep "GC for" system.log</td>
+                </tr>
+                <tr>
+                    <td>Disk full</td>
+                    <td>df -h (then clear snapshots)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: #dc2626; font-weight: 700;">
+            🔍 Remember: Systematic approach = Fast resolution! 🎯<br>
+            Follow the 5 steps every time!
+        </p>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="page-navigation">
+    <a href="monitoring.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Monitoring & Alerts</div>
+        </div>
+    </a>
+    <a href="authentication.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Authentication</div>
+        </div>
+    </a>
+</div>
+<div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                <p style="color: var(--text-muted); margin: 0;">📱 Responsive Ad 📱</p>
+            </div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

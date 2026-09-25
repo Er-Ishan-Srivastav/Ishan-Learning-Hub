@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete MongoDB Sharding Cheatsheet - Horizontal scaling, shard keys, zones, and best practices with live examples">
+    <title>MongoDB Sharding Cheatsheet | myPathshala</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+
+   <style>
+       :root {
+            --primary-green: #00ED64;
+            --dark-green: #00684A;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --soft-gray: #F9FAFB;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+            --acid-purple: #8B5CF6;
+            --base-orange: #F59E0B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--soft-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-green);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 237, 100, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-green);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+         /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minItems(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-green);
+            border-left-color: var(--primary-green);
+            padding-left: 1.25rem;
+        }
+        /* Pattern Card */
+        .pattern-card {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .pattern-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .pattern-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pattern-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pattern-badge {
+            background: rgba(0, 237, 100, 0.15);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        .pattern-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        /* Live Console */
+        .live-console {
+            background: var(--bg-darker);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid var(--border-light);
+            margin: 1.5rem 0;
+        }
+
+        .console-header {
+            background: var(--code-bg);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .console-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .console-dots {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot.red { background: #EF4444; }
+        .dot.yellow { background: #F59E0B; }
+        .dot.green { background: #10B981; }
+
+        .console-body {
+            padding: 1.5rem;
+        }
+
+        .console-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .console-prompt {
+            color: var(--primary-green);
+            user-select: none;
+        }
+
+        .console-output {
+            background: rgba(0, 237, 100, 0.05);
+            border-left: 3px solid var(--primary-green);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 6px;
+        }
+
+        .copy-btn {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        /* Syntax highlighting */
+        .comment { color: #6A9955; }
+        .string { color: #CE9178; }
+        .number { color: #B5CEA8; }
+        .keyword { color: #569CD6; }
+        .field { color: #9CDCFE; }
+        .operator { color: #D4D4D4; }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .comparison-box {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 2px solid var(--border-light);
+        }
+
+        .comparison-box.good {
+            border-color: var(--success-green);
+        }
+
+        .comparison-box.bad {
+            border-color: var(--error-red);
+        }
+
+        .comparison-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .comparison-box.good .comparison-title {
+            color: var(--success-green);
+        }
+
+        .comparison-box.bad .comparison-title {
+            color: var(--error-red);
+        }
+
+        /* Category Section */
+        .category-section {
+            margin: 4rem 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .category-title h2 {
+            font-size: 2rem;
+            color: var(--primary-green);
+            margin: 0;
+        }
+
+        .category-title p {
+            color: var(--text-secondary);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Reference Table */
+        .reference-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .reference-table th {
+            background: linear-gradient(135deg, var(--dark-green), var(--primary-green));
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .reference-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .reference-table tr:hover {
+            background: rgba(0, 237, 100, 0.05);
+        }
+
+        .reference-table code {
+            background: var(--bg-darker);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stats Box */
+        .stats-box {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary-green);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-box strong {
+            color: var(--info-blue);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+            border-left: 4px solid var(--warning-orange);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box strong {
+            color: var(--warning-orange);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid var(--success-green);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .success-box strong {
+            color: var(--success-green);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Visual Diagram */
+        .visual-diagram {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--border-light);
+        }
+
+        .diagram-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .nav-grid { grid-template-columns: 1fr; }
+            .comparison-grid { grid-template-columns: 1fr; }
+            .print-btn { bottom: 1rem; right: 1rem; padding: 0.75rem 1.25rem; }
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .print-btn, .quick-nav, .page-hero, .breadcrumb-modern { display: none; }
+        }
+        
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        /* Interview Questions - White Cards */
+        .interview-question {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            transition: background 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(0, 237, 100, 0.03);
+        }
+
+        .question-number {
+            background: var(--primary-green);
+            color: var(--code-darker);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 500;
+            color: #1F2937;
+            font-size: 1rem;
+        }
+
+        .toggle-icon {
+            color: var(--primary-green);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+            border-top: 1px solid #F3F4F6;
+        }
+
+        .question-answer p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1F2937;
+        }
+
+        .question-answer ul {
+            color: #374151;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Animation Styles */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes flowRight {
+            from {
+                stroke-dashoffset: 20;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.1);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--code-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-green);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 237, 100, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Page Hero */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-green);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        /* Index Card */
+        .index-card {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .index-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .index-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .index-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .index-badge {
+            background: rgba(0, 237, 100, 0.15);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+
+        .index-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* Live Console */
+        .live-console {
+            background: var(--bg-darker);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid var(--border-light);
+            margin: 1.5rem 0;
+        }
+
+        .console-header {
+            background: var(--code-bg);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .console-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .console-dots {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot.red { background: #EF4444; }
+        .dot.yellow { background: #F59E0B; }
+        .dot.green { background: #10B981; }
+
+        .console-body {
+            padding: 1.5rem;
+        }
+
+        .console-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .console-prompt {
+            color: var(--primary-green);
+            user-select: none;
+        }
+
+        .console-output {
+            background: rgba(0, 237, 100, 0.05);
+            border-left: 3px solid var(--primary-green);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 6px;
+        }
+
+        .copy-btn {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        /* Syntax highlighting */
+        .comment { color: #6A9955; }
+        .string { color: #CE9178; }
+        .number { color: #B5CEA8; }
+        .keyword { color: #569CD6; }
+        .field { color: #9CDCFE; }
+        .operator { color: #D4D4D4; }
+
+        /* Performance Comparison */
+        .performance-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .perf-box {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 2px solid var(--border-light);
+        }
+
+        .perf-box.slow {
+            border-color: var(--error-red);
+        }
+
+        .perf-box.fast {
+            border-color: var(--success-green);
+        }
+
+        .perf-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .perf-box.slow .perf-title {
+            color: var(--error-red);
+        }
+
+        .perf-box.fast .perf-title {
+            color: var(--success-green);
+        }
+
+        .perf-metric {
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 1rem 0;
+        }
+
+        .perf-box.slow .perf-metric {
+            color: var(--error-red);
+        }
+
+        .perf-box.fast .perf-metric {
+            color: var(--success-green);
+        }
+
+        /* Category Section */
+        .category-section {
+            margin: 4rem 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .category-title h2 {
+            font-size: 2rem;
+            color: var(--primary-green);
+            margin: 0;
+        }
+
+        .category-title p {
+            color: var(--text-secondary);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Reference Table */
+        .reference-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .reference-table th {
+            background: linear-gradient(135deg, var(--dark-green), var(--primary-green));
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .reference-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .reference-table tr:hover {
+            background: rgba(0, 237, 100, 0.05);
+        }
+
+        .reference-table code {
+            background: var(--bg-darker);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Stats Box */
+        .stats-box {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary-green);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-box strong {
+            color: var(--info-blue);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+            border-left: 4px solid var(--warning-orange);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box strong {
+            color: var(--warning-orange);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid var(--success-green);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .success-box strong {
+            color: var(--success-green);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Visual Diagram */
+        .visual-diagram {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--border-light);
+        }
+
+        .diagram-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .nav-grid { grid-template-columns: 1fr; }
+            .performance-comparison { grid-template-columns: 1fr; }
+            .print-btn { bottom: 1rem; right: 1rem; padding: 0.75rem 1.25rem; }
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .print-btn, .quick-nav, .page-hero, .breadcrumb-modern { display: none; }
+        }
+    </style>
+</head>
+<body>
+   <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+     <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed" >🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid" class="active">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                        <li><a href="practical-example.html" data-page="practical-example">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html" data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html" data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat">📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat" >🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat" class="active">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+  
+  
+    <main class="main-content">
+
+    <!-- Page Hero -->
+    <section class="page-hero">
+        <div class="container">
+            <div class="page-hero-content">
+                <span class="hero-badge">
+                    <i class="fas fa-server"></i>
+                    Section 14: Cheatsheets
+                </span>
+                <h1>⚡ MongoDB Sharding Cheatsheet</h1>
+                <p>Complete guide to horizontal scaling, shard keys, zones, and production best practices</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-modern">
+        <div class="container">
+            <a href="index.html">Home</a>
+            <span class="separator">›</span>
+            <a href="#downloads">Section 14: Downloads</a>
+            <span class="separator">›</span>
+            <span class="current">Sharding Cheatsheet</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container" style="padding: 4rem 0;">
+        
+          <div class="row">
+                <!-- Table of Contents (Floating) -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#intro" class="nav-btn" style="color: white;">Introduction</a></li>
+                            <li><a href="#architecture" class="nav-btn"style="color: white;">Architecture</a></li>
+                            <li><a href="#shardkey" class="nav-btn" style="color: white;">Shard Keys</a></li>
+                            <li><a href="#strategies" class="nav-btn" style="color: white;">Strategies</a></li>
+                            <li><a href="#zones" class="nav-btn" style="color: white;">Zones</a></li>
+                            <li><a href="#balancing" class="nav-btn" style="color: white;">Balancing</a></li>
+                            <li><a href="#monitoring" class="nav-btn" style="color: white;">Monitoring</a></li>
+                            <li><a href="#bestpractices" class="nav-btn" style="color: white;">Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+            
+
+        <!-- Content Area -->
+                <div class="col-lg-9">
+
+                    <!-- INTRODUCTION -->
+                <section id="intro" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">📚</div>
+                        <div class="category-title">
+                            <h2>What is Sharding?</h2>
+                            <p>Horizontal scaling across multiple machines</p>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 Sharding in Simple Terms</strong>
+                        <p style="color: var(--text-secondary); line-height: 1.8;">
+                            <strong>Sharding</strong> is MongoDB's approach to horizontal scaling - splitting your data across multiple servers (shards) to handle massive datasets and high throughput.
+                        </p>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-top: 1rem;">
+                            Think of it like organizing a massive library: instead of one giant building, you have multiple branches, each holding different books based on categories.
+                        </p>
+                    </div>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">🏗️ Sharded vs Non-Sharded Architecture</div>
+                        <svg viewBox="0 0 800 350" style="width: 100%; height: auto;">
+                            <!-- Non-Sharded -->
+                            <text x="100" y="30" font-size="18" fill="#EF4444" font-weight="bold">❌ Without Sharding</text>
+                            
+                            <rect x="50" y="50" width="200" height="120" fill="#1E293B" stroke="#EF4444" stroke-width="3" rx="8"/>
+                            <text x="150" y="80" font-size="14" fill="#E2E8F0" text-anchor="middle" font-weight="bold">Single Server</text>
+                            <text x="150" y="105" font-size="12" fill="#94A3B8" text-anchor="middle">100 GB Data</text>
+                            <text x="150" y="125" font-size="12" fill="#94A3B8" text-anchor="middle">10K ops/sec</text>
+                            <text x="150" y="145" font-size="12" fill="#EF4444" text-anchor="middle">❌ Single Point of Failure</text>
+                            
+                            <text x="50" y="200" font-size="14" fill="#EF4444">Problems:</text>
+                            <text x="50" y="220" font-size="12" fill="#94A3B8">• Limited by single server</text>
+                            <text x="50" y="238" font-size="12" fill="#94A3B8">• Can't scale beyond hardware</text>
+                            <text x="50" y="256" font-size="12" fill="#94A3B8">• Downtime = full outage</text>
+
+                            <!-- With Sharding -->
+                            <text x="550" y="30" font-size="18" fill="#10B981" font-weight="bold">✅ With Sharding</text>
+                            
+                            <!-- Shard 1 -->
+                            <rect x="450" y="50" width="100" height="80" fill="#1E293B" stroke="#00ED64" stroke-width="2" rx="6"/>
+                            <text x="500" y="75" font-size="12" fill="#00ED64" text-anchor="middle" font-weight="bold">Shard 1</text>
+                            <text x="500" y="93" font-size="11" fill="#94A3B8" text-anchor="middle">33 GB</text>
+                            <text x="500" y="108" font-size="11" fill="#94A3B8" text-anchor="middle">A-F data</text>
+                            
+                            <!-- Shard 2 -->
+                            <rect x="560" y="50" width="100" height="80" fill="#1E293B" stroke="#00ED64" stroke-width="2" rx="6"/>
+                            <text x="610" y="75" font-size="12" fill="#00ED64" text-anchor="middle" font-weight="bold">Shard 2</text>
+                            <text x="610" y="93" font-size="11" fill="#94A3B8" text-anchor="middle">33 GB</text>
+                            <text x="610" y="108" font-size="11" fill="#94A3B8" text-anchor="middle">G-M data</text>
+                            
+                            <!-- Shard 3 -->
+                            <rect x="670" y="50" width="100" height="80" fill="#1E293B" stroke="#00ED64" stroke-width="2" rx="6"/>
+                            <text x="720" y="75" font-size="12" fill="#00ED64" text-anchor="middle" font-weight="bold">Shard 3</text>
+                            <text x="720" y="93" font-size="11" fill="#94A3B8" text-anchor="middle">34 GB</text>
+                            <text x="720" y="108" font-size="11" fill="#94A3B8" text-anchor="middle">N-Z data</text>
+                            
+                            <!-- mongos -->
+                            <rect x="535" y="150" width="130" height="40" fill="#00684A" stroke="#00ED64" stroke-width="2" rx="6"/>
+                            <text x="600" y="175" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="bold">mongos (Router)</text>
+                            
+                            <text x="450" y="220" font-size="14" fill="#10B981">Benefits:</text>
+                            <text x="450" y="240" font-size="12" fill="#94A3B8">• 3x capacity (300 GB total)</text>
+                            <text x="450" y="258" font-size="12" fill="#94A3B8">• 3x throughput (30K ops/sec)</text>
+                            <text x="450" y="276" font-size="12" fill="#94A3B8">• High availability</text>
+                            <text x="450" y="294" font-size="12" fill="#94A3B8">• Horizontal scaling</text>
+                        </svg>
+                    </div>
+
+                    <div class="comparison-grid">
+                        <div class="comparison-box bad">
+                            <div class="comparison-title">
+                                <i class="fas fa-arrow-up"></i>
+                                Vertical Scaling (Expensive!)
+                            </div>
+                            <div style="color: var(--text-secondary); line-height: 1.8;">
+                                • Buy bigger server<br>
+                                • Limited by hardware<br>
+                                • Downtime for upgrades<br>
+                                • Exponentially expensive<br>
+                                • Single point of failure
+                            </div>
+                        </div>
+                        <div class="comparison-box good">
+                            <div class="comparison-title">
+                                <i class="fas fa-arrows-alt-h"></i>
+                                Horizontal Scaling (Sharding!)
+                            </div>
+                            <div style="color: var(--text-secondary); line-height: 1.8;">
+                                • Add more servers<br>
+                                • Near-infinite scalability<br>
+                                • No downtime<br>
+                                • Cost-effective (commodity hardware)<br>
+                                • High availability built-in
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- ARCHITECTURE -->
+                <section id="architecture" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">🏗️</div>
+                        <div class="category-title">
+                            <h2>Sharding Architecture</h2>
+                            <p>Components of a sharded cluster</p>
+                        </div>
+                    </div>
+
+                    <div class="visual-diagram">
+                        <div class="diagram-title">🔧 Sharded Cluster Components</div>
+                        <svg viewBox="0 0 800 400" style="width: 100%; height: auto;">
+                            <!-- Application -->
+                            <rect x="320" y="20" width="160" height="50" fill="#8B5CF6" stroke="#A78BFA" stroke-width="2" rx="8"/>
+                            <text x="400" y="50" font-size="15" fill="#FFFFFF" text-anchor="middle" font-weight="bold">Application</text>
+                            
+                            <!-- Arrow down -->
+                            <line x1="400" y1="70" x2="400" y2="110" stroke="#00ED64" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            
+                            <!-- mongos Routers -->
+                            <rect x="150" y="110" width="120" height="50" fill="#00684A" stroke="#00ED64" stroke-width="2" rx="8"/>
+                            <text x="210" y="140" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="bold">mongos</text>
+                            
+                            <rect x="340" y="110" width="120" height="50" fill="#00684A" stroke="#00ED64" stroke-width="2" rx="8"/>
+                            <text x="400" y="140" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="bold">mongos</text>
+                            
+                            <rect x="530" y="110" width="120" height="50" fill="#00684A" stroke="#00ED64" stroke-width="2" rx="8"/>
+                            <text x="590" y="140" font-size="13" fill="#FFFFFF" text-anchor="middle" font-weight="bold">mongos</text>
+                            
+                            <!-- Config Servers -->
+                            <rect x="680" y="110" width="100" height="120" fill="#3B82F6" stroke="#60A5FA" stroke-width="2" rx="8"/>
+                            <text x="730" y="135" font-size="12" fill="#FFFFFF" text-anchor="middle" font-weight="bold">Config</text>
+                            <text x="730" y="153" font-size="12" fill="#FFFFFF" text-anchor="middle" font-weight="bold">Servers</text>
+                            <text x="730" y="175" font-size="10" fill="#DBEAFE" text-anchor="middle">(Metadata)</text>
+                            <text x="730" y="195" font-size="10" fill="#DBEAFE" text-anchor="middle">• Shard map</text>
+                            <text x="730" y="210" font-size="10" fill="#DBEAFE" text-anchor="middle">• Chunks</text>
+                            
+                            <!-- Arrows to shards -->
+                            <line x1="210" y1="160" x2="140" y2="240" stroke="#00ED64" stroke-width="2"/>
+                            <line x1="400" y1="160" x2="320" y2="240" stroke="#00ED64" stroke-width="2"/>
+                            <line x1="590" y1="160" x2="500" y2="240" stroke="#00ED64" stroke-width="2"/>
+                            
+                            <!-- Shard 1 -->
+                            <rect x="50" y="240" width="180" height="120" fill="#1E293B" stroke="#00ED64" stroke-width="3" rx="8"/>
+                            <text x="140" y="265" font-size="14" fill="#00ED64" text-anchor="middle" font-weight="bold">Shard 1 (Replica Set)</text>
+                            <rect x="60" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="85" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Primary</text>
+                            <rect x="115" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="140" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Secondary</text>
+                            <rect x="170" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="195" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Secondary</text>
+                            <text x="140" y="335" font-size="11" fill="#94A3B8" text-anchor="middle">Chunks: 0-33</text>
+                            
+                            <!-- Shard 2 -->
+                            <rect x="310" y="240" width="180" height="120" fill="#1E293B" stroke="#00ED64" stroke-width="3" rx="8"/>
+                            <text x="400" y="265" font-size="14" fill="#00ED64" text-anchor="middle" font-weight="bold">Shard 2 (Replica Set)</text>
+                            <rect x="320" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="345" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Primary</text>
+                            <rect x="375" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="400" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Secondary</text>
+                            <rect x="430" y="275" width="50" height="35" fill="#0F172A" stroke="#334155" stroke-width="1" rx="4"/>
+                            <text x="455" y="297" font-size="10" fill="#94A3B8" text-anchor="middle">Secondary</text>
+                            <text x="400" y="335" font-size="11" fill="#94A3B8" text-anchor="middle">Chunks: 34-66</text>
+                            
+                            <defs>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#00ED64" />
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <table class="reference-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Role</th>
+                                <th>Count</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>mongos</strong></td>
+                                <td>Query router - directs operations to shards</td>
+                                <td>1+ (multiple for HA)</td>
+                                <td>Stateless, lightweight</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Config Servers</strong></td>
+                                <td>Store cluster metadata & chunk mapping</td>
+                                <td>3 (replica set)</td>
+                                <td>Critical - always 3!</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Shards</strong></td>
+                                <td>Store actual data (replica sets)</td>
+                                <td>2+ recommended</td>
+                                <td>Each is a replica set</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Chunks</strong></td>
+                                <td>Data ranges (64MB by default)</td>
+                                <td>Auto-managed</td>
+                                <td>Balanced automatically</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </section>
+
+                <!-- SHARD KEYS -->
+                <section id="shardkey" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">🔑</div>
+                        <div class="category-title">
+                            <h2>Shard Keys</h2>
+                            <p>The most critical decision in sharding</p>
+                        </div>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ CRITICAL: Shard Key Cannot Be Changed!</strong>
+                        Once you shard a collection, the shard key is immutable! Choose wisely or face a complete data migration.
+                    </div>
+
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Good Shard Key Qualities</div>
+                            <span class="shard-badge">Essential</span>
+                        </div>
+                        <div class="shard-desc">
+                            A good shard key has three critical properties:
+                        </div>
+
+                        <div class="success-box">
+                            <strong>✅ The 3 Golden Rules</strong>
+                            <ol style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2.2;">
+                                <li><strong style="color: var(--success-green);">High Cardinality</strong> - Many unique values (userId ✓, gender ✗)</li>
+                                <li><strong style="color: var(--success-green);">Low Frequency</strong> - Values evenly distributed (not 90% same value)</li>
+                                <li><strong style="color: var(--success-green);">Non-Monotonic</strong> - Avoid always-increasing values (timestamp ✗)</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Enable Sharding -->
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Enable Sharding</div>
+                            <span class="shard-badge">Setup</span>
+                        </div>
+
+                        <div class="live-console">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-terminal"></i>
+                                    mongosh (connect to mongos)
+                                </div>
+                                <div class="console-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Step 1: Enable sharding on database</span>
+        <span class="console-prompt">></span> sh.enableSharding(<span class="string">"ecommerce"</span>)
+
+        <div class="console-output">
+        {
+        ok: <span class="number">1</span>,
+        <span class="string">'$clusterTime'</span>: { ... }
+        }
+        </div>
+
+        <span class="console-prompt">></span> <span class="comment">// Step 2: Shard the collection</span>
+        <span class="console-prompt">></span> sh.shardCollection(
+            <span class="string">"ecommerce.orders"</span>,
+            { customerId: <span class="number">1</span> }          <span class="comment">// Shard key</span>
+        )
+
+        <div class="console-output">
+        {
+        collectionsharded: <span class="string">'ecommerce.orders'</span>,
+        ok: <span class="number">1</span>
+        }
+        </div>
+
+        <span class="console-prompt">></span> <span class="comment">// Verify sharding status</span>
+        <span class="console-prompt">></span> sh.status()
+                                </div>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- SHARD KEY STRATEGIES -->
+                <section id="strategies" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">🎯</div>
+                        <div class="category-title">
+                            <h2>Shard Key Strategies</h2>
+                            <p>Three main approaches</p>
+                        </div>
+                    </div>
+
+                    <!-- Hashed Shard Key -->
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Hashed Shard Key</div>
+                            <span class="shard-badge">Best for Monotonic</span>
+                        </div>
+                        <div class="shard-desc">
+                            Hash the field value to distribute data evenly. Perfect for monotonically increasing values.
+                        </div>
+
+                        <div class="live-console">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-terminal"></i>
+                                    Example: User IDs (ObjectId)
+                                </div>
+                                <div class="console-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Create hashed index first</span>
+        <span class="console-prompt">></span> db.users.createIndex({ _id: <span class="string">"hashed"</span> })
+
+        <span class="console-prompt">></span> <span class="comment">// Shard on hashed _id</span>
+        <span class="console-prompt">></span> sh.shardCollection(
+            <span class="string">"myapp.users"</span>,
+            { _id: <span class="string">"hashed"</span> }        <span class="comment">// Hashed shard key!</span>
+        )
+
+        <span class="console-prompt">></span> <span class="comment">// Result: Even distribution across shards</span>
+        <span class="console-prompt">></span> <span class="comment">// _id: ObjectId("507f...") → hash → Shard 2</span>
+        <span class="console-prompt">></span> <span class="comment">// _id: ObjectId("508a...") → hash → Shard 1</span>
+        <span class="console-prompt">></span> <span class="comment">// _id: ObjectId("509b...") → hash → Shard 3</span>
+                                </div>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-box good">
+                                <div class="comparison-title">
+                                    <i class="fas fa-check-circle"></i>
+                                    Advantages
+                                </div>
+                                <div style="color: var(--text-secondary); line-height: 1.8;">
+                                    • Even distribution guaranteed<br>
+                                    • No hotspots<br>
+                                    • Works with monotonic values<br>
+                                    • Simple to implement
+                                </div>
+                            </div>
+                            <div class="comparison-box bad">
+                                <div class="comparison-title">
+                                    <i class="fas fa-times-circle"></i>
+                                    Disadvantages
+                                </div>
+                                <div style="color: var(--text-secondary); line-height: 1.8;">
+                                    • No range queries!<br>
+                                    • Can't use find({ _id: { $gt: ... }})<br>
+                                    • Broadcasts scatter-gather queries<br>
+                                    • Less predictable data location
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ranged Shard Key -->
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Ranged Shard Key</div>
+                            <span class="shard-badge">Best for Queries</span>
+                        </div>
+                        <div class="shard-desc">
+                            Use natural field values for sharding. Great for range queries, but watch for hotspots!
+                        </div>
+
+                        <div class="live-console">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-terminal"></i>
+                                    Example: Geographic Region
+                                </div>
+                                <div class="console-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Shard by country</span>
+        <span class="console-prompt">></span> sh.shardCollection(
+            <span class="string">"ecommerce.customers"</span>,
+            { country: <span class="number">1</span> }          <span class="comment">// Ranged shard key</span>
+        )
+
+        <span class="console-prompt">></span> <span class="comment">// Result: Geographic clustering</span>
+        <span class="console-prompt">></span> <span class="comment">// Shard 1: USA customers</span>
+        <span class="console-prompt">></span> <span class="comment">// Shard 2: UK, France, Germany</span>
+        <span class="console-prompt">></span> <span class="comment">// Shard 3: India, China, Japan</span>
+
+        <span class="console-prompt">></span> <span class="comment">// ✅ Efficient range query (targets one shard!)</span>
+        <span class="console-prompt">></span> db.customers.find({ country: <span class="string">"USA"</span> })
+
+        <span class="console-prompt">></span> <span class="comment">// ⚠️ Watch out for hotspots!</span>
+        <span class="console-prompt">></span> <span class="comment">// If 80% users are from USA → Shard 1 overloaded</span>
+                                </div>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-box good">
+                                <div class="comparison-title">
+                                    <i class="fas fa-check-circle"></i>
+                                    Advantages
+                                </div>
+                                <div style="color: var(--text-secondary); line-height: 1.8;">
+                                    • Efficient range queries<br>
+                                    • Targeted reads/writes<br>
+                                    • Predictable data location<br>
+                                    • Good for time-series
+                                </div>
+                            </div>
+                            <div class="comparison-box bad">
+                                <div class="comparison-title">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Risks
+                                </div>
+                                <div style="color: var(--text-secondary); line-height: 1.8;">
+                                    • Possible hotspots<br>
+                                    • Uneven distribution<br>
+                                    • Monotonic values = one shard gets all writes<br>
+                                    • Needs careful key selection
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compound Shard Key -->
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Compound Shard Key</div>
+                            <span class="shard-badge">Best Balance</span>
+                        </div>
+                        <div class="shard-desc">
+                            Combine multiple fields for better distribution and query targeting.
+                        </div>
+
+                        <div class="live-console">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-terminal"></i>
+                                    Example: Region + User ID
+                                </div>
+                                <div class="console-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Compound shard key: region + userId</span>
+        <span class="console-prompt">></span> sh.shardCollection(
+            <span class="string">"social.posts"</span>,
+            { region: <span class="number">1</span>, userId: <span class="number">1</span> }    <span class="comment">// Compound!</span>
+        )
+
+        <span class="console-prompt">></span> <span class="comment">// Benefits:</span>
+        <span class="console-prompt">></span> <span class="comment">// 1. Region provides coarse distribution</span>
+        <span class="console-prompt">></span> <span class="comment">// 2. userId provides fine-grained distribution</span>
+
+        <span class="console-prompt">></span> <span class="comment">// ✅ Targeted query (one shard)</span>
+        <span class="console-prompt">></span> db.posts.find({ region: <span class="string">"us-east"</span>, userId: <span class="number">12345</span> })
+
+        <span class="console-prompt">></span> <span class="comment">// ✅ Reasonable query (subset of shards)</span>
+        <span class="console-prompt">></span> db.posts.find({ region: <span class="string">"us-east"</span> })
+
+        <span class="console-prompt">></span> <span class="comment">// ❌ Scatter-gather (all shards)</span>
+        <span class="console-prompt">></span> db.posts.find({ userId: <span class="number">12345</span> })  <span class="comment">// Missing prefix!</span>
+                                </div>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="info-box">
+                            <strong>💡 Compound Shard Key Rules</strong>
+                            <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                                <li>First field should have <strong>low cardinality</strong> (10-100 values) for distribution</li>
+                                <li>Second field should have <strong>high cardinality</strong> for uniqueness</li>
+                                <li>Queries must include the first field to target specific shards</li>
+                                <li>Example combos: <code>{region: 1, customerId: 1}</code>, <code>{category: 1, productId: 1}</code></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Shard Key Comparison -->
+                    <table class="reference-table" style="margin-top: 2rem;">
+                        <thead>
+                            <tr>
+                                <th>Strategy</th>
+                                <th>Distribution</th>
+                                <th>Range Queries</th>
+                                <th>Best For</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Hashed</strong></td>
+                                <td>✅ Perfect</td>
+                                <td>❌ No</td>
+                                <td>Monotonic IDs, random access</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ranged</strong></td>
+                                <td>⚠️ Varies</td>
+                                <td>✅ Yes</td>
+                                <td>Time-series, geographic, categories</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Compound</strong></td>
+                                <td>✅ Good</td>
+                                <td>✅ On prefix</td>
+                                <td>Multi-tenant, balanced workloads</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </section>
+
+                <!-- ZONES -->
+                <section id="zones" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">🌍</div>
+                        <div class="category-title">
+                            <h2>Zone Sharding</h2>
+                            <p>Geographic or logical data placement</p>
+                        </div>
+                    </div>
+
+                    <div class="shard-card">
+                        <div class="shard-header">
+                            <div class="shard-name">Zone-Based Sharding</div>
+                            <span class="shard-badge">Data Locality</span>
+                        </div>
+                        <div class="shard-desc">
+                            Assign data ranges to specific shards based on geography or compliance requirements.
+                        </div>
+
+                        <div class="live-console">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-terminal"></i>
+                                    Example: GDPR Compliance
+                                </div>
+                                <div class="console-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Define zones for shards</span>
+        <span class="console-prompt">></span> sh.addShardToZone(<span class="string">"shard01"</span>, <span class="string">"EU"</span>)
+        <span class="console-prompt">></span> sh.addShardToZone(<span class="string">"shard02"</span>, <span class="string">"US"</span>)
+        <span class="console-prompt">></span> sh.addShardToZone(<span class="string">"shard03"</span>, <span class="string">"ASIA"</span>)
+
+        <span class="console-prompt">></span> <span class="comment">// Associate data ranges with zones</span>
+        <span class="console-prompt">></span> sh.updateZoneKeyRange(
+            <span class="string">"users.customers"</span>,
+            { country: <span class="string">"Austria"</span> },      <span class="comment">// Min</span>
+            { country: <span class="string">"UK"</span> },           <span class="comment">// Max (exclusive)</span>
+            <span class="string">"EU"</span>                         <span class="comment">// Zone</span>
+        )
+
+        <span class="console-prompt">></span> sh.updateZoneKeyRange(
+            <span class="string">"users.customers"</span>,
+            { country: <span class="string">"USA"</span> },
+            { country: <span class="string">"USA"</span> },
+            <span class="string">"US"</span>
+        )
+
+        <span class="console-prompt">></span> <span class="comment">// Result: EU data stays in EU shards (GDPR compliant!)</span>
+        <span class="console-prompt">></span> <span class="comment">// US data stays in US shards</span>
+                                </div>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="success-box">
+                            <strong>✅ Zone Sharding Use Cases</strong>
+                            <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                                <li><strong>Compliance:</strong> Keep EU data in EU (GDPR), China data in China</li>
+                                <li><strong>Performance:</strong> Data close to users (low latency)</li>
+                                <li><strong>Hot/Cold data:</strong> Recent data on SSD shards, old data on HDD</li>
+                                <li><strong>Multi-tenant:</strong> Premium customers on high-performance shards</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- BALANCING -->
+                <section id="balancing" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">⚖️</div>
+                        <div class="category-title">
+                            <h2>Chunk Balancing</h2>
+                            <p>Automatic data distribution</p>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 How Balancing Works</strong>
+                        <p style="color: var(--text-secondary); line-height: 1.8;">
+                            MongoDB automatically balances chunks across shards. The <strong>balancer</strong> runs in the background and moves chunks when imbalance is detected (typically when difference > 8 chunks).
+                        </p>
+                    </div>
+
+                    <div class="live-console">
+                        <div class="console-header">
+                            <div class="console-title">
+                                <i class="fas fa-terminal"></i>
+                                Balancer Management
+                            </div>
+                            <div class="console-dots">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                        </div>
+                        <div class="console-body">
+                            <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Check balancer status</span>
+        <span class="console-prompt">></span> sh.getBalancerState()
+        <div class="console-output">
+        <span class="keyword">true</span>
+        </div>
+
+        <span class="console-prompt">></span> <span class="comment">// Check if balancer is running</span>
+        <span class="console-prompt">></span> sh.isBalancerRunning()
+        <div class="console-output">
+        <span class="keyword">false</span>
+        </div>
+
+        <span class="console-prompt">></span> <span class="comment">// Stop balancer (for maintenance)</span>
+        <span class="console-prompt">></span> sh.stopBalancer()
+
+        <span class="console-prompt">></span> <span class="comment">// Start balancer</span>
+        <span class="console-prompt">></span> sh.startBalancer()
+
+        <span class="console-prompt">></span> <span class="comment">// Set balancer window (off-peak hours)</span>
+        <span class="console-prompt">></span> db.settings.updateOne(
+            { _id: <span class="string">"balancer"</span> },
+            { $set: {
+                activeWindow: {
+                    start: <span class="string">"23:00"</span>,    <span class="comment">// 11 PM</span>
+                    stop: <span class="string">"06:00"</span>      <span class="comment">// 6 AM</span>
+                }
+            } },
+            { upsert: <span class="keyword">true</span> }
+        )
+                            </div>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ Balancer Best Practices</strong>
+                        <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                            <li>Schedule balancing during off-peak hours</li>
+                            <li>Stop balancer before maintenance or backups</li>
+                            <li>Monitor chunk distribution regularly</li>
+                            <li>Jumbo chunks (>64MB) won't be moved - investigate!</li>
+                        </ul>
+                    </div>
+
+                </section>
+
+                <!-- MONITORING -->
+                <section id="monitoring" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">📊</div>
+                        <div class="category-title">
+                            <h2>Monitoring & Diagnostics</h2>
+                            <p>Essential commands</p>
+                        </div>
+                    </div>
+
+                    <div class="live-console">
+                        <div class="console-header">
+                            <div class="console-title">
+                                <i class="fas fa-terminal"></i>
+                                Sharding Status Commands
+                            </div>
+                            <div class="console-dots">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                        </div>
+                        <div class="console-body">
+                            <div class="console-code">
+        <span class="console-prompt">></span> <span class="comment">// Complete cluster status</span>
+        <span class="console-prompt">></span> sh.status()
+
+        <span class="console-prompt">></span> <span class="comment">// Check collection sharding details</span>
+        <span class="console-prompt">></span> db.collection.getShardDistribution()
+
+        <div class="console-output">
+        Shard shard01 at shard01/...
+        data: <span class="number">512</span> MiB docs: <span class="number">1024000</span> chunks: <span class="number">42</span>
+        estimated data per chunk: <span class="number">12</span> MiB
+        estimated docs per chunk: <span class="number">24380</span>
+
+        Shard shard02 at shard02/...
+        data: <span class="number">498</span> MiB docs: <span class="number">996000</span> chunks: <span class="number">40</span>
+        estimated data per chunk: <span class="number">12</span> MiB
+        estimated docs per chunk: <span class="number">24900</span>
+
+        Totals
+        data: <span class="number">1010</span> MiB docs: <span class="number">2020000</span> chunks: <span class="number">82</span>
+        </div>
+
+        <span class="console-prompt">></span> <span class="comment">// Check for jumbo chunks</span>
+        <span class="console-prompt">></span> db.chunks.find({ jumbo: <span class="keyword">true</span> })
+
+        <span class="console-prompt">></span> <span class="comment">// View chunk ranges</span>
+        <span class="console-prompt">></span> db.chunks.find({ ns: <span class="string">"mydb.mycollection"</span> })
+            .sort({ min: <span class="number">1</span> })
+            .pretty()
+                            </div>
+                            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- BEST PRACTICES -->
+                <section id="bestpractices" class="category-section">
+                    <div class="category-header">
+                        <div class="category-icon">⭐</div>
+                        <div class="category-title">
+                            <h2>Production Best Practices</h2>
+                            <p>Critical guidelines</p>
+                        </div>
+                    </div>
+
+                    <div class="success-box">
+                        <strong>✅ Shard Key Selection Checklist</strong>
+                        <ol style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2.2;">
+                            <li><strong style="color: var(--success-green);">Test with production workload</strong> - Simulate queries before sharding</li>
+                            <li><strong style="color: var(--success-green);">Check cardinality</strong> - Unique values > number of shards × 10</li>
+                            <li><strong style="color: var(--success-green);">Avoid monotonic keys</strong> - timestamp, _id, auto-increment</li>
+                            <li><strong style="color: var(--success-green);">Consider query patterns</strong> - What fields are in WHERE clause?</li>
+                            <li><strong style="color: var(--success-green);">Plan for growth</strong> - Will key work at 10x, 100x scale?</li>
+                            <li><strong style="color: var(--success-green);">Use compound keys</strong> - For better targeting</li>
+                            <li><strong style="color: var(--success-green);">Pre-split chunks</strong> - For known distribution</li>
+                            <li><strong style="color: var(--success-green);">Monitor hotspots</strong> - Use sh.status() regularly</li>
+                        </ol>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>❌ Common Sharding Mistakes</strong>
+                        <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                            <li><strong>Using timestamp as shard key</strong> - All writes go to one shard!</li>
+                            <li><strong>Low cardinality keys</strong> - gender, status, type (few unique values)</li>
+                            <li><strong>Not testing query patterns</strong> - Results in scatter-gather queries</li>
+                            <li><strong>Forgetting about zones</strong> - Missing compliance/performance opportunities</li>
+                            <li><strong>Not monitoring balancer</strong> - Uneven distribution goes unnoticed</li>
+                        </ul>
+                    </div>
+
+                    <table class="reference-table" style="margin-top: 2rem;">
+                        <thead>
+                            <tr>
+                                <th>Scenario</th>
+                                <th>Recommended Shard Key</th>
+                                <th>Why</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>User documents</td>
+                                <td><code>{ _id: "hashed" }</code></td>
+                                <td>Even distribution, ObjectId is monotonic</td>
+                            </tr>
+                            <tr>
+                                <td>Orders by customer</td>
+                                <td><code>{ customerId: 1 }</code></td>
+                                <td>Query by customer, high cardinality</td>
+                            </tr>
+                            <tr>
+                                <td>Time-series logs</td>
+                                <td><code>{ serverId: 1, timestamp: 1 }</code></td>
+                                <td>Avoid timestamp-only hotspot</td>
+                            </tr>
+                            <tr>
+                                <td>Multi-tenant SaaS</td>
+                                <td><code>{ tenantId: 1, _id: 1 }</code></td>
+                                <td>Tenant isolation + even distribution</td>
+                            </tr>
+                            <tr>
+                                <td>E-commerce products</td>
+                                <td><code>{ category: 1, productId: 1 }</code></td>
+                                <td>Category queries + uniqueness</td>
+                            </tr>
+                            <tr>
+                                <td>Social media posts</td>
+                                <td><code>{ userId: "hashed" }</code></td>
+                                <td>User-centric, even distribution</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-box" style="margin-top: 2rem;">
+                        <strong>💡 When to Shard?</strong>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-top: 1rem;">
+                            Don't shard too early! Sharding adds complexity. Consider sharding when:
+                        </p>
+                        <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                            <li>Dataset > 2-3 TB per server</li>
+                            <li>Working set > RAM (performance degradation)</li>
+                            <li>Write throughput > single server capacity</li>
+                            <li>Need geographic data distribution</li>
+                        </ul>
+                        <p style="color: var(--text-secondary); line-height: 1.8; margin-top: 1rem;">
+                            <strong>Before sharding:</strong> Try vertical scaling, indexing optimization, replica sets with read preference
+                        </p>
+                    </div>
+
+                </section>
+
+                  <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="cheatsheet-sharding.html" class="nav-button prev">
+                            <span class="nav-icon">←</span>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Sharding Cheatsheet</div>
+                            </div>
+                        </a>
+                        <a href="home.html" class="nav-button next">
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title"> Home</div>
+                            </div>
+                            <span class="nav-icon">→</span>
+                        </a>
+                    </div>
+            </div>
+    </div> 
+    </div>
+
+    </main>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Your existing scripts -->
+    <script src="app.js" onerror="this.remove()"></script>
+    <script src="learning-tracker.js" onerror="this.remove()"></script>
+
+
+    <script>
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // Copy Code Function
+        function copyCode(button) {
+            const codeBlock = button.previousElementSibling;
+            const code = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                button.style.background = 'var(--success-green)';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.style.background = 'var(--primary-green)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        // Smooth scrolling for navigation
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.querySelector(btn.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+      
+    </script>
+</body>
+</html>

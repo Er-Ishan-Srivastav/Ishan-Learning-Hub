@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Authorization in Cassandra - Control what users can do!">
+    <title>Authorization & Roles in Cassandra Cluster | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #dc2626;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 25%, #2dd4bf 50%, #5eead4 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-teal);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(13, 148, 136, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(20, 184, 166, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(13, 148, 136, 0.3);
+            border: 2px solid rgba(13, 148, 136, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🛡️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .permission-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--code-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .permission-table th,
+        .permission-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .permission-table th {
+            background: var(--code-darker);
+            color: var(--accent-teal);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .permission-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .permission-table tr:hover {
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+            .permission-table { font-size: 0.85rem; }
+            .permission-table th,
+            .permission-table td { padding: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🛡️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Authorization & Permissions</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Learning Path with Detailed Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html">📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+
+  <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html" class="active">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-user-shield"></i>
+                        Access Control
+                    </span>
+                    <h1><span class="gradient-text">Authorization</span></h1>
+                    <p>Control what users can do - Implement fine-grained permissions!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="security.html">Security</a>
+                <span class="separator">›</span>
+                <span class="current">Authorization & Roles</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#what-is-authz">🔍 What is Authorization?</a></li>
+                            <li><a href="#authorizers">🛠️ Authorizers</a></li>
+                            <li><a href="#permissions">📜 Permission Types</a></li>
+                            <li><a href="#grant-revoke">⚡ GRANT & REVOKE</a></li>
+                            <li><a href="#rbac">👥 Role-Based Access</a></li>
+                            <li><a href="#scenarios">💼 Real Scenarios</a></li>
+                            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+                            <li><a href="#best-practices">💡 Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- What is Authorization -->
+                    <section id="what-is-authz" data-aos="fade-up">
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(20, 184, 166, 0.05)); border-left-color: #0d9488;">
+                            <h2 style="color: #0d9488;">🔍 What is Authorization?</h2>
+                            <div style="line-height: 1.9; font-size: 1.15rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Authorization controls WHAT you can do - like having different keys for different doors!</strong></p>
+                                
+                                <h4 style="color: #0d9488; margin-top: 2rem;">Remember the Difference:</h4>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># AUTHENTICATION: "WHO are you?"</span>
+$ cqlsh -u alice -p <span class="string">"password"</span>
+Connected!  <span class="comment">← Identity verified ✅</span>
+
+<span class="comment"># AUTHORIZATION: "WHAT can you do?"</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users;
+Unauthorized: User alice has no <span class="keyword">SELECT</span> permission  <span class="comment">← Access denied ❌</span>
+                                </div>
+
+                                <h4 style="color: #0d9488; margin-top: 2rem;">The Problem Without Authorization:</h4>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># With authentication but NO authorization:</span>
+<span class="comment"># Every user can do EVERYTHING!</span>
+
+<span class="comment"># Junior developer alice logs in</span>
+$ cqlsh -u alice -p <span class="string">"password"</span>
+Connected!
+
+<span class="comment"># Can drop production keyspace! 😱</span>
+cqlsh> <span class="keyword">DROP</span> KEYSPACE production;
+Applied  <span class="comment">← DISASTER!</span>
+
+<span class="comment"># Can read sensitive data!</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> credit_cards;
+<span class="comment">← Security breach!</span>
+                                </div>
+
+                                <h4 style="color: #0d9488; margin-top: 2rem;">With Authorization Enabled:</h4>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># alice has limited permissions</span>
+$ cqlsh -u alice -p <span class="string">"password"</span>
+
+<span class="comment"># Can only SELECT from allowed tables</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> analytics.reports;
+<span class="comment">← Allowed! ✅</span>
+
+<span class="comment"># Cannot drop anything</span>
+cqlsh> <span class="keyword">DROP</span> KEYSPACE production;
+Unauthorized: User alice has no <span class="keyword">DROP</span> permission
+<span class="comment">← Blocked! ✅</span>
+
+<span class="comment"># Cannot read sensitive data</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> credit_cards;
+Unauthorized: User alice has no <span class="keyword">SELECT</span> permission on <table credit_cards>
+<span class="comment">← Protected! ✅</span>
+                                </div>
+
+                                <div class="info-box success" style="margin-top: 2rem;">
+                                    <h4><i class="fas fa-shield-alt" style="color: #059669;"></i> Principle of Least Privilege</h4>
+                                    <p style="color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">
+                                        Give users ONLY the minimum permissions they need to do their job!
+                                    </p>
+                                    <p>Junior developer needs SELECT on analytics tables? Give ONLY that. Not DROP, not access to all keyspaces!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Authorizers -->
+                    <section id="authorizers" data-aos="fade-up">
+                        <h2>🛠️ Cassandra Authorizers</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Choose your authorization system!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">⚠️</div>
+                                <h3>AllowAllAuthorizer</h3>
+                                <p><strong>Default - Insecure</strong></p>
+                                <div style="text-align: left; margin-top: 1.5rem;">
+                                    <p><strong>Configuration:</strong></p>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+authorizer: AllowAllAuthorizer
+                                    </div>
+                                    <p style="margin-top: 1rem;"><strong>Behavior:</strong></p>
+                                    <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                        <li>❌ No permission checks</li>
+                                        <li>❌ Everyone can do everything</li>
+                                        <li>✅ Only for dev/testing</li>
+                                        <li>❌ NEVER use in production</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>CassandraAuthorizer</h3>
+                                <p><strong>Recommended - Full RBAC</strong></p>
+                                <div style="text-align: left; margin-top: 1.5rem;">
+                                    <p><strong>Configuration:</strong></p>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+authorizer: CassandraAuthorizer
+                                    </div>
+                                    <p style="margin-top: 1rem;"><strong>Features:</strong></p>
+                                    <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                        <li>✅ Fine-grained permissions</li>
+                                        <li>✅ Role-based access control</li>
+                                        <li>✅ Keyspace/table-level control</li>
+                                        <li>✅ Production ready</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Enabling CassandraAuthorizer</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Edit cassandra.yaml on ALL nodes</span>
+$ sudo vim /etc/cassandra/cassandra.yaml
+
+<span class="comment"># Change authorizer (usually right after authenticator)</span>
+authenticator: PasswordAuthenticator
+<span class="keyword">authorizer</span>: CassandraAuthorizer  <span class="comment">← Change from AllowAllAuthorizer</span>
+
+<span class="comment"># Save and rolling restart</span>
+$ sudo systemctl restart cassandra
+
+<span class="comment"># Wait for node to be UN, then repeat on other nodes</span>
+
+<span class="comment"># Verify authorization enabled</span>
+$ cqlsh -u cassandra -p <span class="string">"password"</span>
+
+<span class="comment"># Superuser still has all permissions</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> system_auth.role_permissions;
+<span class="comment"># You'll see: Empty (superusers bypass permissions)</span>
+
+<span class="comment"># Regular users will now need permissions!</span>
+                        </div>
+                    </section>
+
+                    <!-- Permission Types -->
+                    <section id="permissions" data-aos="fade-up">
+                        <h2>📜 Permission Types in Cassandra</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">All available permissions!</p>
+
+                        <h3 style="color: var(--accent-teal);">Data Permissions</h3>
+                        <table class="permission-table" data-aos="fade-up">
+                            <thead>
+                                <tr>
+                                    <th>Permission</th>
+                                    <th>What It Allows</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>SELECT</code></td>
+                                    <td>Read data from tables</td>
+                                    <td><code>SELECT * FROM users;</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>MODIFY</code></td>
+                                    <td>Insert, update, delete data</td>
+                                    <td><code>INSERT INTO users ...; UPDATE users ...; DELETE FROM users ...;</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Schema Permissions</h3>
+                        <table class="permission-table" data-aos="fade-up">
+                            <thead>
+                                <tr>
+                                    <th>Permission</th>
+                                    <th>What It Allows</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>CREATE</code></td>
+                                    <td>Create keyspaces, tables, indexes</td>
+                                    <td><code>CREATE KEYSPACE ...; CREATE TABLE ...;</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>ALTER</code></td>
+                                    <td>Modify keyspaces, tables</td>
+                                    <td><code>ALTER TABLE users ADD email text;</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>DROP</code></td>
+                                    <td>Delete keyspaces, tables</td>
+                                    <td><code>DROP TABLE users;</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Execution Permissions</h3>
+                        <table class="permission-table" data-aos="fade-up">
+                            <thead>
+                                <tr>
+                                    <th>Permission</th>
+                                    <th>What It Allows</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>EXECUTE</code></td>
+                                    <td>Execute user-defined functions</td>
+                                    <td><code>SELECT my_udf(col) FROM table;</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Role Management Permissions</h3>
+                        <table class="permission-table" data-aos="fade-up">
+                            <thead>
+                                <tr>
+                                    <th>Permission</th>
+                                    <th>What It Allows</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>AUTHORIZE</code></td>
+                                    <td>Grant/revoke permissions</td>
+                                    <td><code>GRANT SELECT ON users TO alice;</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>DESCRIBE</code></td>
+                                    <td>View permissions</td>
+                                    <td><code>LIST ALL PERMISSIONS;</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-lightbulb" style="color: var(--accent-teal);"></i> Special Permission</h4>
+                            <p><strong><code>ALL PERMISSIONS</code></strong> grants all of the above permissions at once!</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Grant everything at keyspace level</span>
+<span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE my_keyspace <span class="keyword">TO</span> alice;
+
+<span class="comment"># Equivalent to granting:</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span>, <span class="keyword">CREATE</span>, <span class="keyword">ALTER</span>, <span class="keyword">DROP</span>, <span class="keyword">AUTHORIZE</span> 
+  <span class="keyword">ON</span> KEYSPACE my_keyspace <span class="keyword">TO</span> alice;
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- GRANT and REVOKE -->
+                    <section id="grant-revoke" data-aos="fade-up">
+                        <h2>⚡ GRANT & REVOKE Commands</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete permission management!</p>
+
+                        <h3 style="color: var(--accent-teal);">Granting Permissions</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># ===== KEYSPACE-LEVEL PERMISSIONS =====</span>
+
+<span class="comment"># Grant SELECT on entire keyspace</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> alice;
+<span class="comment">← alice can read ALL tables in analytics keyspace</span>
+
+<span class="comment"># Grant multiple permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> bob;
+<span class="comment">← bob can read and write to analytics</span>
+
+<span class="comment"># Grant all permissions on keyspace</span>
+<span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> admin_user;
+<span class="comment">← admin_user has full control over analytics</span>
+
+<span class="comment"># ===== TABLE-LEVEL PERMISSIONS =====</span>
+
+<span class="comment"># Grant SELECT on specific table</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> analytics.reports <span class="keyword">TO</span> alice;
+<span class="comment">← alice can only read reports table</span>
+
+<span class="comment"># Grant MODIFY on specific table</span>
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> analytics.logs <span class="keyword">TO</span> logger_app;
+<span class="comment">← logger_app can insert/update/delete in logs</span>
+
+<span class="comment"># Grant CREATE (for creating tables in keyspace)</span>
+<span class="keyword">GRANT</span> <span class="keyword">CREATE</span> <span class="keyword">ON</span> KEYSPACE dev_space <span class="keyword">TO</span> developer;
+<span class="comment">← developer can create new tables in dev_space</span>
+
+<span class="comment"># ===== ALL KEYSPACES =====</span>
+
+<span class="comment"># Grant permission across ALL keyspaces</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> <span class="keyword">ALL</span> KEYSPACES <span class="keyword">TO</span> readonly_admin;
+<span class="comment">← readonly_admin can read from any keyspace</span>
+
+<span class="comment"># ===== ROLE MANAGEMENT =====</span>
+
+<span class="comment"># Grant permission to manage roles</span>
+<span class="keyword">GRANT</span> <span class="keyword">AUTHORIZE</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> team_lead;
+<span class="comment">← team_lead can grant/revoke permissions on analytics</span>
+
+<span class="comment"># Grant permission on specific role</span>
+<span class="keyword">GRANT</span> data_writer <span class="keyword">TO</span> alice;
+<span class="comment">← alice inherits all permissions from data_writer role</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Revoking Permissions</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># ===== REVOKE PERMISSIONS =====</span>
+
+<span class="comment"># Revoke SELECT from keyspace</span>
+<span class="keyword">REVOKE</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">FROM</span> alice;
+<span class="comment">← alice can no longer read from analytics</span>
+
+<span class="comment"># Revoke multiple permissions</span>
+<span class="keyword">REVOKE</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">FROM</span> bob;
+
+<span class="comment"># Revoke all permissions</span>
+<span class="keyword">REVOKE</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">FROM</span> old_user;
+
+<span class="comment"># Revoke from specific table</span>
+<span class="keyword">REVOKE</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> analytics.logs <span class="keyword">FROM</span> logger_app;
+
+<span class="comment"># Revoke role membership</span>
+<span class="keyword">REVOKE</span> data_writer <span class="keyword">FROM</span> alice;
+<span class="comment">← alice loses permissions inherited from data_writer</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Viewing Permissions</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># List all permissions in the system</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span>;
+
+<span class="comment"># Output:</span>
+ role  | username | resource            | permission
+-------+----------+---------------------+------------
+ alice | alice    | <keyspace analytics> | SELECT
+   bob | bob      | <keyspace analytics> | SELECT
+   bob | bob      | <keyspace analytics> | MODIFY
+
+<span class="comment"># List permissions for specific user</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+
+<span class="comment"># List permissions on specific resource</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE analytics;
+
+<span class="comment"># List permissions on specific table</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> analytics.reports;
+
+<span class="comment"># Check if user has specific permission</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice <span class="keyword">NORECURSIVE</span>;
+<span class="comment">← Shows only direct permissions (not inherited from roles)</span>
+                        </div>
+                    </section>
+
+                    <!-- Role-Based Access Control -->
+                    <section id="rbac" data-aos="fade-up">
+                        <h2>👥 Role-Based Access Control (RBAC)</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Create role hierarchies for easier management!</p>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-users" style="color: #059669;"></i> Why Use Roles?</h4>
+                            <p><strong>Instead of granting permissions to each user individually, create roles with permissions and assign users to roles!</strong></p>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li>✅ <strong>Easier management:</strong> Grant permissions once to role, add users to role</li>
+                                <li>✅ <strong>Consistency:</strong> All users in role have same permissions</li>
+                                <li>✅ <strong>Scalability:</strong> Add new users easily by assigning role</li>
+                                <li>✅ <strong>Role hierarchies:</strong> Roles can inherit from other roles</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Creating Role Hierarchy</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># ===== STEP 1: CREATE BASE ROLES =====</span>
+
+<span class="comment"># Read-only role (can only SELECT)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> readonly <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> readonly;
+
+<span class="comment"># Data writer role (can SELECT and MODIFY)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> data_writer <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> data_writer;
+
+<span class="comment"># Admin role (full control)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> admin_role <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> admin_role;
+
+<span class="comment"># ===== STEP 2: CREATE USERS =====</span>
+
+<span class="comment"># Junior analyst (read-only)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> alice <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'alice_pass'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="comment"># Senior engineer (can write data)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> bob <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'bob_pass'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="comment"># Team lead (admin access)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> charlie <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'charlie_pass'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="comment"># ===== STEP 3: ASSIGN ROLES TO USERS =====</span>
+
+<span class="keyword">GRANT</span> readonly <span class="keyword">TO</span> alice;
+<span class="comment">← alice inherits SELECT permission from readonly role</span>
+
+<span class="keyword">GRANT</span> data_writer <span class="keyword">TO</span> bob;
+<span class="comment">← bob inherits SELECT + MODIFY from data_writer role</span>
+
+<span class="keyword">GRANT</span> admin_role <span class="keyword">TO</span> charlie;
+<span class="comment">← charlie inherits ALL PERMISSIONS from admin_role</span>
+
+<span class="comment"># ===== RESULT: Easy Permission Management! =====</span>
+<span class="comment"># Want to add new junior analyst?</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> diana <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'diana_pass'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> readonly <span class="keyword">TO</span> diana;
+<span class="comment">← Done! Diana automatically gets readonly permissions</span>
+
+<span class="comment"># Promote alice to data writer?</span>
+<span class="keyword">REVOKE</span> readonly <span class="keyword">FROM</span> alice;
+<span class="keyword">GRANT</span> data_writer <span class="keyword">TO</span> alice;
+<span class="comment">← Alice now has write access!</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Advanced: Nested Roles</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Roles can inherit from other roles!</span>
+
+<span class="comment"># Base role: Can read users table</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> user_reader <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> app.users <span class="keyword">TO</span> user_reader;
+
+<span class="comment"># Extended role: Can read AND write users</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> user_manager <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> user_reader <span class="keyword">TO</span> user_manager;  <span class="comment">← Inherit SELECT from user_reader</span>
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> app.users <span class="keyword">TO</span> user_manager;  <span class="comment">← Add MODIFY</span>
+
+<span class="comment"># Top role: Full control</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> user_admin <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> user_manager <span class="keyword">TO</span> user_admin;  <span class="comment">← Inherit SELECT + MODIFY</span>
+<span class="keyword">GRANT</span> <span class="keyword">DROP</span>, <span class="keyword">ALTER</span> <span class="keyword">ON</span> app.users <span class="keyword">TO</span> user_admin;  <span class="comment">← Add DROP + ALTER</span>
+
+<span class="comment"># Assign to users</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> eve <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'eve_pass'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> user_admin <span class="keyword">TO</span> eve;
+
+<span class="comment"># eve now has: SELECT, MODIFY, DROP, ALTER on app.users!</span>
+<span class="comment"># (Inherited through role hierarchy)</span>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-sitemap" style="color: var(--accent-teal);"></i> Viewing Role Hierarchy</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># List all roles</span>
+<span class="keyword">LIST</span> <span class="keyword">ROLES</span>;
+
+<span class="comment"># See what roles a user has</span>
+<span class="keyword">LIST</span> <span class="keyword">ROLES</span> <span class="keyword">OF</span> alice;
+
+<span class="comment"># Output:</span>
+ role     | super | login | options
+----------+-------+-------+---------
+    alice | False |  True |        {}
+ readonly | False | False |        {}
+<span class="comment">← alice has readonly role</span>
+
+<span class="comment"># See all permissions (including inherited)</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+<span class="comment">← Shows permissions from alice AND from readonly role</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Real Scenarios -->
+                    <section id="scenarios" data-aos="fade-up">
+                        <h2>💼 Real-World Authorization Scenarios</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete permission setups!</p>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 1: E-Commerce Application</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Context: E-commerce with different services</span>
+<span class="comment"># Services: web_frontend, order_service, inventory_service, analytics</span>
+
+<span class="comment"># ===== STEP 1: CREATE KEYSPACES =====</span>
+<span class="keyword">CREATE</span> KEYSPACE ecommerce <span class="keyword">WITH</span> replication = {
+  <span class="string">'class'</span>: <span class="string">'NetworkTopologyStrategy'</span>, <span class="string">'dc1'</span>: <span class="string">'3'</span>
+};
+
+<span class="keyword">USE</span> ecommerce;
+<span class="keyword">CREATE</span> TABLE users (...);
+<span class="keyword">CREATE</span> TABLE orders (...);
+<span class="keyword">CREATE</span> TABLE inventory (...);
+<span class="keyword">CREATE</span> TABLE analytics_events (...);
+
+<span class="comment"># ===== STEP 2: CREATE SERVICE ROLES =====</span>
+
+<span class="comment"># Web frontend: Read users, create orders</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> web_frontend 
+  <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'web_secret_key'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> ecommerce.users <span class="keyword">TO</span> web_frontend;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> ecommerce.orders <span class="keyword">TO</span> web_frontend;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> ecommerce.inventory <span class="keyword">TO</span> web_frontend;
+
+<span class="comment"># Order service: Full access to orders</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> order_service 
+  <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'order_secret_key'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> ecommerce.orders <span class="keyword">TO</span> order_service;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> ecommerce.inventory <span class="keyword">TO</span> order_service;
+
+<span class="comment"># Inventory service: Manage inventory</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> inventory_service 
+  <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'inventory_secret_key'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> ecommerce.inventory <span class="keyword">TO</span> inventory_service;
+
+<span class="comment"># Analytics: Read-only access to everything</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> analytics_service 
+  <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'analytics_secret_key'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE ecommerce <span class="keyword">TO</span> analytics_service;
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> ecommerce.analytics_events <span class="keyword">TO</span> analytics_service;
+
+<span class="comment"># ===== STEP 3: VERIFY PERMISSIONS =====</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span>;
+
+<span class="comment"># Result: Each service has exactly what it needs!</span>
+<span class="comment"># - web_frontend: Can't modify inventory directly</span>
+<span class="comment"># - order_service: Can't access users</span>
+<span class="comment"># - inventory_service: Can't access orders</span>
+<span class="comment"># - analytics: Read-only, except can write events</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Scenario 2: Data Team Hierarchy</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Context: Data team with different seniority levels</span>
+<span class="comment"># Team: Interns, Junior Analysts, Senior Analysts, Data Engineers, Team Lead</span>
+
+<span class="comment"># ===== CREATE KEYSPACE =====</span>
+<span class="keyword">CREATE</span> KEYSPACE data_warehouse <span class="keyword">WITH</span> replication = {
+  <span class="string">'class'</span>: <span class="string">'NetworkTopologyStrategy'</span>, <span class="string">'dc1'</span>: <span class="string">'3'</span>
+};
+
+<span class="keyword">USE</span> data_warehouse;
+<span class="keyword">CREATE</span> TABLE raw_data (...);
+<span class="keyword">CREATE</span> TABLE processed_data (...);
+<span class="keyword">CREATE</span> TABLE reports (...);
+
+<span class="comment"># ===== CREATE ROLE HIERARCHY =====</span>
+
+<span class="comment"># Level 1: Interns (read reports only)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> intern_role <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> data_warehouse.reports <span class="keyword">TO</span> intern_role;
+
+<span class="comment"># Level 2: Junior Analyst (read all, write reports)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> junior_analyst <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> intern_role <span class="keyword">TO</span> junior_analyst;  <span class="comment">← Inherit intern permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> data_warehouse.raw_data <span class="keyword">TO</span> junior_analyst;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> data_warehouse.processed_data <span class="keyword">TO</span> junior_analyst;
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> data_warehouse.reports <span class="keyword">TO</span> junior_analyst;
+
+<span class="comment"># Level 3: Senior Analyst (read all, write processed + reports)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> senior_analyst <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> junior_analyst <span class="keyword">TO</span> senior_analyst;  <span class="comment">← Inherit junior permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> data_warehouse.processed_data <span class="keyword">TO</span> senior_analyst;
+
+<span class="comment"># Level 4: Data Engineer (full data access)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> data_engineer <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> senior_analyst <span class="keyword">TO</span> data_engineer;  <span class="comment">← Inherit senior permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> data_warehouse.raw_data <span class="keyword">TO</span> data_engineer;
+<span class="keyword">GRANT</span> <span class="keyword">CREATE</span>, <span class="keyword">ALTER</span> <span class="keyword">ON</span> KEYSPACE data_warehouse <span class="keyword">TO</span> data_engineer;
+
+<span class="comment"># Level 5: Team Lead (full control)</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> team_lead <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> data_engineer <span class="keyword">TO</span> team_lead;  <span class="comment">← Inherit engineer permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE data_warehouse <span class="keyword">TO</span> team_lead;
+
+<span class="comment"># ===== ASSIGN USERS TO ROLES =====</span>
+
+<span class="comment"># Interns</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> intern_alice <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'pass1'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> intern_role <span class="keyword">TO</span> intern_alice;
+
+<span class="comment"># Junior Analysts</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> analyst_bob <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'pass2'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> junior_analyst <span class="keyword">TO</span> analyst_bob;
+
+<span class="comment"># Senior Analysts</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> senior_carol <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'pass3'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> senior_analyst <span class="keyword">TO</span> senior_carol;
+
+<span class="comment"># Data Engineers</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> engineer_dave <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'pass4'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> data_engineer <span class="keyword">TO</span> engineer_dave;
+
+<span class="comment"># Team Lead</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> lead_eve <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'pass5'</span> <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+<span class="keyword">GRANT</span> team_lead <span class="keyword">TO</span> lead_eve;
+
+<span class="comment"># ===== PROMOTION EXAMPLE =====</span>
+<span class="comment"># Bob gets promoted from Junior to Senior Analyst</span>
+<span class="keyword">REVOKE</span> junior_analyst <span class="keyword">FROM</span> analyst_bob;
+<span class="keyword">GRANT</span> senior_analyst <span class="keyword">TO</span> analyst_bob;
+<span class="comment">← Bob now has senior permissions! Easy!</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Scenario 3: Emergency - Revoking Compromised User</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># EMERGENCY: User 'alice' credentials compromised!</span>
+<span class="comment"># Need to immediately revoke all access</span>
+
+<span class="comment"># STEP 1: Disable login immediately</span>
+$ cqlsh -u cassandra -p <span class="string">"admin_password"</span>
+
+cqlsh> <span class="keyword">ALTER</span> <span class="keyword">ROLE</span> alice <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="comment">← alice can no longer connect!</span>
+
+<span class="comment"># Test: alice tries to connect</span>
+$ cqlsh -u alice -p <span class="string">"password"</span>
+Authentication failed  <span class="comment">← Blocked! ✅</span>
+
+<span class="comment"># STEP 2: Check what permissions alice had</span>
+cqlsh> <span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+
+<span class="comment"># Output:</span>
+ role  | resource            | permission
+-------+---------------------+------------
+ alice | <keyspace analytics> | SELECT
+ alice | <keyspace analytics> | MODIFY
+
+<span class="comment"># STEP 3: Revoke all permissions</span>
+cqlsh> <span class="keyword">REVOKE</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">FROM</span> alice;
+
+<span class="comment"># STEP 4: Create new user with same role</span>
+cqlsh> <span class="keyword">CREATE</span> <span class="keyword">ROLE</span> alice_new 
+  <span class="keyword">WITH</span> <span class="keyword">PASSWORD</span> = <span class="string">'new_secure_password_xyz'</span> 
+  <span class="keyword">AND</span> <span class="keyword">LOGIN</span> = <span class="keyword">true</span>;
+
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span>, <span class="keyword">MODIFY</span> <span class="keyword">ON</span> KEYSPACE analytics <span class="keyword">TO</span> alice_new;
+
+<span class="comment"># STEP 5: Update applications</span>
+<span class="comment"># Update app configs to use alice_new instead of alice</span>
+
+<span class="comment"># STEP 6: Delete old compromised user</span>
+cqlsh> <span class="keyword">DROP</span> <span class="keyword">ROLE</span> alice;
+
+<span class="comment"># RESULT: Attacker locked out, new secure credentials in place!</span>
+                        </div>
+                    </section>
+
+                    <!-- Troubleshooting -->
+                    <section id="troubleshooting" data-aos="fade-up">
+                        <h2>🔧 Troubleshooting Authorization Issues</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Fix permission problems!</p>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ "Unauthorized: User has no permission"</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># ERROR:</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users;
+Unauthorized: User alice has no <span class="keyword">SELECT</span> permission on <table users>
+
+<span class="comment"># DIAGNOSIS: Check user's permissions</span>
+cqlsh> <span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+<span class="comment"># Empty result → No permissions!</span>
+
+<span class="comment"># FIX: Grant appropriate permission</span>
+cqlsh> <span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> my_keyspace.users <span class="keyword">TO</span> alice;
+
+<span class="comment"># Or grant at keyspace level:</span>
+cqlsh> <span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE my_keyspace <span class="keyword">TO</span> alice;
+
+<span class="comment"># Test:</span>
+cqlsh> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users;
+<span class="comment">← Works! ✅</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ User Has Permission But Still Gets "Unauthorized"</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># SYMPTOM: Permissions look correct but still denied</span>
+
+<span class="comment"># CHECK 1: Permissions on correct resource?</span>
+cqlsh> <span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+ role  | resource                 | permission
+-------+--------------------------+------------
+ alice | <keyspace wrong_keyspace> | SELECT
+
+<span class="comment"># ← Oops! Permission on wrong keyspace!</span>
+
+<span class="comment"># FIX: Grant on correct resource</span>
+cqlsh> <span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE correct_keyspace <span class="keyword">TO</span> alice;
+
+<span class="comment"># CHECK 2: Authorization enabled?</span>
+$ grep authorizer /etc/cassandra/cassandra.yaml
+authorizer: AllowAllAuthorizer  <span class="comment">← Still allows all!</span>
+
+<span class="comment"># FIX: Enable CassandraAuthorizer</span>
+authorizer: CassandraAuthorizer
+$ sudo systemctl restart cassandra
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Can't Grant Permissions (Not Authorized)</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># ERROR:</span>
+cqlsh> <span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> users <span class="keyword">TO</span> bob;
+Unauthorized: User alice has no <span class="keyword">AUTHORIZE</span> permission
+
+<span class="comment"># CAUSE: Need AUTHORIZE permission to grant permissions</span>
+
+<span class="comment"># FIX 1: Grant AUTHORIZE permission (as superuser)</span>
+$ cqlsh -u cassandra -p <span class="string">"admin_pass"</span>
+cqlsh> <span class="keyword">GRANT</span> <span class="keyword">AUTHORIZE</span> <span class="keyword">ON</span> KEYSPACE my_keyspace <span class="keyword">TO</span> alice;
+
+<span class="comment"># Now alice can grant permissions on my_keyspace</span>
+
+<span class="comment"># FIX 2: Make user a superuser (full control)</span>
+cqlsh> <span class="keyword">ALTER</span> <span class="keyword">ROLE</span> alice <span class="keyword">WITH</span> <span class="keyword">SUPERUSER</span> = <span class="keyword">true</span>;
+<span class="comment">← alice can now do anything (be careful!)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Permission Not Taking Effect Immediately</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># SYMPTOM: Just granted permission but user still denied</span>
+
+<span class="comment"># CAUSE: Permission cache not updated</span>
+
+<span class="comment"># In cassandra.yaml:</span>
+permissions_validity_in_ms: <span class="number">2000</span>  <span class="comment">← Default: 2 seconds</span>
+permissions_update_interval_in_ms: <span class="number">1000</span>
+
+<span class="comment"># SOLUTION 1: Wait 2-3 seconds</span>
+<span class="comment"># Permissions will be refreshed automatically</span>
+
+<span class="comment"># SOLUTION 2: Reconnect user's session</span>
+<span class="comment"># Disconnect and reconnect cqlsh</span>
+
+<span class="comment"># SOLUTION 3: Reduce cache time (in cassandra.yaml)</span>
+permissions_validity_in_ms: <span class="number">500</span>  <span class="comment">← 500ms</span>
+<span class="comment"># Restart Cassandra</span>
+
+<span class="comment"># For production, 2000ms is usually fine</span>
+<span class="comment"># Lower values increase load on system_auth</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>💡 Best Practices</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Authorization done right!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: var(--success-green);">
+                                <div class="comparison-icon">✅</div>
+                                <h3>DO</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Use least privilege principle</li>
+                                    <li>Create role hierarchies</li>
+                                    <li>Grant at keyspace level when possible</li>
+                                    <li>Use roles instead of direct permissions</li>
+                                    <li>Document permission structure</li>
+                                    <li>Regular permission audits</li>
+                                    <li>Revoke when users leave</li>
+                                    <li>Separate prod/dev permissions</li>
+                                    <li>Test permissions in dev first</li>
+                                    <li>Use descriptive role names</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--error-red);">
+                                <div class="comparison-icon">❌</div>
+                                <h3>DON'T</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Give everyone ALL PERMISSIONS</li>
+                                    <li>Make everyone a SUPERUSER</li>
+                                    <li>Grant more than needed</li>
+                                    <li>Share user accounts</li>
+                                    <li>Grant AUTHORIZE carelessly</li>
+                                    <li>Forget to revoke old permissions</li>
+                                    <li>Use same credentials prod/dev</li>
+                                    <li>Grant directly without roles</li>
+                                    <li>Skip permission testing</li>
+                                    <li>Leave default AllowAllAuthorizer</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-star" style="color: #059669;"></i> Production Permission Strategy</h4>
+                            <ol style="font-size: 1.05rem; line-height: 2;">
+                                <li>✅ <strong>Enable CassandraAuthorizer:</strong> In cassandra.yaml on all nodes</li>
+                                <li>✅ <strong>Design role hierarchy:</strong> Base roles → Team roles → Users</li>
+                                <li>✅ <strong>Minimum permissions:</strong> Only what's needed for the job</li>
+                                <li>✅ <strong>Service accounts:</strong> One per application/service</li>
+                                <li>✅ <strong>Admin separation:</strong> Limited superusers, most use roles</li>
+                                <li>✅ <strong>Regular audits:</strong> Review permissions quarterly</li>
+                                <li>✅ <strong>Offboarding process:</strong> Revoke access when users leave</li>
+                                <li>✅ <strong>Monitoring:</strong> Alert on permission changes</li>
+                                <li>✅ <strong>Documentation:</strong> Maintain role/permission map</li>
+                                <li>✅ <strong>Testing:</strong> Verify permissions work before prod</li>
+                            </ol>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-users-cog" style="color: #d97706;"></i> Permission Planning Template</h4>
+                            <p><strong>Use this template for new users/services:</strong></p>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># 1. IDENTIFY NEEDS</span>
+<span class="comment">#    What does this user/service need to do?</span>
+<span class="comment">#    - Read from which tables?</span>
+<span class="comment">#    - Write to which tables?</span>
+<span class="comment">#    - Create/alter/drop anything?</span>
+
+<span class="comment"># 2. FIND/CREATE APPROPRIATE ROLE</span>
+<span class="comment">#    Does existing role fit? If not, create new one</span>
+
+<span class="comment"># 3. GRANT MINIMUM PERMISSIONS</span>
+<span class="comment">#    Start small, add more if needed</span>
+
+<span class="comment"># 4. TEST THOROUGHLY</span>
+<span class="comment">#    Verify can do required tasks</span>
+<span class="comment">#    Verify CANNOT do unauthorized tasks</span>
+
+<span class="comment"># 5. DOCUMENT</span>
+<span class="comment">#    Record role assignment and reason</span>
+
+<span class="comment"># 6. REVIEW REGULARLY</span>
+<span class="comment">#    Quarterly: Does user still need these permissions?</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-purple);">🎉 You're an Authorization Expert!</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">Congratulations! You now know how to control access with fine-grained permissions!</strong></p>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Learned:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li>🔍 <strong>Authorization basics:</strong> Control WHAT users can do</li>
+                                <li>🛠️ <strong>Authorizers:</strong> AllowAll (insecure) vs CassandraAuthorizer (secure)</li>
+                                <li>📜 <strong>Permissions:</strong> SELECT, MODIFY, CREATE, ALTER, DROP, AUTHORIZE</li>
+                                <li>⚡ <strong>GRANT & REVOKE:</strong> Complete permission management</li>
+                                <li>👥 <strong>RBAC:</strong> Role hierarchies for easy management</li>
+                                <li>💼 <strong>Real scenarios:</strong> E-commerce, data teams, emergency response</li>
+                                <li>🔧 <strong>Troubleshooting:</strong> Fix common permission issues</li>
+                                <li>💡 <strong>Best practices:</strong> Least privilege, role-based, regular audits</li>
+                            </ul>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Takeaways:</h4>
+                            <ol style="line-height: 1.9;">
+                                <li><strong>Authentication + Authorization</strong> = Complete security</li>
+                                <li><strong>Least privilege principle</strong> - Only what's needed</li>
+                                <li><strong>Use roles</strong> - Easier than direct permissions</li>
+                                <li><strong>Role hierarchies</strong> - Roles can inherit from roles</li>
+                                <li><strong>Keyspace-level</strong> - Grant at keyspace when possible</li>
+                                <li><strong>Service accounts</strong> - One per application</li>
+                                <li><strong>Regular audits</strong> - Review permissions quarterly</li>
+                                <li><strong>Test thoroughly</strong> - Verify in dev before prod</li>
+                            </ol>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">📋 Quick Reference:</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Enable authorization</span>
+authorizer: CassandraAuthorizer  <span class="comment"># In cassandra.yaml</span>
+
+<span class="comment"># Grant permissions</span>
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE my_ks <span class="keyword">TO</span> alice;
+<span class="keyword">GRANT</span> <span class="keyword">MODIFY</span> <span class="keyword">ON</span> my_ks.users <span class="keyword">TO</span> bob;
+<span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">ON</span> KEYSPACE my_ks <span class="keyword">TO</span> admin;
+
+<span class="comment"># Create role hierarchy</span>
+<span class="keyword">CREATE</span> <span class="keyword">ROLE</span> readonly <span class="keyword">WITH</span> <span class="keyword">LOGIN</span> = <span class="keyword">false</span>;
+<span class="keyword">GRANT</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE my_ks <span class="keyword">TO</span> readonly;
+<span class="keyword">GRANT</span> readonly <span class="keyword">TO</span> alice;
+
+<span class="comment"># View permissions</span>
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span>;
+<span class="keyword">LIST</span> <span class="keyword">ALL</span> <span class="keyword">PERMISSIONS</span> <span class="keyword">OF</span> alice;
+
+<span class="comment"># Revoke permissions</span>
+<span class="keyword">REVOKE</span> <span class="keyword">SELECT</span> <span class="keyword">ON</span> KEYSPACE my_ks <span class="keyword">FROM</span> alice;
+                            </div>
+
+                            <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: #0d9488; font-weight: 700;">
+                                🛡️ Authorization = Control + Security!<br>
+                                Now add Encryption for complete protection →
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="authentication.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Authentication</div>
+                            </div>
+                        </a>
+                        <a href="role-management.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Role Management</div>
+                            </div>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- AdSense Placeholder -->
+        <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                <p style="color: var(--text-muted); margin: 0;">📱 Responsive Ad 📱</p>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

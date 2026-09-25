@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Adding Nodes to Cassandra Cluster - Scale your cluster safely!">
+    <title>Adding Nodes to Cassandra Cluster | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➕';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Adding Nodes</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html" class="active">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-plus-circle"></i>
+                        Cluster Expansion
+                    </span>
+                    <h1><span class="gradient-text">Adding Nodes</span></h1>
+                    <p>Scale your cluster safely and efficiently!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="cluster-operations.html">Cluster Operations</a>
+                <span class="separator">›</span>
+                <span class="current">Adding Nodes</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#why-add-nodes">📖 Why Add Nodes?</a></li>
+                            <li><a href="#planning">📋 Planning</a></li>
+                            <li><a href="#preparation">🔧 Preparation</a></li>
+                            <li><a href="#adding-node">➕ Adding a Node</a></li>
+                            <li><a href="#post-addition">✅ Post-Addition</a></li>
+                            <li><a href="#multiple-nodes">🔢 Multiple Nodes</a></li>
+                            <li><a href="#troubleshooting">🔍 Troubleshooting</a></li>
+                            <li><a href="#best-practices">💡 Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Why Add Nodes -->
+                    <section id="why-add-nodes" data-aos="fade-up">
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-left-color: #059669;">
+                            <h2 style="color: #059669;">📈 Why Add Nodes to Your Cluster?</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Growing your cluster = More capacity, better performance!</strong></p>
+                                
+                                <div style="background: rgba(5, 150, 105, 0.2); border-radius: 12px; padding: 2rem; margin: 1.5rem 0; border: 2px solid #059669;">
+                                    <h3 style="color: #059669; margin-top: 0;">🎯 Common Reasons to Add Nodes</h3>
+                                    <ul style="line-height: 1.8;">
+                                        <li>💾 <strong>Disk capacity:</strong> Running out of space (>70% full)</li>
+                                        <li>📊 <strong>Throughput:</strong> Need more read/write capacity</li>
+                                        <li>⚡ <strong>Performance:</strong> Latency increasing under load</li>
+                                        <li>🛡️ <strong>Redundancy:</strong> Improve fault tolerance (RF=3 minimum)</li>
+                                        <li>🌍 <strong>Geographic expansion:</strong> New datacenter</li>
+                                        <li>📈 <strong>Growth planning:</strong> Before hitting limits</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 2rem; margin: 1.5rem 0; border: 2px solid #8b5cf6;">
+                                    <h4 style="color: #8b5cf6; margin-top: 0;">📊 Real Example: Netflix</h4>
+                                    <p><strong>Netflix's Cassandra clusters scale constantly:</strong></p>
+                                    <ul style="line-height: 1.8;">
+                                        <li>🎬 <strong>Peak traffic:</strong> Friday nights, new releases</li>
+                                        <li>➕ <strong>Scale up:</strong> Add 20-30% more nodes ahead of peak</li>
+                                        <li>📈 <strong>Result:</strong> Zero downtime during surges</li>
+                                        <li>💰 <strong>Cost:</strong> Add nodes incrementally vs over-provisioning</li>
+                                    </ul>
+                                </div>
+
+                                <p style="margin-top: 2rem; text-align: center; color: #059669;">
+                                    <strong>⚡ Cassandra makes scaling easy - add nodes anytime!</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: var(--success-green);">
+                                <div class="comparison-icon">⏰</div>
+                                <h3>When to Add</h3>
+                                <p><strong>Scale proactively!</strong></p>
+                                <ul style="font-size: 0.9rem; margin-top: 1rem;">
+                                    <li>💾 Disk > 70% full</li>
+                                    <li>🔥 CPU > 80% sustained</li>
+                                    <li>📊 Latency increasing</li>
+                                    <li>⚠️ Thread pool pending tasks</li>
+                                    <li>📈 Growth projections</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--error-red);">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Don't Wait For</h3>
+                                <p><strong>Too late!</strong></p>
+                                <ul style="font-size: 0.9rem; margin-top: 1rem;">
+                                    <li>💾 Disk 95% full</li>
+                                    <li>🔥 Constant OOM errors</li>
+                                    <li>📉 Severe performance degradation</li>
+                                    <li>🚨 Production incidents</li>
+                                    <li>😰 Customer complaints</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Planning -->
+                    <section id="planning" data-aos="fade-up">
+                        <h2>📋 Planning Your Node Addition</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Think before you scale!</p>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">📊</div>
+                            <div class="step-content">
+                                <h3>Capacity Planning</h3>
+                                <p><strong>How many nodes do you need?</strong></p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Calculate nodes needed for disk capacity</span>
+current_data = <span class="number">500</span>GB per node
+projected_growth = <span class="number">1000</span>GB total in <span class="number">6</span> months
+keep_at = <span class="number">70</span>% capacity
+
+nodes_needed = projected_growth / (current_data * <span class="number">0.7</span>)
+              = <span class="number">1000</span> / (<span class="number">500</span> * <span class="number">0.7</span>)
+              = <span class="number">2.86</span> → <span class="number">3</span> nodes
+
+<span class="comment"># Calculate for throughput</span>
+current_ops = <span class="number">10</span>,<span class="number">000</span> ops/sec per node
+target_ops = <span class="number">50</span>,<span class="number">000</span> ops/sec total
+safety_margin = <span class="number">1.3</span>x
+
+nodes_needed = (target_ops / current_ops) * safety_margin
+              = (<span class="number">50000</span> / <span class="number">10000</span>) * <span class="number">1.3</span>
+              = <span class="number">6.5</span> → <span class="number">7</span> nodes
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">⚖️</div>
+                            <div class="step-content">
+                                <h3>Token Allocation</h3>
+                                <p><strong>Cassandra handles this automatically (vnodes)</strong></p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Modern Cassandra uses vnodes (virtual nodes)</span>
+<span class="comment"># Default: 16 vnodes per physical node</span>
+
+<span class="comment"># In cassandra.yaml:</span>
+num_tokens: <span class="number">16</span>
+
+<span class="comment"># Cassandra automatically:</span>
+<span class="comment"># 1. Assigns random tokens to new node</span>
+<span class="comment"># 2. Rebalances data across cluster</span>
+<span class="comment"># 3. Distributes load evenly</span>
+
+<span class="comment"># You don't need to manually calculate tokens!</span>
+<span class="comment"># (Unless using old single-token per node setup)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-clock" style="color: #d97706;"></i> Timeline Expectations</h4>
+                            <p><strong>Adding a node takes time - plan accordingly:</strong></p>
+                            <ul>
+                                <li>⚙️ <strong>Preparation:</strong> 15-30 minutes (config, network, etc)</li>
+                                <li>⏱️ <strong>Bootstrap:</strong> 1-6 hours (depends on data size)</li>
+                                <li>🔄 <strong>Streaming:</strong> Most time-consuming part</li>
+                                <li>🧹 <strong>Cleanup:</strong> 30 minutes - 2 hours (per old node)</li>
+                                <li>📊 <strong>Total:</strong> Plan for 4-12 hours for complete process</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Preparation -->
+                    <section id="preparation" data-aos="fade-up">
+                        <h2>🔧 Preparing the New Node</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Get everything ready first!</p>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>Hardware/VM Setup</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Provision matching hardware</span>
+<span class="comment"># Same specs as existing nodes:</span>
+<span class="comment"># - CPU cores</span>
+<span class="comment"># - RAM (16GB minimum, 32GB+ recommended)</span>
+<span class="comment"># - Disk (SSD required, NVMe preferred)</span>
+<span class="comment"># - Network (10Gbps recommended)</span>
+
+<span class="comment"># Verify OS matches</span>
+lsb_release -a
+<span class="comment"># Should match existing nodes</span>
+
+<span class="comment"># Update system</span>
+sudo apt update && sudo apt upgrade -y
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>Install Cassandra</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Install SAME version as cluster</span>
+<span class="comment"># Check existing cluster version first:</span>
+nodetool <span class="keyword">version</span>  <span class="comment"># On existing node</span>
+
+<span class="comment"># Install that exact version</span>
+<span class="comment"># Example for Cassandra 4.1.3:</span>
+echo <span class="string">"deb https://debian.cassandra.apache.org 41x main"</span> | \
+  sudo tee /etc/apt/sources.list.d/cassandra.list
+
+sudo apt update
+sudo apt install cassandra=<span class="number">4.1</span>.<span class="number">3</span>
+
+<span class="comment"># IMPORTANT: Don't start Cassandra yet!</span>
+sudo systemctl stop cassandra
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>Configure cassandra.yaml</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Edit /etc/cassandra/cassandra.yaml</span>
+sudo nano /etc/cassandra/cassandra.yaml
+
+<span class="comment"># CRITICAL settings to configure:</span>
+
+<span class="comment"># 1. Cluster name (MUST match existing cluster)</span>
+cluster_name: <span class="string">'Production Cluster'</span>
+
+<span class="comment"># 2. Seeds (use existing seed nodes)</span>
+seed_provider:
+  - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      - seeds: <span class="string">"192.168.1.10,192.168.1.11"</span>
+
+<span class="comment"># 3. Listen address (this node's IP)</span>
+listen_address: <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+
+<span class="comment"># 4. RPC address (for client connections)</span>
+rpc_address: <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+
+<span class="comment"># 5. Snitch (MUST match cluster)</span>
+endpoint_snitch: GossipingPropertyFileSnitch
+
+<span class="comment"># 6. Vnodes (default is fine)</span>
+num_tokens: <span class="number">16</span>
+
+<span class="comment"># 7. Data directories</span>
+data_file_directories:
+  - /var/lib/cassandra/data
+commitlog_directory: /var/lib/cassandra/commitlog
+saved_caches_directory: /var/lib/cassandra/saved_caches
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h3>Clean Data Directories</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Remove any existing data</span>
+sudo rm -rf /var/lib/cassandra/data/*
+sudo rm -rf /var/lib/cassandra/commitlog/*
+sudo rm -rf /var/lib/cassandra/saved_caches/*
+
+<span class="comment"># Verify directories are empty</span>
+ls -la /var/lib/cassandra/data/
+ls -la /var/lib/cassandra/commitlog/
+
+<span class="comment"># Should show empty directories</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-circle" style="color: #dc2626;"></i> Configuration Checklist</h4>
+                            <p><strong>VERIFY before starting node:</strong></p>
+                            <ul>
+                                <li>✅ <strong>cluster_name</strong> matches existing cluster EXACTLY</li>
+                                <li>✅ <strong>seeds</strong> point to existing seed nodes</li>
+                                <li>✅ <strong>listen_address</strong> is this node's IP</li>
+                                <li>✅ <strong>rpc_address</strong> is this node's IP</li>
+                                <li>✅ <strong>endpoint_snitch</strong> matches cluster</li>
+                                <li>✅ <strong>Cassandra version</strong> matches cluster</li>
+                                <li>✅ <strong>Data directories</strong> are empty</li>
+                                <li>❌ If ANY of these are wrong, node won't join correctly!</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Adding Node -->
+                    <section id="adding-node" data-aos="fade-up">
+                        <h2>➕ Adding the Node - Bootstrap Process</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Let's do this!</p>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">▶️</div>
+                            <div class="step-content">
+                                <h3>Start Cassandra</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Start the new node</span>
+sudo systemctl start cassandra
+
+<span class="comment"># Enable auto-start on boot</span>
+sudo systemctl enable cassandra
+
+<span class="comment"># Check status</span>
+sudo systemctl status cassandra
+
+<span class="comment"># Should show "active (running)"</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">📊</div>
+                            <div class="step-content">
+                                <h3>Monitor Bootstrap Progress</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Watch the log file</span>
+tail -f /var/log/cassandra/system.log
+
+<span class="comment"># Look for these key messages:</span>
+<span class="comment"># 1. "Starting up..."</span>
+<span class="comment"># 2. "Joining ring..."</span>
+<span class="comment"># 3. "JOINING: Starting to bootstrap..."</span>
+<span class="comment"># 4. "Streaming from multiple nodes..." (data transfer)</span>
+<span class="comment"># 5. "Bootstrap completed!"</span>
+<span class="comment"># 6. "Node is now in NORMAL state"</span>
+
+<span class="comment"># Check node status</span>
+nodetool <span class="keyword">status</span>
+
+<span class="comment"># Output during bootstrap:</span>
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">10</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  abc123
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">11</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  def456
+UJ  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">50</span> GB   <span class="number">16</span>  <span class="number">33.4</span>%  ghi789
+<span class="comment">#^^ UJ = Up and Joining (bootstrapping)</span>
+
+<span class="comment"># After completion:</span>
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.4</span>%  ghi789
+<span class="comment">#^^ UN = Up and Normal (ready!)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 1: Joining Ring (1-2 min)</h4>
+                                    <p><strong>Node discovers cluster via gossip</strong></p>
+                                    <ul>
+                                        <li>Connects to seed nodes</li>
+                                        <li>Learns cluster topology</li>
+                                        <li>Gets token assignments</li>
+                                        <li>Status: UJ (Up and Joining)</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 2: Streaming Data (1-6 hours)</h4>
+                                    <p><strong>Node receives data it will own</strong></p>
+                                    <ul>
+                                        <li>Downloads data from multiple nodes</li>
+                                        <li>Receives SSTables for its token ranges</li>
+                                        <li>Progress shown in logs</li>
+                                        <li>Can monitor with nodetool netstats</li>
+                                    </ul>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check streaming progress</span>
+nodetool <span class="keyword">netstats</span>
+
+<span class="comment"># Shows:</span>
+<span class="comment"># - Which nodes streaming from</span>
+<span class="comment"># - Progress percentage</span>
+<span class="comment"># - Data transferred</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 3: Finalizing (5-10 min)</h4>
+                                    <p><strong>Node prepares for production</strong></p>
+                                    <ul>
+                                        <li>Builds indexes</li>
+                                        <li>Compacts received data</li>
+                                        <li>Updates gossip state</li>
+                                        <li>Status changes to UN (Up and Normal)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-check-circle" style="color: #059669;"></i> Bootstrap Complete!</h4>
+                            <p><strong>Node is now part of the cluster and serving traffic!</strong></p>
+                            <ul>
+                                <li>✅ Status shows UN (Up and Normal)</li>
+                                <li>✅ Load column shows data size</li>
+                                <li>✅ Owns approximately equal token %</li>
+                                <li>✅ Accepting read/write requests</li>
+                                <li>🎉 But wait - you're not done yet! Cleanup needed...</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Post-Addition -->
+                    <section id="post-addition" data-aos="fade-up">
+                        <h2>✅ Post-Addition Tasks</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Critical cleanup steps!</p>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">🧹</div>
+                            <div class="step-content">
+                                <h3>Run Cleanup on OLD Nodes</h3>
+                                <p><strong>CRITICAL: Old nodes still have data they no longer own!</strong></p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Why cleanup?</span>
+<span class="comment"># Old nodes transferred data to new node</span>
+<span class="comment"># But still have copies on disk!</span>
+<span class="comment"># Cleanup removes data they no longer own</span>
+
+<span class="comment"># Run on EACH existing node (NOT the new one!)</span>
+<span class="comment"># SSH to each old node and run:</span>
+nodetool <span class="keyword">cleanup</span>
+
+<span class="comment"># Or specific keyspace</span>
+nodetool <span class="keyword">cleanup</span> my_keyspace
+
+<span class="comment"># Time: 30 min - 2 hours per node</span>
+<span class="comment"># Monitor progress:</span>
+nodetool <span class="keyword">compactionstats</span>
+
+<span class="comment"># Disk space will be freed after cleanup!</span>
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>⚠️ Don't skip this!</strong> Cleanup frees disk space and ensures correct data distribution.</p>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">🔄</div>
+                            <div class="step-content">
+                                <h3>Run Repair (Optional but Recommended)</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Ensure data consistency</span>
+<span class="comment"># Run on the NEW node</span>
+nodetool <span class="keyword">repair</span> -full
+
+<span class="comment"># Or specific keyspace</span>
+nodetool <span class="keyword">repair</span> -full my_keyspace
+
+<span class="comment"># Time: 1-3 hours depending on data size</span>
+<span class="comment"># This ensures new node has consistent data</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">📊</div>
+                            <div class="step-content">
+                                <h3>Verify Cluster Health</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Check all nodes are UN</span>
+nodetool <span class="keyword">status</span>
+
+<span class="comment"># All should show:</span>
+<span class="comment"># - Status: UN (Up and Normal)</span>
+<span class="comment"># - Load: Roughly balanced</span>
+<span class="comment"># - Owns: Approximately equal</span>
+
+<span class="comment"># Check schema agreement</span>
+nodetool <span class="keyword">describecluster</span>
+
+<span class="comment"># Should show:</span>
+<span class="comment"># Schema versions: [only 1 schema UUID]</span>
+
+<span class="comment"># Verify data accessibility</span>
+cqlsh new_node_ip
+SELECT <span class="keyword">count</span>(*) FROM my_keyspace.users;
+<span class="comment"># Should return expected count</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Multiple Nodes -->
+                    <section id="multiple-nodes" data-aos="fade-up">
+                        <h2>🔢 Adding Multiple Nodes</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Scale up faster!</p>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Important Rules</h4>
+                            <p><strong>When adding multiple nodes:</strong></p>
+                            <ul>
+                                <li>⚠️ <strong>Add ONE at a time!</strong> Wait for each to complete</li>
+                                <li>⚠️ <strong>Don't start multiple simultaneously</strong> (overwhelms cluster)</li>
+                                <li>⏰ <strong>Wait for UN status</strong> before starting next</li>
+                                <li>🧹 <strong>Run cleanup after ALL nodes added</strong> (not between each)</li>
+                                <li>✅ <strong>Order doesn't matter</strong> (vnodes handle distribution)</li>
+                            </ul>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">📝</div>
+                            <div class="step-content">
+                                <h3>Best Practice: Sequential Addition</h3>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Adding 3 new nodes to cluster</span>
+
+<span class="comment"># Step 1: Add node 4</span>
+<span class="comment"># - Configure cassandra.yaml</span>
+<span class="comment"># - Start Cassandra</span>
+<span class="comment"># - Wait for UN status (1-6 hours)</span>
+nodetool status  <span class="comment"># Verify node4 is UN</span>
+
+<span class="comment"># Step 2: Add node 5</span>
+<span class="comment"># - Configure cassandra.yaml</span>
+<span class="comment"># - Start Cassandra</span>
+<span class="comment"># - Wait for UN status (1-6 hours)</span>
+nodetool status  <span class="comment"># Verify node5 is UN</span>
+
+<span class="comment"># Step 3: Add node 6</span>
+<span class="comment"># - Configure cassandra.yaml</span>
+<span class="comment"># - Start Cassandra</span>
+<span class="comment"># - Wait for UN status (1-6 hours)</span>
+nodetool status  <span class="comment"># Verify node6 is UN</span>
+
+<span class="comment"># Step 4: Cleanup ALL original nodes</span>
+<span class="comment"># - Run on nodes 1, 2, 3</span>
+<span class="comment"># - NOT on new nodes 4, 5, 6</span>
+<span class="keyword">for</span> node <span class="keyword">in</span> node1 node2 node3; <span class="keyword">do</span>
+  ssh $node <span class="string">"nodetool cleanup"</span>
+<span class="keyword">done</span>
+
+<span class="comment"># Total time: 6-24 hours for 3 nodes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Troubleshooting -->
+                    <section id="troubleshooting" data-aos="fade-up">
+                        <h2>🔍 Troubleshooting</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Fix common issues!</p>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Node Won't Join Cluster</h4>
+                                    <p><strong>Check configuration</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check cluster name</span>
+grep <span class="string">"cluster_name"</span> /etc/cassandra/cassandra.yaml
+
+<span class="comment"># Check seeds</span>
+grep -A <span class="number">3</span> <span class="string">"seed_provider"</span> /etc/cassandra/cassandra.yaml
+
+<span class="comment"># Check logs for errors</span>
+grep -i <span class="string">"error\|exception"</span> /var/log/cassandra/system.log
+
+<span class="comment"># Common issues:</span>
+<span class="comment"># - Wrong cluster_name</span>
+<span class="comment"># - Can't reach seeds (firewall/network)</span>
+<span class="comment"># - Version mismatch</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Bootstrap Stuck/Slow</h4>
+                                    <p><strong>Network or resource issue</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check streaming progress</span>
+nodetool <span class="keyword">netstats</span>
+
+<span class="comment"># Check network speed</span>
+iftop  <span class="comment"># Install if needed: apt install iftop</span>
+
+<span class="comment"># Check disk I/O</span>
+iostat -x <span class="number">5</span>
+
+<span class="comment"># Check if streaming is happening</span>
+tail -f /var/log/cassandra/system.log | grep <span class="string">"Streaming"</span>
+
+<span class="comment"># If truly stuck (no progress for >30 min):</span>
+<span class="comment"># 1. Stop node</span>
+<span class="comment"># 2. Clear data directories</span>
+<span class="comment"># 3. Fix the issue (network, config, etc)</span>
+<span class="comment"># 4. Restart bootstrap</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Out of Memory During Bootstrap</h4>
+                                    <p><strong>Increase heap size</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check current heap</span>
+ps aux | grep cassandra | grep Xmx
+
+<span class="comment"># Edit jvm options</span>
+sudo nano /etc/cassandra/jvm.options
+
+<span class="comment"># Increase heap (example for 16GB RAM)</span>
+-Xms8G
+-Xmx8G
+
+<span class="comment"># Restart Cassandra</span>
+sudo systemctl restart cassandra
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Schema Disagreement</h4>
+                                    <p><strong>Nodes have different schemas</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check schema versions</span>
+nodetool <span class="keyword">describecluster</span>
+
+<span class="comment"># If multiple schema versions shown:</span>
+<span class="comment"># 1. Wait 60 seconds (usually resolves)</span>
+<span class="comment"># 2. If persists, restart gossip on problematic node</span>
+nodetool disablegossip
+nodetool enablegossip
+
+<span class="comment"># 3. Check again</span>
+nodetool <span class="keyword">describecluster</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>💡 Best Practices</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Do it right!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: var(--success-green);">
+                                <div class="comparison-icon">✅</div>
+                                <h3>DO</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Plan ahead (capacity, timing)</li>
+                                    <li>Add during low traffic</li>
+                                    <li>Match versions exactly</li>
+                                    <li>Wait for UN before next node</li>
+                                    <li>Run cleanup on old nodes</li>
+                                    <li>Monitor bootstrap progress</li>
+                                    <li>Verify cluster health</li>
+                                    <li>Document the process</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--error-red);">
+                                <div class="comparison-icon">❌</div>
+                                <h3>DON'T</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Add during peak traffic</li>
+                                    <li>Start multiple nodes at once</li>
+                                    <li>Use different Cassandra versions</li>
+                                    <li>Skip cleanup step</li>
+                                    <li>Interrupt bootstrap process</li>
+                                    <li>Add when disk >90% full</li>
+                                    <li>Forget to enable auto-start</li>
+                                    <li>Mix single-token and vnodes</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-star" style="color: #059669;"></i> Production Checklist</h4>
+                            <p><strong>Complete this checklist for each node:</strong></p>
+                            <ol>
+                                <li>✅ <strong>Pre-addition:</strong> Verify capacity need, plan timing, prepare hardware</li>
+                                <li>✅ <strong>Configuration:</strong> Match cluster name, set seeds, configure IPs</li>
+                                <li>✅ <strong>Bootstrap:</strong> Start node, monitor logs, verify UN status</li>
+                                <li>✅ <strong>Cleanup:</strong> Run on old nodes (not new node!)</li>
+                                <li>✅ <strong>Verification:</strong> Check status, schema, data access</li>
+                                <li>✅ <strong>Documentation:</strong> Update inventory, runbooks</li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-purple);">🎉 You Can Scale Your Cluster!</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">Congratulations! You now know how to add nodes safely!</strong></p>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Learned:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li>📈 <strong>Why add nodes:</strong> Capacity, performance, redundancy</li>
+                                <li>📋 <strong>Planning:</strong> Capacity calculations, timeline expectations</li>
+                                <li>🔧 <strong>Preparation:</strong> Hardware, installation, configuration</li>
+                                <li>➕ <strong>Bootstrap:</strong> 3-phase joining process</li>
+                                <li>✅ <strong>Post-addition:</strong> Cleanup, repair, verification</li>
+                                <li>🔢 <strong>Multiple nodes:</strong> Sequential addition strategy</li>
+                                <li>🔍 <strong>Troubleshooting:</strong> Common issues and fixes</li>
+                                <li>💡 <strong>Best practices:</strong> Production-ready workflow</li>
+                            </ul>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Takeaways:</h4>
+                            <ol style="line-height: 1.9;">
+                                <li><strong>Add one at a time</strong> - Never start multiple simultaneously</li>
+                                <li><strong>Match configuration</strong> - cluster_name, seeds, version</li>
+                                <li><strong>Monitor bootstrap</strong> - Watch for UN status</li>
+                                <li><strong>Run cleanup</strong> - On OLD nodes after addition</li>
+                                <li><strong>Plan for time</strong> - 4-12 hours for complete process</li>
+                                <li><strong>Scale proactively</strong> - Before hitting 70% capacity</li>
+                            </ol>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">📋 Quick Reference:</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Adding a node workflow</span>
+<span class="comment"># 1. Configure cassandra.yaml</span>
+<span class="comment"># 2. Clean data directories</span>
+<span class="comment"># 3. Start Cassandra</span>
+sudo systemctl start cassandra
+
+<span class="comment"># 4. Monitor bootstrap</span>
+tail -f /var/log/cassandra/system.log
+nodetool status  <span class="comment"># Wait for UN</span>
+
+<span class="comment"># 5. Cleanup old nodes</span>
+nodetool cleanup  <span class="comment"># On EACH old node</span>
+
+<span class="comment"># 6. Verify health</span>
+nodetool status
+nodetool describecluster
+                            </div>
+
+                            <p style="margin-top: 2rem; font-size: 1.2rem; text-align: center; color: var(--text-primary);">
+                                <strong style="color: var(--accent-purple);">⚡ Cassandra scales elastically - add capacity anytime!</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="snapshot.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Snapshots</div>
+                            </div>
+                        </a>
+                        <a href="removing-nodes.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Removing Nodes</div>
+                            </div>
+                        </a>
+                    </div>
+                     <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

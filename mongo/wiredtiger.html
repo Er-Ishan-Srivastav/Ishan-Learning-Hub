@@ -1,0 +1,2283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master MongoDB's WiredTiger Storage Engine with real examples, animations, and practical scenarios">
+    <title>WiredTiger Storage Engine - Complete Guide | myPathshala</title>
+    
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Your existing stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+    
+    <style>
+        /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+        :root {
+            --primary-purple: #8B5CF6;
+            --dark-purple: #6D28D9;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --soft-gray: #F9FAFB;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--soft-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-purple);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(139, 92, 246, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-purple);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-purple);
+            border-left-color: var(--primary-purple);
+            padding-left: 1.25rem;
+        }
+
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        /* Interview Questions - White Cards */
+        .interview-question {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            transition: background 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(139, 92, 246, 0.03);
+        }
+
+        .question-number {
+            background: var(--primary-purple);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 500;
+            color: #1F2937;
+            font-size: 1rem;
+        }
+
+        .toggle-icon {
+            color: var(--primary-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 1.5rem;
+            border-top: 1px solid #F3F4F6;
+        }
+
+        .question-answer p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1F2937;
+        }
+
+        .question-answer ul {
+            color: #374151;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer code {
+            background: #F3F4F6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+            color: #8B5CF6;
+        }
+
+        /* Code blocks */
+        pre {
+            background: #1E293B;
+            color: #E2E8F0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #1F2937;
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-purple);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.1);
+            transform: translateY(-2px);
+            color: #1F2937;
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-purple);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1F2937;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-purple);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-purple);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Architecture Diagram */
+        .architecture-diagram {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        /* Feature Cards */
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border-left: 5px solid;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-card.purple {
+            border-left-color: #8B5CF6;
+        }
+
+        .feature-card.blue {
+            border-left-color: #3B82F6;
+        }
+
+        .feature-card.green {
+            border-left-color: #10B981;
+        }
+
+        .feature-card.orange {
+            border-left-color: #F59E0B;
+        }
+
+        /* Comparison Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th {
+            background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 700;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #E5E7EB;
+            color: #374151;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) {
+            background: #F9FAFB;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed">🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger" class="active">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                        <li><a href="practical-example.html" data-page="practical-ex">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html" data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html" data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat">📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Page Hero -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content">
+                    <span class="hero-badge">
+                        <i class="fas fa-database"></i>
+                        Section 3: MongoDB Architecture
+                    </span>
+                    <h1>💾 WiredTiger: MongoDB's Storage Engine</h1>
+                    <p>Understanding how MongoDB stores, compresses, and retrieves billions of documents with blazing speed</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html">Home</a>
+                <span class="separator">›</span>
+                <a href="index.html">Section 3: Architecture</a>
+                <span class="separator">›</span>
+                <span class="current">WiredTiger Storage Engine</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <!-- Table of Contents (Floating) -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story" class="nav-btn" style="color: white;">The Library Story</a></li>
+                            <li><a href="#what-is-wiredtiger" class="nav-btn" style="color: white;">What is WiredTiger?</a></li>
+                            <li><a href="#architecture" class="nav-btn" style="color: white;">Architecture Overview</a></li>
+                            <li><a href="#key-features" class="nav-btn" style="color: white;">Key Features</a></li>
+                            <li><a href="#compression" class="nav-btn" style="color: white;">Compression</a></li>
+                            <li><a href="#checkpoints"class="nav-btn" style="color: white;">Checkpoints & Recovery</a></li>
+                            <li><a href="#vs-mmapv1" class="nav-btn" style="color: white;">WiredTiger vs MMAPv1</a></li>
+                            <li><a href="#interview-questions" class="nav-btn" style="color: white;">Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    
+                    <!-- Opening Story -->
+                    <section id="opening-story" style="margin-bottom: 4rem;">
+                        <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05)); border-left: 5px solid #8B5CF6; border-radius: 12px; padding: 2.5rem; margin-bottom: 2rem;">
+                            <h2 style="color: #09e138; margin-bottom: 1.5rem;">📖 The Tale of Two Libraries</h2>
+                            <div style="color: #94A3B8; line-height: 1.9; font-size: 1.05rem;">
+                                <p style="margin-bottom: 1.5rem;">Imagine you're managing a massive library with millions of books...</p>
+
+                                <!-- Old Library (MMAPv1) -->
+                                <div style="background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #EF4444;">
+                                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                        <div style="background: linear-gradient(135deg, #EF4444, #DC2626); color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0;">📚</div>
+                                        <div>
+                                            <h3 style="color: #991B1B; margin: 0;">Old Library: The Traditional System (MMAPv1)</h3>
+                                            <p style="color: #64748B; margin: 0.5rem 0 0 0;">Memory-mapped files, database-level locking</p>
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(239, 68, 68, 0.1); border-radius: 12px; padding: 1.5rem;">
+                                        <h4 style="color: #991B1B; margin-bottom: 1rem;">The Problems:</h4>
+                                        <ul style="color: #64748B; margin-left: 1.5rem; line-height: 1.9;">
+                                            <li><strong>Database-Level Locking:</strong> When someone is writing to ANY book, the ENTIRE library is locked! 😰</li>
+                                            <li><strong>No Compression:</strong> Books take up full shelf space - wastes storage</li>
+                                            <li><strong>Memory Mapped:</strong> Relies on OS to manage memory - unpredictable performance</li>
+                                            <li><strong>Write Amplification:</strong> Small updates rewrite entire pages</li>
+                                            <li><strong>No Document-Level Concurrency:</strong> Poor performance for concurrent operations</li>
+                                        </ul>
+                                        <p style="color: #374151; line-height: 1.8; margin-top: 1rem;">
+                                            <strong style="color: #EF4444;">Result:</strong> Slow writes, wasted space, poor concurrency. Reading is fast but everything else suffers!
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Modern Library (WiredTiger) -->
+                                <div style="background: white; border-radius: 16px; padding: 2rem; border: 3px solid #8B5CF6;">
+                                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                        <div style="background: linear-gradient(135deg, #8B5CF6, #6D28D9); color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0;">💾</div>
+                                        <div>
+                                            <h3 style="color: #5B21B6; margin: 0;">Modern Library: The Smart System (WiredTiger)</h3>
+                                            <p style="color: #64748B; margin: 0.5rem 0 0 0;">Document-level locking, compression, intelligent caching</p>
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 1.5rem;">
+                                        <h4 style="color: #5B21B6; margin-bottom: 1rem;">The Solutions:</h4>
+                                        <ul style="color: #64748B; margin-left: 1.5rem; line-height: 1.9;">
+                                            <li><strong>Document-Level Locking:</strong> Multiple people can read/write different books simultaneously! ⚡</li>
+                                            <li><strong>Compression:</strong> Books compressed to 70% smaller - saves massive storage (snappy, zlib, zstd)</li>
+                                            <li><strong>WiredTiger Cache:</strong> Smart in-memory cache for frequently accessed data - blazing fast reads</li>
+                                            <li><strong>Journaling:</strong> Crash-safe with write-ahead logging</li>
+                                            <li><strong>Checkpoints:</strong> Regular snapshots every 60 seconds - durability guaranteed</li>
+                                        </ul>
+                                        <p style="color: #374151; line-height: 1.8; margin-top: 1rem;">
+                                            <strong style="color: #8B5CF6;">Result:</strong> 10x faster writes, 70% less storage, perfect concurrency! 🚀
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Key Insight -->
+                                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #8B5CF6;">
+                                    <h4 style="color: #5B21B6; text-align: center; margin-bottom: 1.5rem;">💡 The Key Insight</h4>
+                                    <p style="color: #374151; text-align: center; margin: 0; line-height: 1.8; font-size: 1.1rem;">
+                                        <strong>MMAPv1 = Old Library (slow, locks entire database)</strong><br/>
+                                        <strong>WiredTiger = Smart Library (fast, locks only documents)</strong><br/>
+                                        <span style="color: #8B5CF6;">WiredTiger has been MongoDB's default since version 3.2 (2015)! 🎯</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What is WiredTiger -->
+                    <section id="what-is-wiredtiger" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">💾 What is WiredTiger?</h2>
+                            
+                            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; border: 2px solid #8B5CF6;">
+                                <p style="color: #374151; text-align: center; font-size: 1.1rem; line-height: 1.8; margin: 0;">
+                                    WiredTiger is MongoDB's <strong style="color: #5B21B6;">high-performance storage engine</strong> that manages how data is stored on disk and in memory.<br/>
+                                    It provides <strong style="color: #5B21B6;">document-level concurrency, compression, and crash recovery</strong>.
+                                </p>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                                <div style="background: #F0FDF4; border-radius: 12px; padding: 2rem; border: 3px solid #10B981;">
+                                    <h3 style="color: #065F46; text-align: center; margin-bottom: 1rem;">✅ What WiredTiger Does</h3>
+                                    <ul style="color: #374151; line-height: 1.9; list-style: none; padding: 0;">
+                                        <li>✓ Stores documents on disk</li>
+                                        <li>✓ Manages in-memory cache</li>
+                                        <li>✓ Compresses data (snappy)</li>
+                                        <li>✓ Handles concurrent reads/writes</li>
+                                        <li>✓ Ensures crash recovery</li>
+                                        <li>✓ Creates checkpoints</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: #FEF3C7; border-radius: 12px; padding: 2rem; border: 3px solid #F59E0B;">
+                                    <h3 style="color: #92400E; text-align: center; margin-bottom: 1rem;">🎯 Key Metrics</h3>
+                                    <ul style="color: #374151; line-height: 1.9; list-style: none; padding: 0;">
+                                        <li>📊 <strong>Compression:</strong> 70-80% reduction</li>
+                                        <li>⚡ <strong>Cache Size:</strong> 50% of RAM - 1GB</li>
+                                        <li>💾 <strong>Checkpoint:</strong> Every 60 seconds</li>
+                                        <li>🔒 <strong>Locking:</strong> Document-level</li>
+                                        <li>📝 <strong>Journal:</strong> Every 50ms</li>
+                                        <li>🚀 <strong>Concurrency:</strong> Thousands/sec</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Architecture -->
+                    <section id="architecture" style="margin-bottom: 4rem;">
+                        <h2 style="color: #8B5CF6; margin-bottom: 2rem;">🏗️ WiredTiger Architecture</h2>
+                        
+                        <div class="architecture-diagram">
+                            <svg viewBox="0 0 900 600" style="width: 100%; height: auto;">
+                                <!-- Background -->
+                                <rect width="900" height="600" fill="#F9FAFB"/>
+                                
+                                <!-- Application Layer -->
+                                <rect x="50" y="30" width="800" height="80" fill="#3B82F6" rx="8"/>
+                                <text x="450" y="60" text-anchor="middle" fill="white" font-size="20" font-weight="bold">MongoDB Server</text>
+                                <text x="450" y="85" text-anchor="middle" fill="white" font-size="14">Application Layer</text>
+                                
+                                <!-- Arrow -->
+                                <path d="M 450 110 L 450 150" stroke="#374151" stroke-width="3" marker-end="url(#arrowhead)"/>
+                                
+                                <!-- WiredTiger Cache -->
+                                <rect x="100" y="160" width="300" height="150" fill="#8B5CF6" rx="8"/>
+                                <text x="250" y="190" text-anchor="middle" fill="white" font-size="18" font-weight="bold">WiredTiger Cache</text>
+                                <text x="250" y="215" text-anchor="middle" fill="white" font-size="13">(In-Memory)</text>
+                                <text x="250" y="240" text-anchor="middle" fill="white" font-size="12">• Hot Documents</text>
+                                <text x="250" y="260" text-anchor="middle" fill="white" font-size="12">• Recently Accessed</text>
+                                <text x="250" y="280" text-anchor="middle" fill="white" font-size="12">• 50% RAM - 1GB</text>
+                                
+                                <!-- Journal -->
+                                <rect x="500" y="160" width="300" height="150" fill="#F59E0B" rx="8"/>
+                                <text x="650" y="190" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Journal (WAL)</text>
+                                <text x="650" y="215" text-anchor="middle" fill="white" font-size="13">(Write-Ahead Log)</text>
+                                <text x="650" y="240" text-anchor="middle" fill="white" font-size="12">• Crash Recovery</text>
+                                <text x="650" y="260" text-anchor="middle" fill="white" font-size="12">• Every 50ms</text>
+                                <text x="650" y="280" text-anchor="middle" fill="white" font-size="12">• Durability</text>
+                                
+                                <!-- Arrows down -->
+                                <path d="M 250 310 L 250 370" stroke="#374151" stroke-width="3" marker-end="url(#arrowhead)"/>
+                                <path d="M 650 310 L 650 370" stroke="#374151" stroke-width="3" marker-end="url(#arrowhead)"/>
+                                
+                                <!-- Checkpoints -->
+                                <rect x="100" y="380" width="300" height="150" fill="#10B981" rx="8"/>
+                                <text x="250" y="410" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Checkpoints</text>
+                                <text x="250" y="435" text-anchor="middle" fill="white" font-size="13">(Snapshots)</text>
+                                <text x="250" y="460" text-anchor="middle" fill="white" font-size="12">• Every 60 seconds</text>
+                                <text x="250" y="480" text-anchor="middle" fill="white" font-size="12">• Consistent state</text>
+                                <text x="250" y="500" text-anchor="middle" fill="white" font-size="12">• On-disk files</text>
+                                
+                                <!-- Data Files -->
+                                <rect x="500" y="380" width="300" height="150" fill="#6366F1" rx="8"/>
+                                <text x="650" y="410" text-anchor="middle" fill="white" font-size="18" font-weight="bold">Data Files (.wt)</text>
+                                <text x="650" y="435" text-anchor="middle" fill="white" font-size="13">(Compressed Storage)</text>
+                                <text x="650" y="460" text-anchor="middle" fill="white" font-size="12">• B-Tree Structure</text>
+                                <text x="650" y="480" text-anchor="middle" fill="white" font-size="12">• Snappy Compression</text>
+                                <text x="650" y="500" text-anchor="middle" fill="white" font-size="12">• Document Storage</text>
+                                
+                                <!-- Labels -->
+                                <text x="50" y="235" font-size="14" fill="#374151" font-weight="bold">RAM</text>
+                                <text x="50" y="455" font-size="14" fill="#374151" font-weight="bold">DISK</text>
+                                
+                                <!-- Arrow definition -->
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#374151"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        <div style="background: #FFFBEB; border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #F59E0B;">
+                            <h4 style="color: #92400E; margin-bottom: 1rem;">📋 How Data Flows:</h4>
+                            <ol style="color: #374151; line-height: 1.9; margin-left: 1.5rem;">
+                                <li><strong>Write Operation:</strong> Data first goes to WiredTiger Cache (RAM)</li>
+                                <li><strong>Journal Write:</strong> Operation logged to Journal every 50ms (crash safety)</li>
+                                <li><strong>Checkpoint:</strong> Every 60 seconds, cache data flushed to disk (.wt files)</li>
+                                <li><strong>Read Operation:</strong> Check cache first → if not found, read from disk → cache it</li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- Animated Write Path -->
+                    <section id="write-path-animation" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">✍️ Write Operation Flow (Animated)</h2>
+                            
+                            <svg viewBox="0 0 1000 650" style="width: 100%; height: auto;">
+                                <defs>
+                                    <!-- Arrow markers -->
+                                    <marker id="arrowWrite" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#8B5CF6"/>
+                                    </marker>
+                                    
+                                    <!-- Glow effect for data -->
+                                    <filter id="glow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                
+                                <!-- Background -->
+                                <rect width="1000" height="650" fill="#F9FAFB"/>
+                                
+                                <!-- Timeline -->
+                                <line x1="100" y1="580" x2="900" y2="580" stroke="#CBD5E1" stroke-width="2"/>
+                                <circle cx="100" cy="580" r="6" fill="#8B5CF6"/>
+                                <circle cx="300" cy="580" r="6" fill="#F59E0B"/>
+                                <circle cx="500" cy="580" r="6" fill="#10B981"/>
+                                <circle cx="700" cy="580" r="6" fill="#6366F1"/>
+                                <circle cx="900" cy="580" r="6" fill="#10B981"/>
+                                
+                                <text x="100" y="610" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">0ms</text>
+                                <text x="300" y="610" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">1ms</text>
+                                <text x="500" y="610" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">50ms</text>
+                                <text x="700" y="610" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">60s</text>
+                                <text x="900" y="610" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">Complete</text>
+                                
+                                <!-- Step 1: Write Request -->
+                                <g id="step1">
+                                    <rect x="30" y="50" width="180" height="100" fill="#3B82F6" rx="8">
+                                        <animate attributeName="opacity" values="0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="120" y="90" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                        Write Request
+                                        <animate attributeName="opacity" values="0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="120" y="115" text-anchor="middle" fill="white" font-size="13">
+                                        db.users.insert()
+                                        <animate attributeName="opacity" values="0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    
+                                    <!-- Data packet moving -->
+                                    <circle cx="120" cy="200" r="20" fill="#8B5CF6" filter="url(#glow)">
+                                        <animate attributeName="cy" values="200;200;280;280;280" dur="10s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0;1;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="120" y="205" text-anchor="middle" fill="white" font-size="12" font-weight="bold">
+                                        Data
+                                        <animate attributeName="y" values="205;205;285;285;285" dur="10s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0;1;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Step 2: WiredTiger Cache -->
+                                <g id="step2">
+                                    <rect x="30" y="280" width="180" height="120" fill="#8B5CF6" rx="8">
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="120" y="315" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                        WiredTiger Cache
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="120" y="340" text-anchor="middle" fill="white" font-size="12">
+                                        (RAM)
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    
+                                    <!-- Document icon in cache -->
+                                    <rect x="95" y="355" width="50" height="35" fill="white" rx="4" opacity="0.9">
+                                        <animate attributeName="opacity" values="0;0;0.9;0.9;0.9" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <line x1="100" y1="365" x2="140" y2="365" stroke="#8B5CF6" stroke-width="2">
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </line>
+                                    <line x1="100" y1="372" x2="135" y2="372" stroke="#8B5CF6" stroke-width="2">
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </line>
+                                    <line x1="100" y1="379" x2="130" y2="379" stroke="#8B5CF6" stroke-width="2">
+                                        <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </line>
+                                </g>
+                                
+                                <!-- Arrow to Journal -->
+                                <path d="M 210 340 L 350 340" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrowWrite)">
+                                    <animate attributeName="stroke-dasharray" values="0,500;500,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 3: Journal -->
+                                <g id="step3">
+                                    <rect x="350" y="280" width="180" height="120" fill="#F59E0B" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="440" y="315" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                        Journal (WAL)
+                                        <animate attributeName="opacity" values="0;0;0;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="440" y="340" text-anchor="middle" fill="white" font-size="12">
+                                        Every 50ms
+                                        <animate attributeName="opacity" values="0;0;0;1;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    
+                                    <!-- Journal entries -->
+                                    <rect x="370" y="355" width="140" height="8" fill="white" rx="2" opacity="0.8">
+                                        <animate attributeName="opacity" values="0;0;0;0.8;0.8" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="370" y="368" width="120" height="8" fill="white" rx="2" opacity="0.7">
+                                        <animate attributeName="opacity" values="0;0;0;0.7;0.7" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="370" y="381" width="100" height="8" fill="white" rx="2" opacity="0.6">
+                                        <animate attributeName="opacity" values="0;0;0;0.6;0.6" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                </g>
+                                
+                                <!-- Arrow to Checkpoint -->
+                                <path d="M 530 340 L 670 340" stroke="#10B981" stroke-width="3" marker-end="url(#arrowWrite)">
+                                    <animate attributeName="stroke-dasharray" values="0,500;0,500;0,500;500,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;1;0" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 4: Checkpoint -->
+                                <g id="step4">
+                                    <rect x="670" y="280" width="180" height="120" fill="#10B981" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="760" y="315" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                        Checkpoint
+                                        <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="760" y="340" text-anchor="middle" fill="white" font-size="12">
+                                        Every 60 seconds
+                                        <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    
+                                    <!-- Snapshot icon -->
+                                    <circle cx="760" cy="370" r="25" fill="white" opacity="0.2">
+                                        <animate attributeName="opacity" values="0;0;0;0;0.2" dur="10s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="760" y="377" text-anchor="middle" fill="white" font-size="20" font-weight="bold">
+                                        📸
+                                        <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow to Data Files -->
+                                <path d="M 760 400 L 760 470" stroke="#6366F1" stroke-width="3" marker-end="url(#arrowWrite)">
+                                    <animate attributeName="stroke-dasharray" values="0,500;0,500;0,500;0,500;500,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 5: Data Files -->
+                                <g id="step5">
+                                    <rect x="670" y="470" width="180" height="80" fill="#6366F1" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="760" y="500" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                        Data Files (.wt)
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="760" y="525" text-anchor="middle" fill="white" font-size="12">
+                                        Compressed Storage
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Labels on timeline -->
+                                <text x="100" y="555" text-anchor="middle" font-size="11" fill="#8B5CF6" font-weight="600">
+                                    Write arrives
+                                    <animate attributeName="opacity" values="0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="300" y="555" text-anchor="middle" font-size="11" fill="#F59E0B" font-weight="600">
+                                    Cached + Logged
+                                    <animate attributeName="opacity" values="0;0;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="500" y="555" text-anchor="middle" font-size="11" fill="#10B981" font-weight="600">
+                                    Journal sync
+                                    <animate attributeName="opacity" values="0;0;0;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="700" y="555" text-anchor="middle" font-size="11" fill="#6366F1" font-weight="600">
+                                    Checkpoint flush
+                                    <animate attributeName="opacity" values="0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="900" y="555" text-anchor="middle" font-size="11" fill="#10B981" font-weight="600">
+                                    Durable on disk
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                            </svg>
+
+                            <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #8B5CF6;">
+                                <h4 style="color: #5B21B6; margin-bottom: 1rem;">⚡ Write Path Timeline:</h4>
+                                <ul style="color: #374151; line-height: 2; margin: 0;">
+                                    <li><strong>0ms:</strong> Write request arrives from application</li>
+                                    <li><strong>~1ms:</strong> Data written to WiredTiger Cache (RAM) + Journal log</li>
+                                    <li><strong>50ms:</strong> Journal synced to disk (durability guaranteed)</li>
+                                    <li><strong>60 seconds:</strong> Checkpoint flushes cache to .wt data files</li>
+                                    <li><strong>Result:</strong> Write acknowledged after 1-50ms, fully durable on disk after 60s</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Animated Read Path -->
+                    <section id="read-path-animation" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">📖 Read Operation Flow (Animated)</h2>
+                            
+                            <svg viewBox="0 0 1000 550" style="width: 100%; height: auto;">
+                                <defs>
+                                    <marker id="arrowRead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#10B981"/>
+                                    </marker>
+                                    <marker id="arrowReadFail" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#EF4444"/>
+                                    </marker>
+                                </defs>
+                                
+                                <!-- Background -->
+                                <rect width="1000" height="550" fill="#F9FAFB"/>
+                                
+                                <!-- Read Request -->
+                                <rect x="50" y="50" width="180" height="100" fill="#3B82F6" rx="8">
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="140" y="90" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                    Read Request
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="140" y="115" text-anchor="middle" fill="white" font-size="13">
+                                    db.users.findOne()
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Arrow to Cache -->
+                                <path d="M 230 100 L 330 100" stroke="#10B981" stroke-width="3" marker-end="url(#arrowRead)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;200,0;200,0;200,0;200,0;200,0" dur="8s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;1;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- WiredTiger Cache -->
+                                <rect x="330" y="50" width="180" height="180" fill="#8B5CF6" rx="8">
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="420" y="85" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                    WiredTiger Cache
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="420" y="110" text-anchor="middle" fill="white" font-size="12">
+                                    (Check RAM first)
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Cache Hit -->
+                                <g id="cacheHit">
+                                    <circle cx="420" cy="155" r="35" fill="#10B981">
+                                        <animate attributeName="opacity" values="0;0;0;1;1;0" dur="8s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="420" y="163" text-anchor="middle" fill="white" font-size="28" font-weight="bold">
+                                        ✓
+                                        <animate attributeName="opacity" values="0;0;0;1;1;0" dur="8s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="420" y="210" text-anchor="middle" fill="white" font-size="13" font-weight="bold">
+                                        CACHE HIT
+                                        <animate attributeName="opacity" values="0;0;0;1;1;0" dur="8s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Cache Miss -->
+                                <g id="cacheMiss">
+                                    <circle cx="420" cy="155" r="35" fill="#EF4444">
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="420" y="163" text-anchor="middle" fill="white" font-size="28" font-weight="bold">
+                                        ✗
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="420" y="210" text-anchor="middle" fill="white" font-size="13" font-weight="bold">
+                                        CACHE MISS
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow Cache Hit Path -->
+                                <path d="M 420 230 L 420 320 L 140 320 L 140 200" stroke="#10B981" stroke-width="3" marker-end="url(#arrowRead)">
+                                    <animate attributeName="stroke-dasharray" values="0,600;0,600;0,600;600,0;0,0;0,0" dur="8s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;1;0;0" dur="8s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Arrow Cache Miss Path -->
+                                <path d="M 510 140 L 650 140" stroke="#EF4444" stroke-width="3" marker-end="url(#arrowReadFail)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;0,200;0,200;0,200;200,0" dur="8s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Data Files -->
+                                <rect x="650" y="50" width="180" height="180" fill="#6366F1" rx="8">
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="740" y="85" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                    Data Files (.wt)
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="740" y="110" text-anchor="middle" fill="white" font-size="12">
+                                    (Read from disk)
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Disk icon -->
+                                <circle cx="740" cy="155" r="35" fill="white" opacity="0.2">
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0.2" dur="8s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="740" y="167" text-anchor="middle" fill="white" font-size="32">
+                                    💾
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Arrow back from disk -->
+                                <path d="M 740 230 L 740 350 L 420 350 L 420 290" stroke="#6366F1" stroke-width="3" marker-end="url(#arrowRead)">
+                                    <animate attributeName="stroke-dasharray" values="0,800;0,800;0,800;0,800;0,800;800,0" dur="8s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <text x="580" y="370" text-anchor="middle" fill="#6366F1" font-size="13" font-weight="600">
+                                    Load to cache, then return
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Result Box -->
+                                <rect x="50" y="200" width="180" height="100" fill="#10B981" rx="8">
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="140" y="235" text-anchor="middle" fill="white" font-size="16" font-weight="bold">
+                                    Result Returned
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="140" y="260" text-anchor="middle" fill="white" font-size="13">
+                                    Document data
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1" dur="8s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Performance metrics -->
+                                <rect x="100" y="430" width="800" height="90" fill="white" rx="8" stroke="#CBD5E1" stroke-width="2"/>
+                                
+                                <text x="500" y="460" text-anchor="middle" font-size="16" fill="#374151" font-weight="bold">⚡ Performance Comparison</text>
+                                
+                                <rect x="150" y="475" width="320" height="35" fill="#F0FDF4" rx="6" stroke="#10B981" stroke-width="2"/>
+                                <text x="170" y="498" font-size="14" fill="#065F46" font-weight="600">Cache Hit: ~100 microseconds</text>
+                                
+                                <rect x="530" y="475" width="320" height="35" fill="#FEF3C7" rx="6" stroke="#F59E0B" stroke-width="2"/>
+                                <text x="550" y="498" font-size="14" fill="#92400E" font-weight="600">Cache Miss: ~10-50 milliseconds</text>
+                            </svg>
+
+                            <div style="background: rgba(16, 185, 129, 0.1); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #10B981;">
+                                <h4 style="color: #065F46; margin-bottom: 1rem;">📖 Read Path Logic:</h4>
+                                <ol style="color: #374151; line-height: 2; margin: 0;">
+                                    <li><strong>Step 1:</strong> Read request arrives → Check WiredTiger Cache first</li>
+                                    <li><strong>Step 2a (Cache Hit):</strong> Document found in RAM → Return immediately (~100μs) ⚡</li>
+                                    <li><strong>Step 2b (Cache Miss):</strong> Not in cache → Read from disk .wt files (~10-50ms) 🐢</li>
+                                    <li><strong>Step 3:</strong> If read from disk → Load into cache for future reads</li>
+                                    <li><strong>Result:</strong> Cache hit rate >90% is critical for performance!</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Compression Visualization -->
+                    <section id="compression-animation" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">📦 Compression in Action</h2>
+                            
+                            <svg viewBox="0 0 1000 500" style="width: 100%; height: auto;">
+                                <!-- Background -->
+                                <rect width="1000" height="500" fill="#F9FAFB"/>
+                                
+                                <!-- Uncompressed Data -->
+                                <g id="uncompressed">
+                                    <rect x="50" y="50" width="300" height="350" fill="#EF4444" rx="8" opacity="0.9"/>
+                                    <text x="200" y="90" text-anchor="middle" fill="white" font-size="20" font-weight="bold">Uncompressed Data</text>
+                                    <text x="200" y="120" text-anchor="middle" fill="white" font-size="16">1 TB (1000 GB)</text>
+                                    
+                                    <!-- Visual blocks representing data -->
+                                    <rect x="70" y="140" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="70" y="180" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="70" y="220" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="70" y="260" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="70" y="300" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <rect x="70" y="340" width="260" height="30" fill="white" opacity="0.9" rx="4">
+                                        <animate attributeName="height" values="30;30;30;30" dur="8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    
+                                    <!-- Cost -->
+                                    <text x="200" y="425" text-anchor="middle" fill="#991B1B" font-size="18" font-weight="bold">💰 Cost: $1000/month</text>
+                                </g>
+                                
+                                <!-- Compression Arrow -->
+                                <g id="compressionArrow">
+                                    <path d="M 360 225 L 490 225" stroke="#8B5CF6" stroke-width="4"/>
+                                    <polygon points="490,225 470,215 470,235" fill="#8B5CF6"/>
+                                    
+                                    <!-- Compression process -->
+                                    <circle cx="425" cy="225" r="40" fill="#8B5CF6" opacity="0.2">
+                                        <animate attributeName="r" values="40;50;40" dur="2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="425" y="220" text-anchor="middle" fill="#5B21B6" font-size="14" font-weight="bold">WiredTiger</text>
+                                    <text x="425" y="238" text-anchor="middle" fill="#5B21B6" font-size="12" font-weight="bold">Compression</text>
+                                </g>
+                                
+                                <!-- Snappy Compressed -->
+                                <g id="snappyCompressed">
+                                    <rect x="500" y="50" width="145" height="350" fill="#10B981" rx="8" opacity="0.9"/>
+                                    <text x="572" y="80" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Snappy</text>
+                                    <text x="572" y="100" text-anchor="middle" fill="white" font-size="13">(Default)</text>
+                                    <text x="572" y="125" text-anchor="middle" fill="white" font-size="16" font-weight="bold">300 GB</text>
+                                    
+                                    <!-- Compressed blocks -->
+                                    <rect x="515" y="140" width="115" height="25" fill="white" opacity="0.9" rx="3"/>
+                                    <rect x="515" y="175" width="115" height="25" fill="white" opacity="0.9" rx="3"/>
+                                    
+                                    <!-- Savings -->
+                                    <text x="572" y="240" text-anchor="middle" fill="white" font-size="18" font-weight="bold">70% Saved</text>
+                                    <circle cx="572" cy="260" r="30" fill="white" opacity="0.2"/>
+                                    <text x="572" y="268" text-anchor="middle" fill="white" font-size="24">⚡</text>
+                                    
+                                    <text x="572" y="425" text-anchor="middle" fill="#065F46" font-size="16" font-weight="bold">💰 $300/month</text>
+                                </g>
+                                
+                                <!-- Zstd Compressed -->
+                                <g id="zstdCompressed">
+                                    <rect x="655" y="50" width="145" height="350" fill="#3B82F6" rx="8" opacity="0.9"/>
+                                    <text x="727" y="80" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Zstd</text>
+                                    <text x="727" y="100" text-anchor="middle" fill="white" font-size="13">(Balanced)</text>
+                                    <text x="727" y="125" text-anchor="middle" fill="white" font-size="16" font-weight="bold">250 GB</text>
+                                    
+                                    <!-- Compressed blocks -->
+                                    <rect x="670" y="140" width="115" height="22" fill="white" opacity="0.9" rx="3"/>
+                                    <rect x="670" y="172" width="115" height="22" fill="white" opacity="0.9" rx="3"/>
+                                    
+                                    <!-- Savings -->
+                                    <text x="727" y="235" text-anchor="middle" fill="white" font-size="18" font-weight="bold">75% Saved</text>
+                                    <circle cx="727" cy="255" r="30" fill="white" opacity="0.2"/>
+                                    <text x="727" y="263" text-anchor="middle" fill="white" font-size="24">⚖️</text>
+                                    
+                                    <text x="727" y="425" text-anchor="middle" fill="#1E40AF" font-size="16" font-weight="bold">💰 $250/month</text>
+                                </g>
+                                
+                                <!-- Zlib Compressed -->
+                                <g id="zlibCompressed">
+                                    <rect x="810" y="50" width="145" height="350" fill="#F59E0B" rx="8" opacity="0.9"/>
+                                    <text x="882" y="80" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Zlib</text>
+                                    <text x="882" y="100" text-anchor="middle" fill="white" font-size="13">(Maximum)</text>
+                                    <text x="882" y="125" text-anchor="middle" fill="white" font-size="16" font-weight="bold">200 GB</text>
+                                    
+                                    <!-- Compressed blocks -->
+                                    <rect x="825" y="140" width="115" height="20" fill="white" opacity="0.9" rx="3"/>
+                                    <rect x="825" y="170" width="115" height="20" fill="white" opacity="0.9" rx="3"/>
+                                    
+                                    <!-- Savings -->
+                                    <text x="882" y="230" text-anchor="middle" fill="white" font-size="18" font-weight="bold">80% Saved</text>
+                                    <circle cx="882" cy="250" r="30" fill="white" opacity="0.2"/>
+                                    <text x="882" y="258" text-anchor="middle" fill="white" font-size="24">🗜️</text>
+                                    
+                                    <text x="882" y="425" text-anchor="middle" fill="#92400E" font-size="16" font-weight="bold">💰 $200/month</text>
+                                </g>
+                            </svg>
+
+                            <div style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #8B5CF6;">
+                                <h4 style="color: #5B21B6; margin-bottom: 1rem;">💡 Compression Impact:</h4>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; color: #374151;">
+                                    <div style="text-align: center;">
+                                        <strong style="color: #EF4444; font-size: 1.2rem;">None</strong><br/>
+                                        1000 GB<br/>
+                                        $1000/mo
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <strong style="color: #10B981; font-size: 1.2rem;">Snappy ⚡</strong><br/>
+                                        300 GB<br/>
+                                        $300/mo
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <strong style="color: #3B82F6; font-size: 1.2rem;">Zstd ⚖️</strong><br/>
+                                        250 GB<br/>
+                                        $250/mo
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <strong style="color: #F59E0B; font-size: 1.2rem;">Zlib 🗜️</strong><br/>
+                                        200 GB<br/>
+                                        $200/mo
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Key Features -->
+                    <section id="key-features" style="margin-bottom: 4rem;">
+                        <h2 style="color: #8B5CF6; margin-bottom: 2rem;">🎯 Key Features of WiredTiger</h2>
+                        
+                        <div class="feature-card purple">
+                            <h3 style="color: #5B21B6; margin-bottom: 1rem;">🔒 1. Document-Level Concurrency Control</h3>
+                            <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                Multiple clients can modify different documents simultaneously without blocking each other.
+                            </p>
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1rem; border-radius: 8px;">
+                                <strong style="color: #5B21B6;">Example:</strong> User A updating document 1 doesn't block User B updating document 2 - both happen in parallel!
+                            </div>
+                            <p style="color: #374151; margin-top: 1rem;">
+                                <strong>Technology:</strong> Multi-Version Concurrency Control (MVCC) - each operation sees a consistent snapshot
+                            </p>
+                        </div>
+
+                        <div class="feature-card blue">
+                            <h3 style="color: #1E40AF; margin-bottom: 1rem;">📦 2. Compression</h3>
+                            <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                Compresses data and indexes to save 60-80% storage space.
+                            </p>
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <strong style="color: #1E40AF;">Available Algorithms:</strong><br/>
+                                • <strong>Snappy</strong> (default) - Fast, moderate compression (70% reduction)<br/>
+                                • <strong>Zlib</strong> - Slower, high compression (80% reduction)<br/>
+                                • <strong>Zstd</strong> - Best balance (75% reduction)
+                            </div>
+                            <p style="color: #374151;">
+                                <strong>Real Impact:</strong> 1TB uncompressed → 300MB compressed = Save $700/month on cloud storage!
+                            </p>
+                        </div>
+
+                        <div class="feature-card green">
+                            <h3 style="color: #065F46; margin-bottom: 1rem;">💾 3. WiredTiger Cache</h3>
+                            <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                In-memory cache that stores frequently accessed data for lightning-fast reads.
+                            </p>
+                            <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px;">
+                                <strong style="color: #065F46;">Cache Size:</strong> max(50% of RAM - 1GB, 256MB)<br/>
+                                <strong>Example:</strong> Server with 16GB RAM → Cache = 7GB<br/>
+                                <strong>Eviction:</strong> LRU (Least Recently Used) when cache is 80% full
+                            </div>
+                        </div>
+
+                        <div class="feature-card orange">
+                            <h3 style="color: #92400E; margin-bottom: 1rem;">📝 4. Journaling (Write-Ahead Log)</h3>
+                            <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                Records all modifications before applying them - ensures crash recovery.
+                            </p>
+                            <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px;">
+                                <strong style="color: #92400E;">How it works:</strong><br/>
+                                1. Write operation arrives<br/>
+                                2. Logged to journal file (every 50ms or 100MB)<br/>
+                                3. On crash: replay journal to recover uncommitted writes<br/>
+                                4. Journal files kept for 2 checkpoints, then deleted
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Compression -->
+                    <section id="compression" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">📦 Compression in Detail</h2>
+                            
+                            <div style="overflow-x: auto; margin-bottom: 2rem;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Algorithm</th>
+                                            <th>Speed</th>
+                                            <th>Compression Ratio</th>
+                                            <th>CPU Usage</th>
+                                            <th>Best For</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Snappy (Default)</strong></td>
+                                            <td>🚀 Fastest</td>
+                                            <td>70% reduction</td>
+                                            <td>Low</td>
+                                            <td>General purpose, production</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Zlib</strong></td>
+                                            <td>🐢 Slowest</td>
+                                            <td>80% reduction</td>
+                                            <td>High</td>
+                                            <td>Storage-critical, archives</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Zstd</strong></td>
+                                            <td>⚡ Fast</td>
+                                            <td>75% reduction</td>
+                                            <td>Medium</td>
+                                            <td>Best balance</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>None</strong></td>
+                                            <td>🚀 Instant</td>
+                                            <td>0%</td>
+                                            <td>None</td>
+                                            <td>Testing, RAM-heavy workloads</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div style="background: #F0FDF4; border-radius: 12px; padding: 2rem; border: 2px solid #10B981;">
+                                <h4 style="color: #065F46; margin-bottom: 1rem;">💡 Configuration Example:</h4>
+                                <pre style="margin: 0;">storage:
+  engine: wiredTiger
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: 8
+    collectionConfig:
+      blockCompressor: snappy
+    indexConfig:
+      prefixCompression: true</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Checkpoints -->
+                    <section id="checkpoints" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">✅ Checkpoints & Crash Recovery</h2>
+                            
+                            <div style="display: grid; gap: 2rem;">
+                                <div style="background: rgba(16, 185, 129, 0.1); border-radius: 12px; padding: 2rem; border: 2px solid #10B981;">
+                                    <h3 style="color: #065F46; margin-bottom: 1rem;">📸 What is a Checkpoint?</h3>
+                                    <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                        A checkpoint is a snapshot of data written from WiredTiger cache to disk files, creating a consistent state.
+                                    </p>
+                                    <ul style="color: #374151; line-height: 1.9; margin-left: 1.5rem;">
+                                        <li><strong>Frequency:</strong> Every 60 seconds (configurable)</li>
+                                        <li><strong>What happens:</strong> Dirty pages (modified in cache) flushed to .wt files</li>
+                                        <li><strong>Consistency:</strong> Represents all data committed up to that point</li>
+                                        <li><strong>During checkpoint:</strong> System remains available, no downtime</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: rgba(245, 158, 11, 0.1); border-radius: 12px; padding: 2rem; border: 2px solid #F59E0B;">
+                                    <h3 style="color: #92400E; margin-bottom: 1rem;">🔄 Crash Recovery Process</h3>
+                                    <ol style="color: #374151; line-height: 1.9; margin-left: 1.5rem;">
+                                        <li><strong>Server crashes</strong> (power failure, kill -9, etc.)</li>
+                                        <li><strong>On restart:</strong> MongoDB loads last checkpoint (consistent state)</li>
+                                        <li><strong>Journal replay:</strong> Applies all writes from journal since last checkpoint</li>
+                                        <li><strong>Result:</strong> All committed writes recovered, data intact! ✅</li>
+                                    </ol>
+                                    <div style="background: white; border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+                                        <strong style="color: #92400E;">Example Timeline:</strong><br/>
+                                        <span style="color: #374151;">
+                                        • 10:00:00 - Checkpoint created<br/>
+                                        • 10:00:30 - 100 writes happen<br/>
+                                        • 10:00:45 - Server crashes 💥<br/>
+                                        • 10:01:00 - MongoDB starts<br/>
+                                        • 10:01:05 - Loads checkpoint + replays 100 writes from journal = Full recovery! 🎉
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- WiredTiger vs MMAPv1 -->
+                    <section id="vs-mmapv1" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">⚖️ WiredTiger vs MMAPv1</h2>
+                            
+                            <div style="overflow-x: auto;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Feature</th>
+                                            <th>💾 WiredTiger (Modern)</th>
+                                            <th>📚 MMAPv1 (Legacy)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Locking</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">Document-level</td>
+                                            <td style="color: #EF4444;">Database-level</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Compression</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">✅ Yes (70-80%)</td>
+                                            <td style="color: #EF4444;">❌ None</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Concurrency</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">High (thousands/sec)</td>
+                                            <td style="color: #EF4444;">Low (limited)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Memory Management</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">WiredTiger Cache (controlled)</td>
+                                            <td style="color: #EF4444;">OS Memory Mapped (unpredictable)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Write Performance</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">⚡ 10x faster</td>
+                                            <td style="color: #EF4444;">Slow</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Storage Efficiency</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">70% less space</td>
+                                            <td style="color: #EF4444;">Full size</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Journaling</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">Every 50ms</td>
+                                            <td style="color: #6B7280;">Every 100ms</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Default Since</strong></td>
+                                            <td style="color: #10B981; font-weight: 600;">MongoDB 3.2 (2015)</td>
+                                            <td style="color: #EF4444;">Deprecated (removed in 4.2)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div style="background: #FEE2E2; border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #EF4444;">
+                                <h4 style="color: #991B1B; margin-bottom: 1rem;">⚠️ Important Note</h4>
+                                <p style="color: #374151; margin: 0; line-height: 1.8;">
+                                    MMAPv1 was completely removed in MongoDB 4.2 (2019). All modern MongoDB deployments use WiredTiger.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview-questions">
+                        <h2>❓ Interview Questions & Answers</h2>
+                        
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q1</span>
+                                <span class="question-text">What is WiredTiger and why is it important for MongoDB?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>WiredTiger is MongoDB's default storage engine that manages how data is stored on disk and in memory. It's been the default since MongoDB 3.2 (2015).</p>
+                                <p><strong>Why It's Important:</strong></p>
+                                <ul>
+                                    <li><strong>Document-Level Concurrency:</strong> Multiple operations can modify different documents simultaneously without blocking</li>
+                                    <li><strong>Compression:</strong> Reduces storage by 70-80% using snappy/zlib/zstd algorithms</li>
+                                    <li><strong>High Performance:</strong> In-memory cache (50% RAM) for frequently accessed data</li>
+                                    <li><strong>Crash Safety:</strong> Write-ahead logging (journal) ensures durability</li>
+                                    <li><strong>Better Concurrency:</strong> 10x better than old MMAPv1 engine</li>
+                                </ul>
+                                <p><strong>Real Impact:</strong> A MongoDB cluster with WiredTiger can handle thousands of concurrent writes while using 70% less disk space than without compression.</p>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q2</span>
+                                <span class="question-text">Explain the WiredTiger cache. How does it work?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>WiredTiger cache is an in-memory cache that stores frequently accessed data for fast reads and writes.</p>
+                                <p><strong>How It Works:</strong></p>
+                                <ul>
+                                    <li><strong>Cache Size:</strong> By default, max(50% of RAM - 1GB, 256MB)</li>
+                                    <li><strong>Example:</strong> Server with 16GB RAM → Cache = 7GB</li>
+                                    <li><strong>What's Cached:</strong> Documents, indexes, internal metadata</li>
+                                    <li><strong>Read Flow:</strong> Check cache first → if not found, read from disk → cache it</li>
+                                    <li><strong>Write Flow:</strong> Write to cache → mark as "dirty" → flush to disk during checkpoint</li>
+                                    <li><strong>Eviction Policy:</strong> LRU (Least Recently Used) when cache reaches 80% full</li>
+                                </ul>
+                                <p><strong>Configuration Example:</strong></p>
+                                <pre>storage:
+  wiredTiger:
+    engineConfig:
+      cacheSizeGB: 8  # Set manually to 8GB</pre>
+                                <p><strong>Performance Impact:</strong> Cache hit = microseconds, Disk read = milliseconds. Good cache hit ratio (90%+) is crucial for performance!</p>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q3</span>
+                                <span class="question-text">What is a checkpoint in WiredTiger? How does it ensure durability?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>A checkpoint is a snapshot of data written from WiredTiger cache to disk files (.wt), creating a consistent state at a specific point in time.</p>
+                                <p><strong>Checkpoint Details:</strong></p>
+                                <ul>
+                                    <li><strong>Frequency:</strong> Every 60 seconds by default (configurable)</li>
+                                    <li><strong>What Happens:</strong> Dirty pages (modified data in cache) flushed to .wt files</li>
+                                    <li><strong>Consistency:</strong> Represents all committed writes up to that point</li>
+                                    <li><strong>Non-Blocking:</strong> System remains available during checkpoint</li>
+                                </ul>
+                                <p><strong>How It Ensures Durability:</strong></p>
+                                <ol>
+                                    <li><strong>Normal Operation:</strong> Writes go to cache + journal</li>
+                                    <li><strong>Checkpoint:</strong> Every 60s, cache data persisted to disk</li>
+                                    <li><strong>On Crash:</strong> Load last checkpoint + replay journal</li>
+                                    <li><strong>Result:</strong> All committed writes recovered!</li>
+                                </ol>
+                                <p><strong>Example Timeline:</strong></p>
+                                <pre>10:00:00 - Checkpoint #1 created
+10:00:30 - 100 writes happen (in cache + journal)
+10:00:45 - Server crashes 💥
+10:01:00 - Server restarts
+10:01:05 - Loads checkpoint #1 + replays 100 writes = Full recovery! ✅</pre>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q4</span>
+                                <span class="question-text">What compression algorithms does WiredTiger support? When to use each?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>WiredTiger supports 3 compression algorithms plus an option for no compression.</p>
+                                <p><strong>Compression Algorithms:</strong></p>
+                                <ul>
+                                    <li><strong>Snappy (Default):</strong>
+                                        <ul>
+                                            <li>Fastest compression/decompression</li>
+                                            <li>70% storage reduction</li>
+                                            <li>Low CPU usage</li>
+                                            <li><strong>Use When:</strong> Production workloads, general purpose, balanced performance</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Zlib:</strong>
+                                        <ul>
+                                            <li>Highest compression ratio</li>
+                                            <li>80% storage reduction</li>
+                                            <li>High CPU usage (slower)</li>
+                                            <li><strong>Use When:</strong> Storage is critical (archives, large datasets), reads > writes</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Zstd:</strong>
+                                        <ul>
+                                            <li>Best balance of speed and compression</li>
+                                            <li>75% storage reduction</li>
+                                            <li>Medium CPU usage</li>
+                                            <li><strong>Use When:</strong> Need better compression than snappy without zlib's slowness</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>None:</strong>
+                                        <ul>
+                                            <li>No compression overhead</li>
+                                            <li>Fastest possible</li>
+                                            <li><strong>Use When:</strong> Testing, RAM-heavy workloads, data already compressed</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <p><strong>Real Impact:</strong> 1TB uncompressed data:</p>
+                                <pre>Snappy: 300GB (70% savings)
+Zlib:   200GB (80% savings)
+Zstd:   250GB (75% savings)</pre>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q5</span>
+                                <span class="question-text">Explain document-level concurrency control in WiredTiger.</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>Document-level concurrency means multiple clients can read and write different documents simultaneously without blocking each other.</p>
+                                <p><strong>How It Works:</strong></p>
+                                <ul>
+                                    <li><strong>Technology:</strong> Multi-Version Concurrency Control (MVCC)</li>
+                                    <li><strong>Mechanism:</strong> Each transaction sees a consistent snapshot of data</li>
+                                    <li><strong>Locking:</strong> Only the specific document being modified is locked</li>
+                                    <li><strong>Isolation:</strong> Conflicts detected at commit time, not during operation</li>
+                                </ul>
+                                <p><strong>Example Scenario:</strong></p>
+                                <pre>Thread A: Update user_id=1 (locks only doc 1)
+Thread B: Update user_id=2 (locks only doc 2)
+Thread C: Read user_id=1   (reads snapshot, no lock)
+
+All three operations happen simultaneously! ⚡</pre>
+                                <p><strong>Comparison with MMAPv1 (old engine):</strong></p>
+                                <ul>
+                                    <li><strong>MMAPv1:</strong> Database-level locking - one write blocks all others</li>
+                                    <li><strong>WiredTiger:</strong> Document-level - thousands of concurrent writes</li>
+                                </ul>
+                                <p><strong>Performance Impact:</strong> WiredTiger can handle 10,000+ concurrent writes while MMAPv1 maxed out at ~1,000 due to lock contention.</p>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q6</span>
+                                <span class="question-text">What is the journal in WiredTiger and how does it ensure crash recovery?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>The journal is a Write-Ahead Log (WAL) that records all write operations before they're applied to data files, ensuring durability and crash recovery.</p>
+                                <p><strong>How Journal Works:</strong></p>
+                                <ol>
+                                    <li><strong>Write arrives:</strong> Operation first written to WiredTiger cache</li>
+                                    <li><strong>Journal log:</strong> Operation recorded to journal file on disk</li>
+                                    <li><strong>Flush frequency:</strong> Journal committed every 50ms or 100MB of data</li>
+                                    <li><strong>Acknowledgment:</strong> Write acknowledged to client only after journal commit</li>
+                                </ol>
+                                <p><strong>Crash Recovery Process:</strong></p>
+                                <pre>1. Server crashes at 10:30:45
+2. Last checkpoint: 10:30:00 (60 seconds ago)
+3. On restart:
+   - Load checkpoint (consistent state at 10:30:00)
+   - Replay journal entries (10:30:00 to 10:30:45)
+   - Recover all committed writes! ✅</pre>
+                                <p><strong>Journal Files:</strong></p>
+                                <ul>
+                                    <li><strong>Location:</strong> <code>dbPath/journal/</code> directory</li>
+                                    <li><strong>Format:</strong> <code>WiredTigerLog.0000000001</code></li>
+                                    <li><strong>Retention:</strong> Kept for 2 checkpoints, then deleted</li>
+                                    <li><strong>Size:</strong> ~100MB per file</li>
+                                </ul>
+                                <p><strong>Configuration:</strong></p>
+                                <pre>storage:
+  journal:
+    enabled: true
+    commitIntervalMs: 50  # Default</pre>
+                                <p><strong>Trade-off:</strong> Journal adds ~10% write latency but ensures zero data loss on crash. Worth it for durability! 🛡️</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="document-model.html" class="nav-button prev">
+                            <span class="nav-icon">←</span>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Document Data Model</div>
+                            </div>
+                        </a>
+                        <a href="read-write-path.html" class="nav-button next">
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Read/Write Path</div>
+                            </div>
+                            <span class="nav-icon">→</span>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Your existing scripts -->
+    <script src="app.js" onerror="this.remove()"></script>
+    <script src="learning-tracker.js" onerror="this.remove()"></script>
+
+    <script>
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Active TOC Link Highlighting
+        const tocLinks = document.querySelectorAll('.toc-link');
+        const sections = document.querySelectorAll('section[id]');
+
+        function highlightTOC() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').slice(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightTOC);
+
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        // Interview Question Toggle
+        function toggleQuestion(header) {
+            const answer = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            // Close all other answers
+            document.querySelectorAll('.question-answer').forEach(ans => {
+                if (ans !== answer) {
+                    ans.classList.remove('active');
+                    ans.previousElementSibling.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.toggle-icon').forEach(ic => {
+                if (ic !== icon) {
+                    ic.textContent = '▼';
+                }
+            }); 
+            
+            // Toggle current answer
+            answer.classList.toggle('active');
+            header.classList.toggle('active');
+            icon.textContent = answer.classList.contains('active') ? '▲' : '▼';
+        }
+    </script>
+</body>
+</html>

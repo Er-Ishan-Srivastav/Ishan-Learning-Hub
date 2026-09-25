@@ -1,0 +1,1512 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master BASE vs ACID with stories, animations, and real-world examples - Understand database consistency models the easy way">
+    <title>Backup and Restore in MongoDB</title>
+    
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Your existing stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+    
+    <style>
+         /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+     
+    .story-box { background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.05)); border-left: 5px solid var(--warning-orange); border-radius: 12px; padding: 2.5rem; margin: 2rem 0; }
+    .story-box h3 { color: var(--warning-orange); margin-top: 0; margin-bottom: 1.5rem; }
+    .story-box p { color: var(--text-secondary); line-height: 1.8; margin-bottom: 1rem; }
+    .critical-box { background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1)); border-left: 5px solid var(--error-red); border-radius: 12px; padding: 2.5rem; margin: 2rem 0; border: 2px solid var(--error-red); }
+    .critical-box h4 { color: var(--error-red); margin-bottom: 1.5rem; font-size: 1.3rem; }
+    .best-practice-box { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)); border-left: 5px solid var(--success-green); border-radius: 12px; padding: 2.5rem; margin: 2rem 0; }
+    .info-box { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)); border-left: 5px solid var(--info-blue); border-radius: 12px; padding: 2.5rem; margin: 2rem 0; }
+    .code-block { background: var(--code-bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; overflow-x: auto; }
+    .code-block pre { margin: 0; color: var(--text-primary); font-family: monospace; font-size: 0.9rem; line-height: 1.6; }
+    .strategy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+    .strategy-card { background: var(--code-bg); padding: 2rem; border-radius: 12px; border: 2px solid var(--border-light); transition: all 0.3s; }
+    .strategy-card:hover { border-color: var(--primary-green); transform: translateY(-5px); }
+    .strategy-icon { font-size: 3rem; display: block; margin-bottom: 1rem; }
+    .interview-question { background: var(--code-bg); border-radius: 12px; margin-bottom: 1rem; border: 2px solid var(--border-light); overflow: hidden; }
+    .question-header { display: flex; align-items: center; gap: 1rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s; }
+    .question-header:hover { background: rgba(0, 237, 100, 0.05); }
+    .question-number { background: var(--primary-green); color: #001E2B; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .question-text { flex: 1; color: var(--text-primary); font-weight: 600; font-size: 1.05rem; }
+    .toggle-icon { color: var(--primary-green); font-size: 1.25rem; }
+    .question-answer { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+    .question-answer.active { max-height: 3000px; padding: 1.5rem; }
+    .question-answer p { color: var(--text-secondary); line-height: 1.8; margin-bottom: 1rem; }
+
+        :root {
+            --primary-green: #00ED64;
+            --dark-green: #00684A;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --soft-gray: #F9FAFB;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+            --acid-purple: #8B5CF6;
+            --base-orange: #F59E0B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--soft-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-green);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 237, 100, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-green);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-green);
+            border-left-color: var(--primary-green);
+            padding-left: 1.25rem;
+        }
+
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        /* Interview Questions - White Cards */
+        .interview-question {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            transition: background 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(0, 237, 100, 0.03);
+        }
+
+        .question-number {
+            background: var(--primary-green);
+            color: var(--code-darker);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 500;
+            color: #1F2937;
+            font-size: 1rem;
+        }
+
+        .toggle-icon {
+            color: var(--primary-green);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+            border-top: 1px solid #F3F4F6;
+        }
+
+        .question-answer p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1F2937;
+        }
+
+        .question-answer ul {
+            color: #374151;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Animation Styles */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes flowRight {
+            from {
+                stroke-dashoffset: 20;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.1);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+        /* Animation Styles */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes flowRight {
+            from {
+                stroke-dashoffset: 20;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.1);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+     <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed" >🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                        <li><a href="practical-example.html" data-page="practical-example">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" class="active" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html" data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html" data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat">📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+
+<main class="main-content">
+    <!--Page Hero-->
+    <section class="page-hero">
+        <div class="container">
+            <div class="page-hero-content">
+                <span class="hero-badge"><i class="fas fa-database"></i> Section 7: Advanced Topics</span>
+                <h1>💾 Backup, Restore & Disaster Recovery</h1>
+                <p>Protecting Your Data: Complete Guide to MongoDB Backup Strategies, Recovery Procedures, and Disaster Recovery Planning</p>
+            </div>
+        </div>
+    </section>
+
+    <!--breadcrumb-->
+    <div class="breadcrumb-modern">
+        <div class="container">
+            <a href="index.html">Home</a>
+            <span class="separator">›</span>
+            <a href="#advanced">Advanced Topics</a>
+            <span class="separator">›</span>
+            <span class="current">Backup, Restore & DR</span>
+        </div>
+    </div>
+
+    <div class="container" style="padding: 4rem 0;">
+        <div class="row">
+            <div class="col-lg-3">
+                <aside class="toc-floating">
+                    <h3>📑 On This Page</h3>
+                    <ul>
+                        <li><a href="#story"  class="nav-btn" style="color: white;">The Story</a></li>
+                        <li><a href="#why" class="nav-btn" style="color: white;">Why Backup?</a></li>
+                        <li><a href="#strategies"  class="nav-btn" style="color: white;">Strategies</a></li>
+                        <li><a href="#mongodump"  class="nav-btn" style="color: white;">mongodump</a></li>
+                        <li><a href="#restore"  class="nav-btn" style="color: white;">Restore</a></li>
+                        <li><a href="#dr"  class="nav-btn" style="color: white;">Disaster Recovery</a></li>
+                        <li><a href="#best"  class="nav-btn" style="color: white;">Best Practices</a></li>
+                        <li><a href="#interview"  class="nav-btn" style="color: white;">Interview Q&A</a></li>
+                    </ul>
+                </aside>
+            </div>
+
+            <div class="col-lg-9">
+                <section id="story">
+                    <div class="story-box">
+                        <h3>📖 The $2 Million Data Loss Incident</h3>
+                        <p><strong>Meet David</strong>, CTO of a FinTech startup processing millions of transactions daily. At 3 AM on a Tuesday, a junior developer accidentally ran a production script that dropped the main database. 2.8 million records vanished instantly.</p>
+                        <p><strong>The Problem:</strong> Their last backup was 3 weeks old and corrupted. No one had tested restores. They spent $2M on recovery, compensation, and legal fees. 30% of customers left.</p>
+                        <p><strong>The Lesson:</strong> "Your backup strategy is only as good as your last successful restore test."</p>
+                    </div>
+                </section>
+
+                <section id="why" style="margin-top: 4rem;">
+                    <h2>Why Backup & Disaster Recovery Matter</h2>
+                    <div class="critical-box">
+                        <h4>🚨 Data Loss Statistics</h4>
+                        <p><strong>93% of companies that lose data for 10+ days file for bankruptcy within one year.</strong></p>
+                        <ul>
+                            <li><strong>Human Error (40%):</strong> Accidental deletion, wrong commands</li>
+                            <li><strong>Hardware Failure (30%):</strong> Disk crashes, server failures</li>
+                            <li><strong>Software Issues (15%):</strong> Database corruption, bugs</li>
+                            <li><strong>Malicious Activity (10%):</strong> Ransomware, sabotage</li>
+                            <li><strong>Natural Disasters (5%):</strong> Floods, fires, power outages</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="strategies" style="margin-top: 4rem;">
+                    <h2>MongoDB Backup Strategies</h2>
+                    <div class="strategy-grid">
+                        <div class="strategy-card">
+                            <span class="strategy-icon">📦</span>
+                            <h4>1. mongodump</h4>
+                            <p><strong>What:</strong> Logical backup in BSON format</p>
+                            <p><strong>Best for:</strong> Databases &lt;100GB</p>
+                            <p><strong>Pros:</strong> Easy, portable, selective</p>
+                            <p><strong>Cons:</strong> Slower for large DBs</p>
+                        </div>
+                        <div class="strategy-card">
+                            <span class="strategy-icon">📸</span>
+                            <h4>2. Filesystem Snapshots</h4>
+                            <p><strong>What:</strong> Storage-level snapshots</p>
+                            <p><strong>Best for:</strong> Large production DBs</p>
+                            <p><strong>Pros:</strong> Very fast, minimal impact</p>
+                            <p><strong>Cons:</strong> Requires LVM/EBS</p>
+                        </div>
+                        <div class="strategy-card">
+                            <span class="strategy-icon">☁️</span>
+                            <h4>3. Atlas Cloud Backup</h4>
+                            <p><strong>What:</strong> Fully managed by MongoDB</p>
+                            <p><strong>Best for:</strong> Production apps</p>
+                            <p><strong>Pros:</strong> Automated, PITR, reliable</p>
+                            <p><strong>Cons:</strong> Atlas-only, paid</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mongodump" style="margin-top: 4rem;">
+                    <h2>Using mongodump</h2>
+                    <div class="code-block">
+<pre># Backup entire database
+mongodump --uri="mongodb://localhost:27017" --out=/backup/$(date +%Y%m%d)
+
+# Backup with compression
+mongodump --uri="mongodb://localhost:27017" --gzip --out=/backup/compressed
+
+# Backup specific database
+mongodump --db=myDatabase --out=/backup/mydb
+
+# Production backup script
+#!/bin/bash
+BACKUP_DIR="/backups/mongodb"
+DATE=$(date +%Y%m%d_%H%M%S)
+mongodump --uri="mongodb://user:pass@localhost:27017" --gzip --out=$BACKUP_DIR/$DATE
+
+# Automated with cron
+0 2 * * * /scripts/mongodb_backup.sh</pre>
+                    </div>
+
+                    <div class="best-practice-box">
+                        <h4>✅ mongodump Best Practices</h4>
+                        <ul>
+                            <li>Always use --gzip for compression</li>
+                            <li>Schedule during off-peak hours</li>
+                            <li>Store on separate storage</li>
+                            <li>Test restores monthly</li>
+                            <li>Encrypt sensitive backups</li>
+                            <li>Use --oplog for point-in-time consistency</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="restore" style="margin-top: 4rem;">
+                    <h2>Restore Operations</h2>
+                    <div class="code-block">
+<pre># Basic restore
+mongorestore --uri="mongodb://localhost:27017" /backup/20241213
+
+# Restore specific database
+mongorestore --db=myDatabase /backup/20241213/myDatabase
+
+# Restore with gzip
+mongorestore --gzip /backup/20241213
+
+# Restore to different DB name
+mongorestore --nsFrom="prod.*" --nsTo="restore.*" /backup/20241213</pre>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 Restore Procedure</strong>
+                        <p>1. Verify backup integrity<br>
+                        2. Stop application traffic<br>
+                        3. Perform restore<br>
+                        4. Rebuild indexes if needed<br>
+                        5. Verify data integrity<br>
+                        6. Test application connectivity<br>
+                        7. Resume traffic gradually</p>
+                    </div>
+                </section>
+
+                <section id="dr" style="margin-top: 4rem;">
+                    <h2>Disaster Recovery Planning</h2>
+                    <div class="info-box">
+                        <strong>💡 RTO vs RPO</strong>
+                        <p><strong>RTO (Recovery Time Objective):</strong> Maximum acceptable downtime<br>
+                        Example: "We can tolerate 2 hours downtime"</p>
+                        <p><strong>RPO (Recovery Point Objective):</strong> Maximum acceptable data loss<br>
+                        Example: "We can lose max 1 hour of data"</p>
+                    </div>
+
+                    <div class="strategy-grid">
+                        <div class="strategy-card">
+                            <h4>Cold Standby</h4>
+                            <p><strong>RTO:</strong> 24-72 hours</p>
+                            <p><strong>RPO:</strong> 6-24 hours</p>
+                            <p><strong>Cost:</strong> Low</p>
+                        </div>
+                        <div class="strategy-card">
+                            <h4>Warm Standby</h4>
+                            <p><strong>RTO:</strong> 1-4 hours</p>
+                            <p><strong>RPO:</strong> 1-6 hours</p>
+                            <p><strong>Cost:</strong> Medium</p>
+                        </div>
+                        <div class="strategy-card">
+                            <h4>Hot Standby</h4>
+                            <p><strong>RTO:</strong> 5-30 minutes</p>
+                            <p><strong>RPO:</strong> &lt;1 hour</p>
+                            <p><strong>Cost:</strong> High</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="best" style="margin-top: 4rem;">
+                    <h2>Best Practices</h2>
+                    <div class="best-practice-box">
+                        <h4>✅ 3-2-1 Backup Rule</h4>
+                        <ul>
+                            <li><strong>3</strong> copies of your data</li>
+                            <li><strong>2</strong> different storage types</li>
+                            <li><strong>1</strong> copy off-site</li>
+                        </ul>
+                    </div>
+
+                    <div class="critical-box">
+                        <h4>⚠️ Common Mistakes to Avoid</h4>
+                        <ul>
+                            <li>Not testing restores regularly</li>
+                            <li>Storing backups on same server</li>
+                            <li>No backup verification</li>
+                            <li>Single backup location</li>
+                            <li>Manual processes</li>
+                            <li>No encryption</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="interview" style="margin-top: 4rem;">
+                    <h2>💼 Interview Questions</h2>
+
+                    <div class="interview-question">
+                        <div class="question-header" onclick="toggleQuestion(this)">
+                            <span class="question-number">Q1</span>
+                            <span class="question-text">What backup strategies exist for MongoDB?</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="question-answer">
+                            <p><strong>Answer:</strong></p>
+                            <p>1. <strong>mongodump:</strong> Logical backup for &lt;100GB DBs</p>
+                            <p>2. <strong>Filesystem Snapshots:</strong> Fast, for large production DBs</p>
+                            <p>3. <strong>Atlas Cloud:</strong> Managed with PITR</p>
+                            <p>4. <strong>Delayed Replica:</strong> Protection from logical errors</p>
+                            <p>Selection depends on: DB size, RTO/RPO, budget, infrastructure</p>
+                        </div>
+                    </div>
+
+                    <div class="interview-question">
+                        <div class="question-header" onclick="toggleQuestion(this)">
+                            <span class="question-number">Q2</span>
+                            <span class="question-text">Explain RTO vs RPO</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="question-answer">
+                            <p><strong>RTO:</strong> Maximum downtime tolerated (e.g., 2 hours)</p>
+                            <p><strong>RPO:</strong> Maximum data loss tolerated (e.g., 1 hour)</p>
+                            <p>Example: Trading platform needs RTO &lt;1min, RPO &lt;1sec (expensive). Blog can have RTO 24hr, RPO 12hr (cheap).</p>
+                        </div>
+                    </div>
+
+                    <div class="interview-question">
+                        <div class="question-header" onclick="toggleQuestion(this)">
+                            <span class="question-number">Q3</span>
+                            <span class="question-text">What is the 3-2-1 backup rule?</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="question-answer">
+                            <p><strong>3</strong> copies: 1 production + 2 backups</p>
+                            <p><strong>2</strong> media types: Local disk + Cloud (S3)</p>
+                            <p><strong>1</strong> off-site: Different region/datacenter</p>
+                            <p>Protects against all failure scenarios: disk, server, disaster</p>
+                        </div>
+                    </div>
+
+                    <div class="interview-question">
+                        <div class="question-header" onclick="toggleQuestion(this)">
+                            <span class="question-number">Q4</span>
+                            <span class="question-text">How ensure backup consistency in replica set?</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="question-answer">
+                            <p>1. <strong>Backup from secondary</strong> (no primary impact)</p>
+                            <p>2. Use <strong>db.fsyncLock()</strong> before snapshot</p>
+                            <p>3. Include <strong>oplog</strong> (mongodump --oplog)</p>
+                            <p>4. Use <strong>filesystem snapshots</strong> (atomic)</p>
+                            <p>5. <strong>db.fsyncUnlock()</strong> after completion</p>
+                        </div>
+                    </div>
+
+                    <div class="interview-question">
+                        <div class="question-header" onclick="toggleQuestion(this)">
+                            <span class="question-number">Q5</span>
+                            <span class="question-text">How test backups are restorable?</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="question-answer">
+                            <p>1. <strong>Monthly restore tests:</strong> Pick random backup, restore to test env</p>
+                            <p>2. <strong>Automated verification:</strong> Check file integrity, sizes</p>
+                            <p>3. <strong>Quarterly DR drills:</strong> Full team, production-sized restore</p>
+                            <p>4. <strong>Continuous monitoring:</strong> Alert on anomalies</p>
+                            <p>Document results: time, issues, improvements</p>
+                        </div>
+                    </div>
+                </section>
+
+            
+
+                <div class="page-navigation">
+                    <a href="security.html" class="nav-button prev">
+                        <span class="nav-icon">←</span>
+                        <div class="nav-text">
+                            <div class="nav-label">Previous</div>
+                            <div class="nav-title">Security</div>
+                        </div>
+                    </a>
+                    <a href="observability.html" class="nav-button next">
+                        <div class="nav-text">
+                            <div class="nav-label">Next</div>
+                            <div class="nav-title">Observability</div>
+                        </div>
+                        <span class="nav-icon">→</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+ <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Your existing scripts -->
+    <script src="app.js" onerror="this.remove()"></script>
+    <script src="learning-tracker.js" onerror="this.remove()"></script>
+
+<script>
+    // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+function toggleQuestion(header) {
+    const answer = header.nextElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    document.querySelectorAll('.question-answer').forEach(ans => {
+        if (ans !== answer) {
+            ans.classList.remove('active');
+            ans.previousElementSibling.querySelector('.toggle-icon').textContent = '▼';
+        }
+    });
+    answer.classList.toggle('active');
+    icon.textContent = answer.classList.contains('active') ? '▲' : '▼';
+}
+
+// TOC highlighting
+const tocLinks = document.querySelectorAll('.toc-link');
+const sections = document.querySelectorAll('section[id]');
+ function highlightTOC() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').slice(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightTOC);
+
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+ // Interview Question Toggle
+        function toggleQuestion(header) {
+            const answer = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            // Close all other answers
+            document.querySelectorAll('.question-answer').forEach(ans => {
+                if (ans !== answer) {
+                    ans.classList.remove('active');
+                    ans.previousElementSibling.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.toggle-icon').forEach(ic => {
+                if (ic !== icon) {
+                    ic.textContent = '▼';
+                }
+            }); 
+            
+            // Toggle current answer
+            answer.classList.toggle('active');
+            header.classList.toggle('active');
+            icon.textContent = answer.classList.contains('active') ? '▲' : '▼';
+        }
+
+        
+</script>
+</body>
+</html>

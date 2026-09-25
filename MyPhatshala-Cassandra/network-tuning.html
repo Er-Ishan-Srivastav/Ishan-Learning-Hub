@@ -1,0 +1,2799 @@
+<!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Network Tuning in Cassandra - Master network tuning techniques for optimal performance!">
+    <title>Network Tuning in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Network Tuning</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html" class="active">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+ <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced Performance Topics
+                    </span>
+                  <h1>Network Tuning <span class="gradient-text">in Cassandra</span></h1>
+                  <p>Keep your cluster talking fast! Network tuning makes sure data moves quickly and smoothly between nodes, helping Cassandra stay responsive even under heavy traffic.</p>
+
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="network-tuning.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">Network Tuning</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Sarah's Story</a></li>
+                            <li><a href="#fundamentals">🌐 Fundamentals</a></li>
+                            <li><a href="#tcp-tuning">🔧 TCP Tuning</a></li>
+                            <li><a href="#nic-tuning">🎛️ NIC Tuning</a></li>
+                            <li><a href="#cassandra-config">⚙️ Cassandra Config</a></li>
+                            <li><a href="#monitoring">📊 Monitoring</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Sarah's 10Gbps Network Running at 100Mbps</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Sarah had a beautiful setup: 10 Gbps network cards, fiber connections, enterprise switches. But streaming repairs were taking 10 hours instead of 10 minutes. Network throughput showed 100 Mbps instead of 10 Gbps. 100x slower than hardware capability! Here's what was wrong...</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">😱 The Problem: Default TCP Settings</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Sarah's Hardware:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🌐 <strong>NICs:</strong> 10 Gbps Intel X710 (enterprise grade!)</li>
+                    <li>🔌 <strong>Cables:</strong> Fiber optic (perfect!)</li>
+                    <li>📡 <strong>Switch:</strong> Cisco 10Gbps (no issues!)</li>
+                    <li>💻 <strong>Latency:</strong> 0.1ms between nodes (excellent!)</li>
+                </ul>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Reality:</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Repair streaming performance:</span>
+nodetool repair -pr keyspace
+
+<span class="comment">-- Expected: 10 minutes (10 Gbps)</span>
+<span class="comment">-- Actual: 10 HOURS! (100 Mbps)</span>
+
+<span class="comment">-- Network throughput:</span>
+iftop -i eth0
+<span class="comment">/*
+TX: 98.7 Mbps   ← Should be 10,000 Mbps!
+RX: 102.3 Mbps  ← 100x slower!
+*/</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Hidden Culprits:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Tiny TCP Buffers:</strong> Default 128KB (need 32MB!)</li>
+                    <li><strong>Small Window Size:</strong> 65KB max (need 16MB+!)</li>
+                    <li><strong>No TCP Timestamps:</strong> Can't scale beyond 1 Gbps</li>
+                    <li><strong>Wrong Congestion Algorithm:</strong> Reno instead of CUBIC</li>
+                    <li><strong>Connection Tracking Full:</strong> Firewall limiting connections</li>
+                    <li><strong>IRQ Affinity Wrong:</strong> All interrupts on CPU0</li>
+                </ol>
+
+                <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Sarah's default TCP settings (terrible!):</span>
+sysctl net.ipv4.tcp_rmem
+<span class="comment">/*
+net.ipv4.tcp_rmem = 4096 87380 6291456
+                            ↑
+                    Max 6MB receive buffer
+                    
+For 10Gbps × 0.1ms latency:
+BDP = 10Gbps × 0.0001s = 1.25 MB (barely fits!)
+For 10Gbps × 10ms latency (cross-DC):
+BDP = 10Gbps × 0.01s = 125 MB (DOESN'T FIT!)
+
+Result: Tiny window, throttled throughput! 💥
+*/</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Why Hardware Didn't Matter:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>💾 <strong>Buffer Too Small:</strong> TCP can't use 10Gbps pipe</li>
+                    <li>🪟 <strong>Window Scaling Off:</strong> Limited to 64KB windows</li>
+                    <li>⏱️ <strong>No Timestamps:</strong> Can't measure RTT accurately</li>
+                    <li>🚦 <strong>Old Congestion Control:</strong> Too conservative</li>
+                    <li>🔥 <strong>Conntrack Table:</strong> Dropping new connections</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">🚀 The Fix: TCP Tuning for 10Gbps!</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Sarah's Optimizations:</strong></p>
+
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- /etc/sysctl.conf optimizations</span>
+
+<span class="comment"># 1. Massive TCP buffers (32MB)</span>
+net.ipv4.tcp_rmem = <span class="number">4096 87380 33554432</span>
+net.ipv4.tcp_wmem = <span class="number">4096 65536 33554432</span>
+net.core.rmem_max = <span class="number">33554432</span>
+net.core.wmem_max = <span class="number">33554432</span>
+
+<span class="comment"># 2. Enable window scaling (for large windows)</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+
+<span class="comment"># 3. Enable TCP timestamps (for high speed)</span>
+net.ipv4.tcp_timestamps = <span class="number">1</span>
+
+<span class="comment"># 4. Use CUBIC congestion control</span>
+net.ipv4.tcp_congestion_control = cubic
+
+<span class="comment"># 5. Increase connection tracking</span>
+net.netfilter.nf_conntrack_max = <span class="number">1048576</span>
+
+<span class="comment"># Apply</span>
+sudo sysctl -p
+                </div>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>⚡ <strong>Throughput:</strong> 100 Mbps → 9.2 Gbps (92x faster!)</li>
+                        <li>⏱️ <strong>Repair Time:</strong> 10 hours → 12 minutes (50x faster!)</li>
+                        <li>📊 <strong>Streaming:</strong> 98 MB/s → 1150 MB/s</li>
+                        <li>🎯 <strong>Hardware Utilization:</strong> 1% → 92% (finally!)</li>
+                        <li>😊 <strong>Cross-DC Replication:</strong> Actually works now!</li>
+                        <li>💰 <strong>ROI:</strong> $0 cost, 100x performance gain!</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Sarah learned: Network tuning is FREE 100x performance! 🎉</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="fundamentals" data-aos="fade-up">
+    <h2>🌐 Network Fundamentals</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding TCP performance and bandwidth-delay product!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 Why Network Tuning Matters</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Cassandra is extremely network-intensive: streaming repairs, hinted handoffs, read repairs, gossip, client requests. Default Linux TCP settings are optimized for 1 Gbps networks from 2005. Modern 10/25/100 Gbps networks need proper tuning or you'll get 100x slower performance!
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Bandwidth-Delay Product (BDP)</h3>
+
+    <div class="svg-container" data-aos="zoom-in">
+        <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+            <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">Bandwidth-Delay Product (BDP)</text>
+
+            <!-- Formula -->
+            <rect x="150" y="60" width="500" height="60" rx="8" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6" stroke-width="2"/>
+            <text x="400" y="95" font-size="18" fill="#8b5cf6" text-anchor="middle" font-weight="700">BDP = Bandwidth × Round-Trip Time (RTT)</text>
+
+            <!-- Example 1: Low latency -->
+            <rect x="50" y="150" width="330" height="150" rx="8" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2"/>
+            <text x="215" y="180" font-size="16" fill="#10b981" text-anchor="middle" font-weight="700">Same Datacenter (Low Latency)</text>
+            
+            <text x="70" y="210" font-size="14" fill="#94a3b8">Bandwidth: 10 Gbps</text>
+            <text x="70" y="235" font-size="14" fill="#94a3b8">RTT: 0.2ms (200 μs)</text>
+            <text x="70" y="260" font-size="14" fill="#10b981" font-weight="700">BDP = 10 Gbps × 0.0002s</text>
+            <text x="70" y="285" font-size="14" fill="#10b981" font-weight="700">BDP = 2.5 MB</text>
+
+            <!-- Example 2: Cross-DC -->
+            <rect x="420" y="150" width="330" height="150" rx="8" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="2"/>
+            <text x="585" y="180" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="700">Cross-Datacenter (High Latency)</text>
+            
+            <text x="440" y="210" font-size="14" fill="#94a3b8">Bandwidth: 10 Gbps</text>
+            <text x="440" y="235" font-size="14" fill="#94a3b8">RTT: 50ms</text>
+            <text x="440" y="260" font-size="14" fill="#f59e0b" font-weight="700">BDP = 10 Gbps × 0.05s</text>
+            <text x="440" y="285" font-size="14" fill="#f59e0b" font-weight="700">BDP = 62.5 MB</text>
+
+            <!-- Buffer requirement -->
+            <text x="400" y="340" font-size="18" fill="#e2e8f0" text-anchor="middle" font-weight="700">TCP Buffer Must Be ≥ BDP</text>
+
+            <rect x="50" y="360" width="330" height="120" rx="8" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="2"/>
+            <text x="215" y="390" font-size="15" fill="#dc2626" text-anchor="middle" font-weight="700">❌ Default (6MB buffer)</text>
+            <text x="70" y="420" font-size="13" fill="#94a3b8">Same DC: 6MB > 2.5MB ✅</text>
+            <text x="70" y="445" font-size="13" fill="#94a3b8">Cross-DC: 6MB < 62.5MB ❌</text>
+            <text x="70" y="470" font-size="13" fill="#dc2626" font-weight="700">Result: 10% utilization!</text>
+
+            <rect x="420" y="360" width="330" height="120" rx="8" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2"/>
+            <text x="585" y="390" font-size="15" fill="#10b981" text-anchor="middle" font-weight="700">✅ Tuned (128MB buffer)</text>
+            <text x="440" y="420" font-size="13" fill="#94a3b8">Same DC: 128MB > 2.5MB ✅</text>
+            <text x="440" y="445" font-size="13" fill="#94a3b8">Cross-DC: 128MB > 62.5MB ✅</text>
+            <text x="440" y="470" font-size="13" fill="#10b981" font-weight="700">Result: 95%+ utilization!</text>
+        </svg>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">TCP Window Scaling</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">Without Window Scaling (Legacy)</h4>
+                <p style="color: var(--text-secondary);">Limited to 64KB window size</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Maximum throughput without scaling:</span>
+Max_throughput = Window_size / RTT
+
+<span class="comment">-- Example: 10ms RTT</span>
+Max = <span class="number">64</span>KB / <span class="number">0.01</span>s = <span class="number">6.4</span> MB/s = <span class="number">51</span> Mbps
+
+<span class="comment">Even with 10 Gbps NIC, stuck at 51 Mbps! ❌</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">With Window Scaling (Modern)</h4>
+                <p style="color: var(--text-secondary);">Scales up to 1GB window size</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- With window scaling enabled:</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+
+<span class="comment">-- Can use up to 1GB windows!</span>
+Max = <span class="number">128</span>MB / <span class="number">0.01</span>s = <span class="number">12.8</span> GB/s = <span class="number">102</span> Gbps ✅
+
+<span class="comment">Now can fully utilize 10/25/100 Gbps links!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Network Performance Bottlenecks</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Bottleneck</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Symptom</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Fix</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Small TCP buffers</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Low throughput (< 1 Gbps)</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Increase tcp_rmem/wmem to 32-128MB</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>No window scaling</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Capped at 64KB windows</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Enable tcp_window_scaling=1</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Wrong congestion algo</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Slow ramp-up after packet loss</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Use CUBIC or BBR</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>IRQ imbalance</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">One CPU at 100%, others idle</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Configure IRQ affinity/RSS</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Connection tracking</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Connection timeouts, packet drops</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Increase nf_conntrack_max</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="tcp-tuning" data-aos="fade-up">
+    <h2>🔧 TCP Kernel Tuning</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential kernel parameters for high-performance networking!</p>
+
+    <h3 style="color: var(--accent-purple);">Complete TCP Optimization</h3>
+
+    <div class="code-block">
+<span class="comment">####################################</span>
+<span class="comment"># /etc/sysctl.conf - NETWORK TUNING</span>
+<span class="comment"># For 10 Gbps+ Cassandra clusters</span>
+<span class="comment">####################################</span>
+
+<span class="comment"># ========== TCP BUFFER SIZES ==========</span>
+<span class="comment"># Format: min default max (in bytes)</span>
+
+<span class="comment"># TCP read buffers (32MB max)</span>
+net.ipv4.tcp_rmem = <span class="number">4096 87380 33554432</span>
+<span class="comment"># 4KB min, 87KB default, 32MB max</span>
+
+<span class="comment"># TCP write buffers (32MB max)</span>
+net.ipv4.tcp_wmem = <span class="number">4096 65536 33554432</span>
+<span class="comment"># 4KB min, 64KB default, 32MB max</span>
+
+<span class="comment"># Maximum socket buffer sizes</span>
+net.core.rmem_max = <span class="number">33554432</span>   <span class="comment"># 32MB</span>
+net.core.wmem_max = <span class="number">33554432</span>   <span class="comment"># 32MB</span>
+
+<span class="comment"># For cross-DC or very high bandwidth, use 128MB:</span>
+<span class="comment"># net.ipv4.tcp_rmem = 4096 87380 134217728</span>
+<span class="comment"># net.ipv4.tcp_wmem = 4096 65536 134217728</span>
+<span class="comment"># net.core.rmem_max = 134217728</span>
+<span class="comment"># net.core.wmem_max = 134217728</span>
+
+<span class="comment"># ========== TCP FEATURES ==========</span>
+
+<span class="comment"># Enable window scaling (CRITICAL!)</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+
+<span class="comment"># Enable timestamps (for high bandwidth)</span>
+net.ipv4.tcp_timestamps = <span class="number">1</span>
+
+<span class="comment"># Enable selective acknowledgments</span>
+net.ipv4.tcp_sack = <span class="number">1</span>
+
+<span class="comment"># Disable slow start after idle</span>
+net.ipv4.tcp_slow_start_after_idle = <span class="number">0</span>
+
+<span class="comment"># ========== CONGESTION CONTROL ==========</span>
+
+<span class="comment"># Use CUBIC (modern, aggressive)</span>
+net.ipv4.tcp_congestion_control = cubic
+
+<span class="comment"># Or BBR (Google's algorithm, even better for high BDP)</span>
+<span class="comment"># net.ipv4.tcp_congestion_control = bbr</span>
+<span class="comment"># net.core.default_qdisc = fq</span>
+
+<span class="comment"># ========== SOCKET QUEUE SIZES ==========</span>
+
+<span class="comment"># Max pending connections</span>
+net.core.somaxconn = <span class="number">4096</span>
+
+<span class="comment"># Max backlog queue size</span>
+net.core.netdev_max_backlog = <span class="number">16384</span>
+
+<span class="comment"># ========== CONNECTION TRACKING ==========</span>
+
+<span class="comment"># Increase connection tracking table</span>
+net.netfilter.nf_conntrack_max = <span class="number">1048576</span>
+net.nf_conntrack_max = <span class="number">1048576</span>
+
+<span class="comment"># Timeout for established connections</span>
+net.netfilter.nf_conntrack_tcp_timeout_established = <span class="number">86400</span>
+
+<span class="comment"># ========== PORT RANGE ==========</span>
+
+<span class="comment"># Increase available local ports</span>
+net.ipv4.ip_local_port_range = <span class="number">10000 65535</span>
+
+<span class="comment"># ========== TCP KEEPALIVE ==========</span>
+
+<span class="comment"># Detect dead connections faster</span>
+net.ipv4.tcp_keepalive_time = <span class="number">600</span>      <span class="comment"># 10 minutes</span>
+net.ipv4.tcp_keepalive_intvl = <span class="number">60</span>      <span class="comment"># 60 seconds</span>
+net.ipv4.tcp_keepalive_probes = <span class="number">3</span>      <span class="comment"># 3 probes</span>
+
+<span class="comment"># ========== APPLY CHANGES ==========</span>
+<span class="comment"># Run: sudo sysctl -p</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Parameter Explanations</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">TCP Buffer Sizes</h4>
+                <p style="color: var(--text-secondary);"><strong>Most Critical Setting!</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- How to calculate needed buffer size:</span>
+buffer_size = bandwidth × RTT
+
+<span class="comment">-- Examples:</span>
+<span class="number">10</span> Gbps × <span class="number">0.2</span>ms = <span class="number">2.5</span> MB    <span class="comment">(same DC)</span>
+<span class="number">10</span> Gbps × <span class="number">10</span>ms = <span class="number">125</span> MB    <span class="comment">(cross-region)</span>
+<span class="number">10</span> Gbps × <span class="number">100</span>ms = <span class="number">1250</span> MB <span class="comment">(cross-continent)</span>
+
+<span class="comment">-- Recommendations:</span>
+Same DC (<span class="number">10</span> Gbps): <span class="number">32</span>MB buffers
+Cross-region: <span class="number">128</span>MB buffers
+Cross-continent: <span class="number">256</span>MB+ buffers
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">Window Scaling</h4>
+                <p style="color: var(--text-secondary);">Allows TCP windows > 64KB</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+
+<span class="comment">-- Without this:</span>
+<span class="comment">// Maximum window: 64KB</span>
+<span class="comment">// Maximum throughput: 64KB / RTT</span>
+<span class="comment">// With 10ms RTT: 51 Mbps max!</span>
+
+<span class="comment">-- With window scaling:</span>
+<span class="comment">// Maximum window: 1GB</span>
+<span class="comment">// Can fully use 100 Gbps networks!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Congestion Control</h4>
+                <p style="color: var(--text-secondary);">How TCP reacts to packet loss</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Available algorithms:</span>
+
+<span class="comment"># Reno (old, slow recovery)</span>
+<span class="comment">// Default on old systems</span>
+<span class="comment">// Cuts window by 50% on loss</span>
+<span class="comment">// Very conservative</span>
+
+<span class="comment"># CUBIC (modern, default on most Linux)</span>
+net.ipv4.tcp_congestion_control = cubic
+<span class="comment">// Fast recovery after loss</span>
+<span class="comment">// Good for high BDP networks</span>
+
+<span class="comment"># BBR (Google's algorithm, best for Cassandra)</span>
+net.ipv4.tcp_congestion_control = bbr
+net.core.default_qdisc = fq
+<span class="comment">// Measures actual bandwidth</span>
+<span class="comment">// Excellent for cross-DC</span>
+<span class="comment">// Requires Linux 4.9+</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">Connection Tracking</h4>
+                <p style="color: var(--text-secondary);">Firewall connection table size</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Default is often too small:</span>
+cat /proc/sys/net/netfilter/nf_conntrack_max
+<span class="comment">// 65536 (only 65K connections!)</span>
+
+<span class="comment">-- Cassandra needs many connections:</span>
+<span class="comment">// - Client connections: 1000s</span>
+<span class="comment">// - Inter-node: 100s per node</span>
+<span class="comment">// - Streaming: 100s</span>
+<span class="comment">// Total: 10K-100K+ connections</span>
+
+<span class="comment">-- Increase to 1M:</span>
+net.netfilter.nf_conntrack_max = <span class="number">1048576</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-rocket" style="color: #059669;"></i> Quick Wins</h4>
+        <p style="margin-top: 1rem;">These three settings alone give 10-100x performance gain:</p>
+        <ol style="margin-top: 0.5rem; line-height: 1.9;">
+            <li><strong>tcp_rmem/wmem:</strong> 32-128MB (from 6MB default)</li>
+            <li><strong>tcp_window_scaling:</strong> Enable (often disabled!)</li>
+            <li><strong>tcp_congestion_control:</strong> CUBIC or BBR (from Reno)</li>
+        </ol>
+    </div>
+</section>
+
+<section id="nic-tuning" data-aos="fade-up">
+    <h2>🎛️ NIC & Hardware Tuning</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Network interface card optimization!</p>
+
+    <h3 style="color: var(--accent-purple);">IRQ Affinity & RSS</h3>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-left-color: #dc2626;">
+        <h3 style="color: #dc2626; margin-top: 0;">⚠️ The IRQ Imbalance Problem</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            By default, all network interrupts go to CPU0. With 10 Gbps traffic, CPU0 hits 100% just handling interrupts while other 31 cores sit idle. This limits throughput to ~1-2 Gbps. Solution: Spread interrupts across all CPUs!
+        </p>
+    </div>
+
+    <div class="code-block">
+<span class="comment">-- Check current IRQ distribution:</span>
+cat /proc/interrupts | grep eth0
+
+<span class="comment">/*
+CPU0   CPU1   CPU2   CPU3   ...
+123:   15M    120    95     87     ... eth0-TxRx-0
+124:   14M    105    88     92     ... eth0-TxRx-1
+        ↑      ↑
+    Unbalanced! All on CPU0!
+*/</span>
+
+<span class="comment">-- Enable RSS (Receive Side Scaling):</span>
+<span class="comment"># Check RSS support</span>
+ethtool -l eth0
+<span class="comment">/*
+Combined:  8    ← Number of RX/TX queues
+*/</span>
+
+<span class="comment">-- Configure irqbalance (automatic distribution)</span>
+sudo systemctl enable irqbalance
+sudo systemctl start irqbalance
+
+<span class="comment">-- OR manual IRQ affinity (advanced):</span>
+<span class="comment"># Spread eth0 interrupts across CPUs 0-7</span>
+<span class="keyword">for</span> irq <span class="keyword">in</span> $(grep eth0 /proc/interrupts | cut -d: -f1); <span class="keyword">do</span>
+  echo <span class="number">0</span>-<span class="number">7</span> > /proc/irq/$irq/smp_affinity_list
+<span class="keyword">done</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">NIC Ring Buffer Sizes</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check current ring buffer sizes:</span>
+ethtool -g eth0
+
+<span class="comment">/*
+Ring parameters for eth0:
+Pre-set maximums:
+RX:             4096
+TX:             4096
+Current settings:
+RX:             512   ← Too small!
+TX:             512   ← Too small!
+*/</span>
+
+<span class="comment">-- Increase to maximum:</span>
+ethtool -G eth0 rx <span class="number">4096</span> tx <span class="number">4096</span>
+
+<span class="comment">-- Make permanent (add to /etc/rc.local):</span>
+echo <span class="string">'ethtool -G eth0 rx 4096 tx 4096'</span> >> /etc/rc.local
+    </div>
+
+    <h3 style="color: var(--accent-purple);">TCP Offloading Features</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check current offloading features:</span>
+ethtool -k eth0
+
+<span class="comment">-- Enable important features:</span>
+ethtool -K eth0 tso on        <span class="comment"># TCP Segmentation Offload</span>
+ethtool -K eth0 gso on        <span class="comment"># Generic Segmentation Offload</span>
+ethtool -K eth0 gro on        <span class="comment"># Generic Receive Offload</span>
+ethtool -K eth0 lro off       <span class="comment"># Large Receive Offload (disable!)</span>
+
+<span class="comment">-- Why disable LRO?</span>
+<span class="comment">// LRO can cause issues with bridging/routing</span>
+<span class="comment">// Use GRO instead (more compatible)</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">MTU Size</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">📦</div>
+            <h3>Standard MTU (1500)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 1500 bytes</li>
+                <li><strong>Compatible:</strong> All networks</li>
+                <li><strong>Overhead:</strong> High (more packets)</li>
+                <li><strong>CPU:</strong> More interrupts</li>
+                <li><strong>Use:</strong> Cross-internet, mixed networks</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">📦📦📦</div>
+            <h3>Jumbo Frames (9000)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Size:</strong> 9000 bytes (6x larger!)</li>
+                <li><strong>Compatible:</strong> Modern datacenter only</li>
+                <li><strong>Overhead:</strong> Low (fewer packets)</li>
+                <li><strong>CPU:</strong> Less interrupts (20-30% reduction)</li>
+                <li><strong>Use:</strong> Same-datacenter Cassandra</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Enable jumbo frames (datacenter only!):</span>
+ifconfig eth0 mtu <span class="number">9000</span>
+
+<span class="comment">-- Make permanent (/etc/network/interfaces):</span>
+auto eth0
+iface eth0 inet static
+    address <span class="number">192.168.1.10</span>
+    netmask <span class="number">255.255.255.0</span>
+    mtu <span class="number">9000</span>
+
+<span class="comment">-- Verify:</span>
+ip link show eth0 | grep mtu
+<span class="comment">// mtu 9000</span>
+
+<span class="comment">-- IMPORTANT: ALL devices in path must support 9000 MTU!</span>
+<span class="comment">// - All Cassandra nodes</span>
+<span class="comment">// - All switches</span>
+<span class="comment">// - All routers</span>
+<span class="comment">// If any device doesn't support it, packets will be fragmented!</span>
+    </div>
+</section>
+
+<section id="cassandra-config" data-aos="fade-up">
+    <h2>⚙️ Cassandra Network Configuration</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Cassandra-specific network settings!</p>
+
+    <h3 style="color: var(--accent-purple);">cassandra.yaml Network Settings</h3>
+
+    <div class="code-block">
+<span class="comment">-- cassandra.yaml network configuration</span>
+
+<span class="comment"># ========== STREAMING ==========</span>
+
+<span class="comment"># Stream throughput (MB/sec)</span>
+stream_throughput_outbound_megabits_per_sec: <span class="number">400</span>
+<span class="comment"># Default: 200 Mbps (too low for 10 Gbps!)</span>
+<span class="comment"># Set to 400-800 for 10 Gbps</span>
+<span class="comment"># Set to 2000-4000 for 25 Gbps</span>
+
+<span class="comment"># Inter-DC stream throughput</span>
+inter_dc_stream_throughput_outbound_megabits_per_sec: <span class="number">200</span>
+<span class="comment"># Lower for cross-DC to avoid saturating WAN</span>
+
+<span class="comment"># ========== CONCURRENT OPERATIONS ==========</span>
+
+<span class="comment"># Concurrent streaming connections</span>
+streaming_connections_per_host: <span class="number">4</span>
+<span class="comment"># Increase to 8-16 for faster repairs</span>
+
+<span class="comment"># Concurrent compactors</span>
+concurrent_compactors: <span class="number">4</span>
+<span class="comment"># Set to num_cores / 4</span>
+
+<span class="comment"># ========== INTERNODE COMPRESSION ==========</span>
+
+<span class="comment"># Compression for inter-node traffic</span>
+internode_compression: dc
+<span class="comment"># Options:</span>
+<span class="comment"># - all: Compress all inter-node (high CPU, low bandwidth)</span>
+<span class="comment"># - dc: Compress only cross-DC (recommended!)</span>
+<span class="comment"># - none: No compression (if bandwidth plentiful)</span>
+
+<span class="comment"># ========== TIMEOUTS ==========</span>
+
+<span class="comment"># Read request timeout</span>
+read_request_timeout_in_ms: <span class="number">5000</span>
+
+<span class="comment"># Range request timeout (scans)</span>
+range_request_timeout_in_ms: <span class="number">10000</span>
+
+<span class="comment"># Write request timeout</span>
+write_request_timeout_in_ms: <span class="number">2000</span>
+
+<span class="comment"># Request timeout (streaming, etc)</span>
+request_timeout_in_ms: <span class="number">10000</span>
+
+<span class="comment"># ========== RPC ==========</span>
+
+<span class="comment"># Native transport (CQL) threads</span>
+native_transport_max_threads: <span class="number">128</span>
+<span class="comment"># Increase for high client connection count</span>
+
+<span class="comment"># Max concurrent connections</span>
+native_transport_max_concurrent_connections: <span class="number">-1</span>
+<span class="comment"># -1 = unlimited (monitor with nodetool)</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">JVM Network Settings</h3>
+
+    <div class="code-block">
+<span class="comment">-- jvm.options network tuning</span>
+
+<span class="comment"># Prefer IPv4</span>
+-Djava.net.preferIPv4Stack=true
+
+<span class="comment"># TCP settings for JVM</span>
+-Dcom.sun.management.jmxremote.rmi.port=<span class="number">7199</span>
+
+<span class="comment"># Increase Netty buffer sizes (for streaming)</span>
+-Dcassandra.netty.buffer.size=<span class="number">16384</span>
+
+<span class="comment"># Network thread pool</span>
+-Dcassandra.max_queued_native_transport_requests=<span class="number">4096</span>
+    </div>
+</section>
+
+<section id="monitoring" data-aos="fade-up">
+    <h2>📊 Network Monitoring</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential commands to monitor network performance!</p>
+
+    <h3 style="color: var(--accent-purple);">Network Statistics</h3>
+
+    <div class="code-block">
+<span class="comment">-- Real-time bandwidth monitoring:</span>
+iftop -i eth0
+
+<span class="comment">/*
+                    12.5Mb        25.0Mb        37.5Mb        50.0Mb
+node1 => node2      9.2Gb         ████████████████████
+node1 => node3      8.7Gb         ███████████████████
+*/</span>
+
+<span class="comment">-- Network throughput by interface:</span>
+nload eth0
+
+<span class="comment">-- Detailed network stats:</span>
+netstat -s | grep -i <span class="string">"segments retransmitted"</span>
+<span class="comment">// High retransmits = packet loss</span>
+
+<span class="comment">-- TCP connection stats:</span>
+ss -s
+<span class="comment">/*
+Total: 892
+TCP:   742 (estab 689, closed 12, orphaned 0)
+*/</span>
+
+<span class="comment">-- Check for packet drops:</span>
+ifconfig eth0 | grep -E <span class="string">"RX|TX"</span>
+<span class="comment">/*
+RX packets:  45678234  bytes:  67890123456
+RX errors:   0         dropped: 0        ← Should be 0!
+TX packets:  43567123  bytes:  65432198765
+TX errors:   0         dropped: 0        ← Should be 0!
+*/</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">TCP Buffer Usage</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check actual TCP buffer usage:</span>
+ss -tm
+
+<span class="comment">/*
+State  Recv-Q  Send-Q  Local:Port    Peer:Port
+ESTAB  0       0       10.0.1.5:9042  10.0.1.6:45678
+         skmem:(r0,rb8388608,t0,tb8388608,...)
+                  ↑            ↑
+           Receive buffer  Transmit buffer
+           8MB allocated   8MB allocated
+*/</span>
+
+<span class="comment">-- Monitor for buffer exhaustion:</span>
+cat /proc/net/sockstat
+<span class="comment">/*
+TCP: inuse 689 orphan 0 tw 12 alloc 702 mem 42567
+                                            ↑
+                                    Pages used by TCP
+                                    
+If mem grows continuously → buffer exhaustion!
+*/</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Connection Tracking</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check connection tracking usage:</span>
+cat /proc/sys/net/netfilter/nf_conntrack_count
+<span class="comment">// 45678</span>
+
+cat /proc/sys/net/netfilter/nf_conntrack_max
+<span class="comment">// 1048576</span>
+
+<span class="comment">-- If count approaches max → increase max!</span>
+
+<span class="comment">-- Connection tracking stats:</span>
+conntrack -S
+<span class="comment">/*
+cpu=0   found=0 invalid=0 ignore=0 insert=0
+        entries: 45678  ← Current entries
+        max entries: 1048576
+*/</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Bandwidth Testing</h3>
+
+    <div class="code-block">
+<span class="comment">-- Test bandwidth between nodes:</span>
+<span class="comment"># On receiver node:</span>
+iperf3 -s
+
+<span class="comment"># On sender node:</span>
+iperf3 -c <receiver_ip> -t <span class="number">30</span>
+
+<span class="comment">/*
+[ ID] Interval       Transfer     Bandwidth
+[  4] 0.00-30.00 sec  32.8 GBytes  9.41 Gbits/sec
+                                    ↑
+                            Should be close to 10 Gbps!
+*/</span>
+
+<span class="comment">-- Test with parallel streams (simulates Cassandra):</span>
+iperf3 -c <receiver_ip> -P <span class="number">10</span> -t <span class="number">30</span>
+<span class="comment"># -P 10 = 10 parallel streams</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Health Thresholds</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Healthy</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Warning</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Critical</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Packet Loss</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 0.1% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 0.5% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Retransmits</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 0.1% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.1-1% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 1% ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Bandwidth Util</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 70% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-85% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 85% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Latency (same DC)</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 1ms ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1-5ms ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 10ms ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Conntrack Usage</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 70% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-90% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 90% ❌</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master network tuning for your interview!</p>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">Why would a 10 Gbps network only achieve 100 Mbps throughput? How would you diagnose and fix it?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Default TCP buffers (6MB) are too small for high bandwidth-delay product networks. With 10 Gbps and 50ms RTT, you need 62.5MB buffers. Solution: Increase tcp_rmem/wmem to 128MB, enable window scaling, and use CUBIC/BBR congestion control.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Diagnosis Steps:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Verify Hardware</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check link speed:</span>
+ethtool eth0 | grep Speed
+<span class="comment">// Speed: 10000Mb/s ✅ Hardware OK</span>
+
+<span class="comment">-- Check for errors:</span>
+ifconfig eth0 | grep errors
+<span class="comment">// RX errors: 0, TX errors: 0 ✅</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Check TCP Buffer Settings</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+sysctl net.ipv4.tcp_rmem
+<span class="comment">/*
+net.ipv4.tcp_rmem = 4096 87380 6291456
+                                ↑
+                        Max 6MB ❌ TOO SMALL!
+*/</span>
+
+<span class="comment">-- Calculate needed buffer:</span>
+BDP = Bandwidth × RTT
+BDP = <span class="number">10</span> Gbps × <span class="number">50</span>ms = <span class="number">62.5</span> MB
+
+<span class="comment">6MB buffer < 62.5MB needed = BOTTLENECK!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Check Window Scaling</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+sysctl net.ipv4.tcp_window_scaling
+<span class="comment">// 0 ❌ DISABLED!</span>
+
+<span class="comment">Without window scaling:</span>
+<span class="comment">// Max window: 64KB</span>
+<span class="comment">// Max throughput = 64KB / 50ms = 10.4 Mbps</span>
+<span class="comment">// This explains the 100 Mbps cap!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Apply Fix</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- /etc/sysctl.conf:</span>
+net.ipv4.tcp_rmem = <span class="number">4096 87380 134217728</span>  <span class="comment"># 128MB</span>
+net.ipv4.tcp_wmem = <span class="number">4096 65536 134217728</span>  <span class="comment"># 128MB</span>
+net.core.rmem_max = <span class="number">134217728</span>
+net.core.wmem_max = <span class="number">134217728</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+net.ipv4.tcp_congestion_control = cubic
+
+sudo sysctl -p
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 5: Verify Fix</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Test with iperf3:</span>
+iperf3 -c remote_host -t <span class="number">30</span>
+
+<span class="comment">-- Before: 98 Mbps</span>
+<span class="comment">-- After: 9.4 Gbps ✅ 96x faster!</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> TCP buffers must be sized for bandwidth-delay product. Default 6MB is only enough for 1 Gbps with low latency!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">Explain the bandwidth-delay product and how it affects TCP performance.</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: BDP = Bandwidth × RTT. It represents the amount of data "in flight" on the network. TCP buffer must be ≥ BDP to fully utilize available bandwidth. If buffer < BDP, TCP can't keep the pipe full, limiting throughput to buffer_size / RTT.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Understanding BDP:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- BDP Formula:</span>
+BDP = Bandwidth × Round-Trip Time
+
+<span class="comment">-- Example calculations:</span>
+
+<span class="comment"># Same datacenter (low latency):</span>
+Bandwidth: <span class="number">10</span> Gbps = <span class="number">1.25</span> GB/s
+RTT: <span class="number">0.2</span>ms = <span class="number">0.0002</span>s
+BDP = <span class="number">1.25</span> GB/s × <span class="number">0.0002</span>s = <span class="number">250</span> KB
+
+<span class="comment"># Cross-region (medium latency):</span>
+Bandwidth: <span class="number">10</span> Gbps = <span class="number">1.25</span> GB/s
+RTT: <span class="number">50</span>ms = <span class="number">0.05</span>s
+BDP = <span class="number">1.25</span> GB/s × <span class="number">0.05</span>s = <span class="number">62.5</span> MB
+
+<span class="comment"># Cross-continent (high latency):</span>
+Bandwidth: <span class="number">10</span> Gbps = <span class="number">1.25</span> GB/s
+RTT: <span class="number">200</span>ms = <span class="number">0.2</span>s
+BDP = <span class="number">1.25</span> GB/s × <span class="number">0.2</span>s = <span class="number">250</span> MB
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why BDP Matters:</strong></p>
+                    <p style="color: var(--text-secondary);">TCP uses a "window" to control how much data can be in flight (sent but not yet acknowledged). The window must be at least BDP size to keep the network pipe full.</p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Scenario: Buffer < BDP</span>
+
+Buffer: <span class="number">6</span> MB
+BDP: <span class="number">62.5</span> MB (10 Gbps × 50ms)
+
+<span class="comment">// TCP can only send 6MB before waiting for ACK</span>
+<span class="comment">// Effective throughput:</span>
+Throughput = Buffer / RTT
+Throughput = <span class="number">6</span> MB / <span class="number">0.05</span>s = <span class="number">120</span> MB/s = <span class="number">960</span> Mbps
+
+<span class="comment">// 10 Gbps link running at 960 Mbps! (9.6% utilization)</span>
+
+<span class="comment">-- Scenario: Buffer ≥ BDP</span>
+
+Buffer: <span class="number">128</span> MB
+BDP: <span class="number">62.5</span> MB
+
+<span class="comment">// TCP can send full BDP worth of data</span>
+Throughput = <span class="number">10</span> Gbps ✅ (Full utilization!)
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Buffer Sizing Guide:</strong></p>
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Scenario</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">BDP</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Buffer Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Same DC, 10 Gbps</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">2.5 MB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">32 MB (safety margin)</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cross-region, 10 Gbps</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">62.5 MB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">128 MB (2x BDP)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cross-continent, 10 Gbps</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">250 MB</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">512 MB (2x BDP)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Always size TCP buffers to 2x BDP. Higher latency = larger buffers needed. Default 6MB only works for low-latency 1 Gbps networks!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">What is the difference between CUBIC and BBR congestion control algorithms? When would you use each?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: CUBIC is loss-based (reacts to packet loss), while BBR is model-based (measures actual bandwidth and RTT). CUBIC works well for low-latency networks. BBR excels in high-latency, high-bandwidth networks (cross-DC Cassandra). BBR maintains 2-4x higher throughput in lossy networks.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>CUBIC (Default on Most Linux):</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Algorithm:</strong> Loss-based congestion control</li>
+                        <li><strong>How it works:</strong> Grows window aggressively until packet loss, then reduces by 30%</li>
+                        <li><strong>Recovery:</strong> Fast recovery using cubic function</li>
+                        <li><strong>Best for:</strong> Low-latency networks (< 10ms RTT)</li>
+                        <li><strong>Problem:</strong> Treats packet loss as congestion (not always true!)</li>
+                    </ul>
+
+                    <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Enable CUBIC:</span>
+sysctl -w net.ipv4.tcp_congestion_control=cubic
+
+<span class="comment">-- CUBIC behavior on packet loss:</span>
+<span class="comment">/*
+Window: 100 packets
+[Packet loss detected]
+Window: 70 packets  (reduced 30%)
+Window: 73, 76, 80... (cubic growth)
+Window: 100 (back to original)
+*/</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>BBR (Google's Algorithm):</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Algorithm:</strong> Model-based congestion control</li>
+                        <li><strong>How it works:</strong> Measures actual bandwidth and RTT, targets optimal operating point</li>
+                        <li><strong>Recovery:</strong> Doesn't rely on packet loss</li>
+                        <li><strong>Best for:</strong> High-latency (> 10ms RTT), high-bandwidth, or lossy networks</li>
+                        <li><strong>Advantage:</strong> Maintains high throughput even with packet loss</li>
+                    </ul>
+
+                    <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Enable BBR (requires Linux 4.9+):</span>
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+sysctl -w net.core.default_qdisc=fq
+
+<span class="comment">-- BBR behavior on packet loss:</span>
+<span class="comment">/*
+BBR: "Is this packet loss or congestion?"
+- Measures actual bandwidth
+- Measures actual RTT
+- Calculates optimal window
+- Maintains throughput!
+
+No drastic window reduction on random loss!
+*/</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Performance Comparison:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Scenario</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">CUBIC</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">BBR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Same DC (0.5ms, 0% loss)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">9.8 Gbps ✅</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">9.7 Gbps ✅</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cross-region (50ms, 0% loss)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8.5 Gbps</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">9.3 Gbps ✅</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cross-DC (50ms, 0.1% loss)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">2.3 Gbps ❌</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">8.9 Gbps ✅</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Lossy network (100ms, 1% loss)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">500 Mbps ❌</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">7.2 Gbps ✅</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Recommendation for Cassandra:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ <strong>Same Datacenter:</strong> CUBIC or BBR (both work well)</li>
+                        <li>⭐ <strong>Cross-Datacenter:</strong> BBR (2-4x better performance!)</li>
+                        <li>⭐ <strong>Multi-region Replication:</strong> BBR (essential!)</li>
+                        <li>⚠️ <strong>Requires:</strong> Linux kernel 4.9+ for BBR</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> BBR is superior for cross-DC Cassandra replication. It maintains high throughput even with packet loss, making it ideal for WAN connections!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">How would you troubleshoot slow repair streaming (10 hours instead of 10 minutes)?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Check stream_throughput setting (increase from 200 to 400-800 Mbps), verify TCP buffer sizes, check network bandwidth utilization, verify no packet loss/retransmits, and ensure streaming_connections_per_host is adequate (4-16). Also check for IRQ imbalance and enable jumbo frames if possible.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Troubleshooting Steps:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Check Cassandra Stream Settings</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- cassandra.yaml:</span>
+grep stream_throughput /etc/cassandra/cassandra.yaml
+
+<span class="comment">/*
+stream_throughput_outbound_megabits_per_sec: 200
+                                               ↑
+                                    Only 200 Mbps! ❌
+*/</span>
+
+<span class="comment">-- For 10 Gbps network, increase to 400-800:</span>
+stream_throughput_outbound_megabits_per_sec: <span class="number">800</span>
+
+<span class="comment">-- Restart Cassandra</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Monitor Actual Bandwidth</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- During repair, check bandwidth:</span>
+iftop -i eth0
+
+<span class="comment">/*
+If showing 100 Mbps instead of 10 Gbps:
+→ TCP tuning issue!
+*/</span>
+
+<span class="comment">-- Check for bottlenecks:</span>
+nload eth0
+<span class="comment">// Should show near wire speed during streaming</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Verify TCP Settings</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check buffer sizes:</span>
+sysctl net.ipv4.tcp_rmem
+<span class="comment">// Should be 32-128MB for 10 Gbps</span>
+
+<span class="comment">-- Check window scaling:</span>
+sysctl net.ipv4.tcp_window_scaling
+<span class="comment">// Must be 1!</span>
+
+<span class="comment">-- If wrong, fix:</span>
+sudo sysctl -w net.ipv4.tcp_rmem=<span class="string">"4096 87380 33554432"</span>
+sudo sysctl -w net.ipv4.tcp_wmem=<span class="string">"4096 65536 33554432"</span>
+sudo sysctl -w net.ipv4.tcp_window_scaling=<span class="number">1</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Check Network Health</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check for packet loss:</span>
+netstat -s | grep -i retransmit
+<span class="comment">/*
+45678 segments retransmitted
+If this grows rapidly → packet loss!
+*/</span>
+
+<span class="comment">-- Check interface errors:</span>
+ifconfig eth0 | grep errors
+<span class="comment">// Should be 0!</span>
+
+<span class="comment">-- Test actual bandwidth:</span>
+iperf3 -c other_node -t <span class="number">30</span>
+<span class="comment">// Should get 9+ Gbps</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 5: Optimize Streaming Connections</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- cassandra.yaml:</span>
+streaming_connections_per_host: <span class="number">4</span>  <span class="comment"># Default</span>
+
+<span class="comment">-- Increase for faster repairs:</span>
+streaming_connections_per_host: <span class="number">8</span>
+
+<span class="comment">-- With 8 connections × 800 Mbps = 6.4 Gbps total!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 6: Additional Optimizations</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Enable jumbo frames (if datacenter supports):</span>
+ifconfig eth0 mtu <span class="number">9000</span>
+
+<span class="comment">-- Check IRQ balance:</span>
+cat /proc/interrupts | grep eth0
+<span class="comment">// Should be distributed across CPUs</span>
+
+<span class="comment">-- Verify congestion control:</span>
+sysctl net.ipv4.tcp_congestion_control
+<span class="comment">// Should be cubic or bbr</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Expected Results:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Before optimization:</span>
+Stream rate: <span class="number">100</span> MB/s
+<span class="number">100</span>GB repair = <span class="number">1000</span> seconds = <span class="number">16</span> minutes per node
+<span class="number">10</span> nodes = <span class="number">160</span> minutes (<span class="number">2.7</span> hours)
+
+<span class="comment">-- After optimization:</span>
+Stream rate: <span class="number">1000</span> MB/s (<span class="number">10</span>x faster!)
+<span class="number">100</span>GB repair = <span class="number">100</span> seconds per node
+<span class="number">10</span> nodes = <span class="number">16</span> minutes total ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Stream throttling + poor TCP tuning can make repairs 100x slower. Always tune TCP buffers and increase stream_throughput for modern networks!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">Should you enable jumbo frames (MTU 9000) for Cassandra? What are the trade-offs?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Yes for same-datacenter deployments if entire network path supports it. Jumbo frames reduce CPU overhead by 20-30% and improve throughput by 10-15%. But ALL devices (NICs, switches, routers) must support 9000 MTU. Never use for cross-DC or internet traffic.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Benefits of Jumbo Frames:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>⚡ <strong>Less CPU:</strong> 6x fewer packets = 20-30% less CPU for networking</li>
+                        <li>⚡ <strong>Less Interrupts:</strong> Fewer packets = fewer NIC interrupts</li>
+                        <li>⚡ <strong>Better Throughput:</strong> 10-15% higher throughput</li>
+                        <li>⚡ <strong>Lower Latency:</strong> Slightly lower per-byte latency</li>
+                    </ul>
+
+                    <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Packet comparison:</span>
+
+<span class="comment">// Standard MTU (1500 bytes):</span>
+To send <span class="number">54</span>MB SSTable:
+Packets needed: <span class="number">54</span>MB / <span class="number">1500</span> = <span class="number">36</span>,<span class="number">000</span> packets
+Interrupts: <span class="number">36</span>,<span class="number">000</span>
+CPU overhead: High
+
+<span class="comment">// Jumbo frames (9000 bytes):</span>
+To send <span class="number">54</span>MB SSTable:
+Packets needed: <span class="number">54</span>MB / <span class="number">9000</span> = <span class="number">6</span>,<span class="number">000</span> packets
+Interrupts: <span class="number">6</span>,<span class="number">000</span>
+CPU overhead: <span class="number">83</span>% less! ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Requirements (ALL must be met):</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ All Cassandra node NICs support MTU 9000</li>
+                        <li>✅ All switches support jumbo frames</li>
+                        <li>✅ All routers in path support jumbo frames</li>
+                        <li>✅ Same physical datacenter (no internet/WAN)</li>
+                        <li>❌ If ANY device doesn't support → fragmentation → worse performance!</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Testing for Jumbo Frame Support:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Test if path supports 9000 MTU:</span>
+ping -M do -s <span class="number">8972</span> remote_host
+<span class="comment"># -M do = Don't fragment</span>
+<span class="comment"># -s 8972 = 8972 + 28 header = 9000 bytes</span>
+
+<span class="comment">-- If successful:</span>
+<span class="comment">/*
+64 bytes from remote_host: icmp_seq=1 ttl=64
+✅ Path supports jumbo frames!
+*/</span>
+
+<span class="comment">-- If failed:</span>
+<span class="comment">/*
+ping: local error: Message too long
+❌ Path does NOT support jumbo frames!
+*/</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Enabling Jumbo Frames:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 1. Set MTU on interface:</span>
+sudo ifconfig eth0 mtu <span class="number">9000</span>
+
+<span class="comment">-- 2. Make permanent (/etc/network/interfaces):</span>
+auto eth0
+iface eth0 inet static
+    address <span class="number">192.168.1.10</span>
+    netmask <span class="number">255.255.255.0</span>
+    mtu <span class="number">9000</span>
+
+<span class="comment">-- 3. Configure switch (example for Cisco):</span>
+<span class="comment"># interface GigabitEthernet1/0/1</span>
+<span class="comment"># mtu 9000</span>
+
+<span class="comment">-- 4. Verify:</span>
+ip link show eth0 | grep mtu
+<span class="comment">// mtu 9000 ✅</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>When NOT to Use:</strong></p>
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Scenario</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Use Jumbo?</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Same datacenter, modern switches</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Yes</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Full control, 20-30% CPU savings</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cross-datacenter (WAN)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ No</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">WAN rarely supports, fragmentation</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Cloud (AWS/Azure/GCP)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ No</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Usually not supported</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Mixed old/new switches</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ No</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Old switches may not support</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Client traffic (CQL)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ No</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Clients may not support</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Performance Impact:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Measured improvement (10 Gbps network):</span>
+
+Standard MTU (<span class="number">1500</span>):
+Throughput: <span class="number">8.7</span> Gbps
+CPU usage: <span class="number">35</span>%
+
+Jumbo Frames (<span class="number">9000</span>):
+Throughput: <span class="number">9.5</span> Gbps (<span class="number">9</span>% better)
+CPU usage: <span class="number">25</span>% (<span class="number">29</span>% less!)
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Jumbo frames are worthwhile for same-datacenter Cassandra if ALL network gear supports it. Test thoroughly before enabling. Never use for cross-DC or cloud deployments!</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Network Tuning Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now understand network tuning at a production level!</strong></p>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Critical Optimizations:</h4>
+    <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+        <ul style="line-height: 2; margin: 0;">
+            <li>📦 <strong>TCP Buffers:</strong> 32-128MB (not 6MB default!)</li>
+            <li>🪟 <strong>Window Scaling:</strong> Enable (allows > 64KB windows)</li>
+            <li>🚀 <strong>BBR/CUBIC:</strong> Use BBR for cross-DC</li>
+            <li>⚡ <strong>IRQ Balance:</strong> Spread across all CPUs</li>
+            <li>🔢 <strong>Conntrack:</strong> Increase to 1M connections</li>
+        </ul>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Quick Wins:</h4>
+    <div class="code-block" style="margin-top: 0.5rem;">
+net.ipv4.tcp_rmem = <span class="number">4096 87380 33554432</span>
+net.ipv4.tcp_wmem = <span class="number">4096 65536 33554432</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+net.ipv4.tcp_congestion_control = bbr
+net.netfilter.nf_conntrack_max = <span class="number">1048576</span>
+</div>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Performance Gain:</h4>
+    <p style="margin-top: 0.5rem;">100 Mbps → 9.4 Gbps (94x faster!) with $0 cost!</p>
+
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+        <strong style="color: var(--accent-purple);">Remember Sarah: Network tuning is FREE 100x performance! 🚀</strong>
+    </p>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="disk-optimization.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Disk Optimization</div>
+        </div>
+    </a>
+    <a href="benchmarking.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Benchmarking</div>
+        </div>
+    </a>
+</div>
+
+            <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+        </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

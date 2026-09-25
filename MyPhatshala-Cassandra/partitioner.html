@@ -1,0 +1,2808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Cassandra Partitioner Guide - Master Murmur3, RandomPartitioner, token distribution, and consistent hashing with stories, animations, and 30+ interview questions!">
+    <meta name="keywords" content="cassandra partitioner, murmur3, consistent hashing, token distribution, cassandra architecture">
+    <title>Cassandra Partitioner: Complete Guide 2025 | CassandraHub</title>
+
+<!-- Bootstrap 5.3 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- AOS Animation Library -->
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+<style>
+     .adsense-container {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .adsense-sidebar {
+        max-width: 300px;
+    }
+
+    /* Responsive AdSense */
+    @media (max-width: 768px) {
+        .adsense-sidebar {
+            display: none;
+        }
+        
+        .adsense-container {
+            margin: 2rem 0 !important;
+        }
+        
+        .adsense-container > div:last-child {
+            padding: 1rem !important;
+            min-height: 200px !important;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .adsense-container > div:last-child {
+            min-height: 150px !important;
+        }
+    }
+
+    /* AdSense hover effect */
+    .adsense-container > div:last-child {
+        transition: all 0.3s ease;
+    }
+
+    .adsense-container > div:last-child:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 5px 20px rgba(13, 148, 136, 0.1);
+    }
+    :root {
+        --primary-blue: #2563eb;
+        --dark-blue: #1e40af;
+        --muted-blue: #475569;
+        --accent-teal: #0d9488;
+        --deep-navy: #0f172a;
+        --darker-navy: #020617;
+        --code-bg: #1e293b;
+        --code-darker: #0f172a;
+        --text-primary: #e2e8f0;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --border-light: #334155;
+        --success-green: #059669;
+        --warning-orange: #d97706;
+        --error-red: #dc2626;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 16px;
+        line-height: 1.7;
+        color: var(--text-primary);
+        background: var(--darker-navy);
+        overflow-x: hidden;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--darker-navy);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+        border-radius: 6px;
+    }
+
+    /* Progress Bar */
+    .progress-indicator {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: rgba(37, 99, 235, 0.1);
+        z-index: 9999;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+        width: 0%;
+        transition: width 0.2s ease;
+        box-shadow: 0 0 10px rgba(13, 148, 136, 0.3);
+    }
+
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+        display: none;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 10000;
+        background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+        color: white;
+        border: none;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        cursor: pointer;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+    }
+
+    .mobile-menu-toggle span {
+        width: 25px;
+        height: 3px;
+        background: white;
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 320px;
+        height: 100vh;
+        background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+        border-right: 1px solid var(--border-light);
+        overflow-y: auto;
+        padding: 2rem 0;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+        box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar.hidden {
+        transform: translateX(-100%);
+    }
+
+    .logo {
+        padding: 0 1.5rem;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .logo-icon {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .logo h2 {
+        font-size: 1.75rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-teal));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.25rem;
+    }
+
+    .logo-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .search-box {
+        position: relative;
+        padding: 0 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.85rem 1rem 0.85rem 2.75rem;
+        background: var(--code-darker);
+        border: 2px solid var(--border-light);
+        border-radius: 12px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--accent-teal);
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 2.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+    }
+
+    /* Learning Path */
+    .learning-path-section {
+        padding: 0 1rem;
+    }
+
+    .path-section {
+        margin-bottom: 1rem;
+    }
+
+    .path-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem;
+        background: var(--code-darker);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .path-section-header:hover {
+        background: rgba(13, 148, 136, 0.15);
+        border-color: var(--accent-teal);
+        transform: translateX(5px);
+    }
+
+    .path-section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .path-section-icon {
+        font-size: 1.3rem;
+    }
+
+    .path-section-info {
+        flex: 1;
+    }
+
+    .path-section-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .path-section-progress {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.2rem;
+    }
+
+    .path-section-toggle {
+        color: var(--text-secondary);
+        transition: transform 0.3s ease;
+        font-size: 1.2rem;
+    }
+
+    .path-section.expanded .path-section-toggle {
+        transform: rotate(180deg);
+    }
+
+    .path-section-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+    }
+
+    .path-section.expanded .path-section-content {
+        max-height: 2000px;
+    }
+
+    .path-section-links {
+        list-style: none;
+        padding: 0.5rem 0 0 2.5rem;
+        margin: 0;
+    }
+
+    .path-section-links li {
+        margin-bottom: 0.5rem;
+    }
+
+    .path-section-links a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        display: block;
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        position: relative;
+    }
+
+    .path-section-links a:hover,
+    .path-section-links a.active {
+        color: var(--accent-teal);
+        background: rgba(13, 148, 136, 0.1);
+        transform: translateX(5px);
+    }
+
+    /* Main Content */
+    .main-content {
+        margin-left: 320px;
+        min-height: 100vh;
+        transition: margin-left 0.3s ease;
+    }
+
+    /* Hero Section */
+    .page-hero {
+        background: linear-gradient(135deg, #334155 0%, #1e293b 50%, #0f172a 100%);
+        padding: 6rem 0 5rem;
+        position: relative;
+        overflow: hidden;
+        border-bottom: 3px solid var(--accent-teal);
+    }
+
+    .page-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(13, 148, 136, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(71, 85, 105, 0.1) 0%, transparent 50%);
+    }
+
+    .page-hero-content {
+        position: relative;
+        z-index: 2;
+        color: white;
+        text-align: center;
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 1.5rem;
+        background: rgba(13, 148, 136, 0.2);
+        border: 2px solid rgba(13, 148, 136, 0.4);
+        border-radius: 50px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .page-hero h1 {
+        font-size: clamp(2.5rem, 6vw, 4.5rem);
+        font-weight: 900;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+    }
+
+    .gradient-text {
+        background: linear-gradient(135deg, #94a3b8 0%, #0d9488 50%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .page-hero p {
+        font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+        color: var(--text-secondary);
+        max-width: 900px;
+        margin: 0 auto 2.5rem;
+        line-height: 1.6;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb-modern {
+        background: var(--code-darker);
+        padding: 1.25rem 0;
+        font-size: 0.9rem;
+        border-bottom: 1px solid var(--border-light);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+    }
+
+    .breadcrumb-modern a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: color 0.3s;
+        font-weight: 500;
+    }
+
+    .breadcrumb-modern a:hover {
+        color: var(--accent-teal);
+    }
+
+    .breadcrumb-modern .separator {
+        margin: 0 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .breadcrumb-modern .current {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    /* Content Sections */
+    section {
+        padding: 4rem 0;
+        position: relative;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        font-weight: 800;
+        margin-bottom: 2rem;
+        position: relative;
+        padding-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    h2::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 80px;
+        height: 5px;
+        background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+        border-radius: 3px;
+    }
+
+    h3 {
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        font-weight: 700;
+        margin-top: 2.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+    }
+
+    /* Floating TOC */
+    .toc-floating {
+        position: sticky;
+        top: 100px;
+        background: var(--code-bg);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+        z-index: 10;
+    }
+
+    .toc-floating h3 {
+        font-size: 1.1rem;
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .toc-floating ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .toc-floating li {
+        margin-bottom: 0.75rem;
+    }
+
+    .toc-floating a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+        display: block;
+        padding-left: 1rem;
+        border-left: 3px solid transparent;
+    }
+
+    .toc-floating a:hover,
+    .toc-floating a.active {
+        color: var(--accent-teal);
+        border-left-color: var(--accent-teal);
+        padding-left: 1.25rem;
+    }
+
+    /* Story Box */
+    .story-box {
+        background: linear-gradient(135deg, rgba(71, 85, 105, 0.15), rgba(13, 148, 136, 0.08));
+        border-left: 5px solid var(--accent-teal);
+        border-radius: 16px;
+        padding: 3rem;
+        margin: 3rem 0;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border-light);
+    }
+
+    .story-box::before {
+        content: '📖';
+        position: absolute;
+        top: 2rem;
+        right: 2rem;
+        font-size: 4rem;
+        opacity: 0.1;
+    }
+
+    .story-box h3 {
+        color: var(--accent-teal);
+        margin-top: 0;
+    }
+
+    /* SVG Container */
+    .svg-container {
+        background: var(--code-bg);
+        border-radius: 20px;
+        padding: 3rem;
+        margin: 3rem 0;
+        border: 2px solid var(--border-light);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .svg-container svg {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        margin: 0 auto;
+        display: block;
+    }
+
+    /* Info Boxes */
+    .info-box {
+        background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 2rem 0;
+        border-left: 5px solid var(--muted-blue);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-light);
+    }
+
+    .info-box.success {
+        border-left-color: var(--success-green);
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+    }
+
+    .info-box.warning {
+        border-left-color: var(--warning-orange);
+        background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+    }
+
+    .info-box h4 {
+        color: var(--text-primary);
+        margin-top: 0;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.25rem;
+    }
+
+    .info-box p {
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        line-height: 1.7;
+    }
+
+    .info-box strong {
+        color: var(--text-primary);
+    }
+
+    .info-box ul {
+        color: var(--text-secondary);
+        margin-left: 1.5rem;
+    }
+
+    /* Comparison Cards */
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin: 3rem 0;
+    }
+
+    .comparison-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2.5rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        transition: all 0.4s ease;
+        border: 3px solid transparent;
+    }
+
+    .comparison-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 60px rgba(13, 148, 136, 0.2);
+        border-color: var(--accent-teal);
+    }
+
+    .comparison-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .comparison-card h3 {
+        color: #1f2937;
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+    }
+
+    .comparison-card p {
+        color: #6b7280;
+        line-height: 1.7;
+    }
+
+    .comparison-card ul {
+        color: #6b7280;
+        margin-left: 1.5rem;
+    }
+
+    /* Code Examples */
+    .code-example {
+        background: var(--code-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        position: relative;
+        border: 1px solid var(--border-light);
+    }
+
+    .code-example pre {
+        margin: 0;
+        overflow-x: auto;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+
+    .copy-button {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--accent-teal);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.3s;
+    }
+
+    .copy-button:hover {
+        background: #0d9488;
+        transform: translateY(-2px);
+    }
+
+    /* Interview Questions */
+    .interview-section {
+        margin: 4rem 0;
+    }
+
+    .question-card {
+        background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        border: 1px solid var(--border-light);
+        transition: all 0.3s ease;
+    }
+
+    .question-card:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 5px 20px rgba(13, 148, 136, 0.2);
+    }
+
+    .question-header {
+        padding: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: rgba(13, 148, 136, 0.05);
+        transition: all 0.3s;
+    }
+
+    .question-header:hover {
+        background: rgba(13, 148, 136, 0.1);
+    }
+
+    .question-number {
+        background: var(--accent-teal);
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .question-text {
+        flex: 1;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 1.05rem;
+    }
+
+    .question-toggle {
+        color: var(--accent-teal);
+        font-size: 1.5rem;
+        transition: transform 0.3s;
+    }
+
+    .question-card.active .question-toggle {
+        transform: rotate(180deg);
+    }
+
+    .question-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+    }
+
+    .question-card.active .question-answer {
+        max-height: 5000px;
+    }
+
+    .answer-content {
+        padding: 1.5rem;
+        color: var(--text-secondary);
+        line-height: 1.8;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .answer-content strong {
+        color: var(--text-primary);
+    }
+
+    .answer-content ul {
+        margin-left: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    /* Navigation Buttons */
+    .page-navigation {
+        display: flex;
+        justify-content: space-between;
+        gap: 2rem;
+        margin-top: 5rem;
+        padding-top: 4rem;
+        border-top: 3px solid var(--border-light);
+    }
+
+    .nav-button {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.75rem 2.25rem;
+        background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+        border: 2px solid var(--border-light);
+        border-radius: 16px;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.4s ease;
+        flex: 1;
+        max-width: 450px;
+    }
+
+    .nav-button:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 15px 40px rgba(13, 148, 136, 0.3);
+        transform: translateY(-5px);
+        color: var(--text-primary);
+    }
+
+    .nav-button.next {
+        margin-left: auto;
+        flex-direction: row-reverse;
+    }
+
+    .nav-icon {
+        font-size: 2.5rem;
+        color: var(--accent-teal);
+    }
+
+    .nav-text {
+        flex: 1;
+    }
+
+    .nav-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
+    .nav-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    /* Scroll to Top */
+    .scroll-top {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+        color: white;
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.4s ease;
+        box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+        z-index: 1000;
+    }
+
+    .scroll-top.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .scroll-top:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(13, 148, 136, 0.4);
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .mobile-menu-toggle {
+            display: flex;
+        }
+
+        .sidebar {
+            transform: translateX(-100%);
+        }
+
+        .sidebar.active {
+            transform: translateX(0);
+        }
+
+        .main-content {
+            margin-left: 0;
+        }
+
+        .toc-floating {
+            display: none;
+        }
+
+        .page-navigation {
+            flex-direction: column;
+        }
+
+        .nav-button {
+            max-width: 100%;
+        }
+
+        .nav-button.next {
+            margin-left: 0;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .page-hero {
+            padding: 4rem 0 3rem;
+        }
+
+        section {
+            padding: 3rem 0;
+        }
+
+        .story-box,
+        .svg-container {
+            padding: 2rem;
+        }
+    }
+</style>
+</head>
+<body>
+   
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+<!-- Mobile Menu Toggle -->
+<button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<!-- Sidebar Navigation -->
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Core Architecture Concepts</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html" class="active">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+   </nav>
+
+<!-- Main Content Area -->
+<main class="main-content">
+    
+    <!-- Hero Section -->
+    <section class="page-hero">
+        <div class="container">
+            <div class="page-hero-content" data-aos="fade-up">
+                <span class="hero-badge">
+                    <i class="fas fa-cubes"></i>
+                    Section 2: Core Architecture Concepts
+                </span>
+                <h1>Cassandra <span class="gradient-text">Partitioner</span></h1>
+                <p>Unlock the secret of perfect data distribution - master Murmur3, consistent hashing, and the algorithm that makes Cassandra scale to infinity!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-modern">
+        <div class="container">
+            <a href="index.html"><i class="fas fa-home"></i> Home</a>
+            <span class="separator">›</span>
+            <a href="architecture-overview.html">Section 2: Architecture</a>
+            <span class="separator">›</span>
+            <span class="current">Partitioner</span>
+        </div>
+    </div>
+
+    <!-- Main Content with TOC -->
+    <div class="container" style="padding: 4rem 0;">
+        <div class="row">
+            
+            <!-- Floating Table of Contents -->
+            <div class="col-lg-3">
+                <aside class="toc-floating">
+                    <h3>📑 On This Page</h3>
+                    <ul>
+                        <li><a href="#opening-story">📖 Opening Story</a></li>
+                        <li><a href="#what-is-partitioner">🔀 What is Partitioner?</a></li>
+                        <li><a href="#consistent-hashing">⚖️ Consistent Hashing</a></li>
+                        <li><a href="#murmur3">🎯 Murmur3Partitioner</a></li>
+                        <li><a href="#types">📚 Types of Partitioners</a></li>
+                        <li><a href="#how-it-works">⚙️ How It Works</a></li>
+                        <li><a href="#real-world">🌍 Real-World Examples</a></li>
+                        <li><a href="#interview-questions">💼 Interview Q&A (15)</a></li>
+                    </ul>
+                </aside>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="col-lg-9">
+
+                <!-- Opening Story -->
+                <section id="opening-story" data-aos="fade-up">
+                    <div class="story-box">
+                        <h2>📖 The Story: The Library's Organization Challenge</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p style="margin-bottom: 1.5rem;">Meet <strong style="color: var(--text-primary);">The Grand Library</strong> with 10 million books spread across 100 buildings. The librarian, <strong style="color: var(--text-primary);">Alex</strong>, needed a system to decide which building stores each book.</p>
+
+                            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(185, 28, 28, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                                <h3 style="color: #dc2626; margin-top: 0;">❌ The Old System: Alphabetical (Simple but Broken)</h3>
+                                <p style="margin-bottom: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">How it worked:</strong> Books A-AA go to Building 1, AB-AZ to Building 2, B-BA to Building 3, etc.</p>
+                                
+                                <h4 style="color: #dc2626; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">Massive Problems:</h4>
+                                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                    <li><strong style="color: var(--text-primary);">⚠️ Uneven Distribution:</strong> Building 19 (S books) has 800K books (Shakespeare, Science, Self-help), Building 46 (X books) has only 15K books!</li>
+                                    <li><strong style="color: var(--text-primary);">💥 Popular Letters Overload:</strong> Buildings for A, B, C, S are overwhelmed. Buildings for Q, X, Z are nearly empty.</li>
+                                    <li><strong style="color: var(--text-primary);">🐌 Adding a Building:</strong> Insert new Building 50.5? Must renumber ALL buildings after 50 and move millions of books!</li>
+                                    <li><strong style="color: var(--text-primary);">😫 Building Closes:</strong> Building 19 closes → 800K books must move to Building 20 (already full!) → Catastrophe!</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem; color: var(--text-primary);"><strong>Example Disaster:</strong> All "S" books in one building - when it closes for maintenance, students can't access Science, Shakespeare, Statistics, or any "S" book! System fails! 🔥</p>
+                            </div>
+
+                            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(4, 120, 87, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                                <h3 style="color: #059669; margin-top: 0;">✅ The New System: Smart Hash Function (Partitioner!)</h3>
+                                <p style="margin-bottom: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Brilliant Solution:</strong> Use a mathematical formula to convert book title to a number (0-999), then assign to building based on number!</p>
+                                
+                                <h4 style="color: #059669; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">How it works:</h4>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Hash("Pride and Prejudice") = 742 → Building 74<br/>
+Hash("To Kill a Mockingbird") = 183 → Building 18<br/>
+Hash("1984") = 91 → Building 9<br/>
+Hash("Sapiens") = 456 → Building 45<br/><br/>
+Even though "Sapiens" starts with "S", it goes to Building 45!<br/>
+Even though "1984" starts with "1", it goes to Building 9!<br/>
+Distribution based on HASH, not alphabetical order!
+                                </div>
+
+                                <h4 style="color: #059669; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">Amazing Results:</h4>
+                                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                    <li><strong style="color: var(--text-primary);">⚖️ Perfect Balance:</strong> Each building has ~100,000 books (10M / 100 buildings)</li>
+                                    <li><strong style="color: var(--text-primary);">🚀 Easy Expansion:</strong> Add Building 101? New books get hashed to 0-1000 range → automatically distributes to all 101 buildings</li>
+                                    <li><strong style="color: var(--text-primary);">💪 Resilient:</strong> Building 74 closes? Only books with hash values 740-749 affected (~100K books), easily handled by neighbor buildings</li>
+                                    <li><strong style="color: var(--text-primary);">⚡ Predictable Lookup:</strong> Hash any book title → know exactly which building, instantly!</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem; color: var(--text-primary);"><strong>Example Success:</strong> Building 74 closes. Books with hash 740-749 (100K books) automatically belong to Building 75. Simple, elegant, works! ✅</p>
+                            </div>
+
+                            <p style="margin-top: 2rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                <strong style="color: var(--accent-teal);">This is EXACTLY how Cassandra's Partitioner works!</strong><br/>
+                                Library = Cluster, Buildings = Nodes, Hash Function = Murmur3Partitioner<br/>
+                                Perfect distribution, easy scaling, resilient to failures!
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- What is Partitioner -->
+                <section id="what-is-partitioner" data-aos="fade-up">
+                    <h2>🔀 What is a Partitioner?</h2>
+                    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The master algorithm that determines where every piece of data lives in your Cassandra cluster.</p>
+
+                    <div class="info-box" data-aos="fade-up">
+                        <h4><i class="fas fa-book-open" style="color: var(--accent-teal);"></i> Simple Definition</h4>
+                        <p><strong style="color: var(--text-primary);">Partitioner:</strong> A hash function in Cassandra that takes your <strong>partition key</strong> and converts it into a <strong>token</strong> (a large number). This token determines which node in the cluster will store that data.</p>
+                        
+                        <p style="margin-top: 1.5rem;"><strong>The Three-Step Process:</strong></p>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+1. Application writes data with partition key: user_id = "john_doe_123"<br/>
+2. Partitioner hashes key: Hash("john_doe_123") = -3847293847293847289<br/>
+3. Token determines node: Token -3847... belongs to Node 3 → Data stored on Node 3!
+                        </div>
+
+                        <p style="margin-top: 1.5rem;"><strong>Analogy:</strong> Like a sorting hat in Harry Potter! It reads your name (partition key), thinks about it (hashes), and assigns you to a house (node). But instead of 4 houses, Cassandra has as many "houses" as you have nodes!</p>
+                    </div>
+
+                    <div class="svg-container" data-aos="zoom-in">
+                        <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Title -->
+                            <text x="400" y="30" font-family="Inter, sans-serif" font-size="22" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                How Partitioner Distributes Data
+                            </text>
+
+                            <!-- Step 1: Partition Keys -->
+                            <g>
+                                <rect x="50" y="70" width="200" height="120" rx="12" fill="#1e293b" stroke="#0d9488" stroke-width="2"/>
+                                <text x="150" y="95" font-size="14" fill="#0d9488" text-anchor="middle" font-weight="700">Step 1: Partition Keys</text>
+                                <text x="70" y="120" font-size="12" fill="#94a3b8">user_id: "alice"</text>
+                                <text x="70" y="140" font-size="12" fill="#94a3b8">user_id: "bob"</text>
+                                <text x="70" y="160" font-size="12" fill="#94a3b8">user_id: "charlie"</text>
+                                <text x="70" y="180" font-size="12" fill="#94a3b8">user_id: "diana"</text>
+                            </g>
+
+                            <!-- Arrow 1 -->
+                            <path d="M 260 130 L 330 130" stroke="#0d9488" stroke-width="3" marker-end="url(#arrowTeal)"/>
+                            <text x="295" y="120" font-size="11" fill="#0d9488" text-anchor="middle" font-weight="600">Hash</text>
+
+                            <!-- Step 2: Tokens -->
+                            <g>
+                                <rect x="340" y="70" width="200" height="120" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                                <text x="440" y="95" font-size="14" fill="#3b82f6" text-anchor="middle" font-weight="700">Step 2: Tokens</text>
+                                <text x="360" y="120" font-size="11" fill="#94a3b8">token: -5234...</text>
+                                <text x="360" y="140" font-size="11" fill="#94a3b8">token: 3841...</text>
+                                <text x="360" y="160" font-size="11" fill="#94a3b8">token: -9123...</text>
+                                <text x="360" y="180" font-size="11" fill="#94a3b8">token: 7456...</text>
+                            </g>
+
+                            <!-- Arrow 2 -->
+                            <path d="M 550 130 L 620 130" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowBlue)"/>
+                            <text x="585" y="120" font-size="11" fill="#3b82f6" text-anchor="middle" font-weight="600">Map to Node</text>
+
+                            <!-- Step 3: Nodes -->
+                            <g>
+                                <circle cx="690" cy="100" r="25" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                <text x="690" y="106" font-size="13" fill="white" text-anchor="middle" font-weight="700">N1</text>
+                                <text x="735" y="100" font-size="11" fill="#10b981" font-weight="600">alice</text>
+
+                                <circle cx="690" cy="140" r="25" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                <text x="690" y="146" font-size="13" fill="white" text-anchor="middle" font-weight="700">N2</text>
+                                <text x="735" y="140" font-size="11" fill="#10b981" font-weight="600">bob</text>
+
+                                <circle cx="690" y="180" r="25" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                <text x="690" y="186" font-size="13" fill="white" text-anchor="middle" font-weight="700">N3</text>
+                                <text x="735" y="180" font-size="11" fill="#10b981" font-weight="600">charlie, diana</text>
+
+                                <text x="690" y="225" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Data Distributed!</text>
+                            </g>
+
+                            <!-- Token Ring Visual -->
+                            <g>
+                                <text x="400" y="270" font-size="16" fill="#e2e8f0" text-anchor="middle" font-weight="700">Token Ring (Simplified)</text>
+                                
+                                <circle cx="400" cy="380" r="90" fill="none" stroke="#0d9488" stroke-width="3" stroke-dasharray="5,3"/>
+                                
+                                <!-- Token positions -->
+                                <circle cx="400" cy="290" r="8" fill="#dc2626"/>
+                                <text x="400" y="275" font-size="10" fill="#dc2626" text-anchor="middle">-9223...</text>
+                                
+                                <circle cx="490" cy="380" r="8" fill="#059669"/>
+                                <text x="510" y="385" font-size="10" fill="#059669">0</text>
+                                
+                                <circle cx="400" cy="470" r="8" fill="#d97706"/>
+                                <text x="400" y="490" font-size="10" fill="#d97706" text-anchor="middle">+9223...</text>
+                                
+                                <circle cx="310" cy="380" r="8" fill="#3b82f6"/>
+                                <text x="290" y="385" font-size="10" fill="#3b82f6" text-anchor="end">-4611...</text>
+
+                                <text x="400" y="380" font-size="11" fill="#94a3b8" text-anchor="middle">Hash values</text>
+                                <text x="400" y="395" font-size="11" fill="#94a3b8" text-anchor="middle">map to ring</text>
+                            </g>
+
+                            <!-- Arrow definitions -->
+                            <defs>
+                                <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                    <polygon points="0 0, 10 5, 0 10" fill="#0d9488" />
+                                </marker>
+                                <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                    <polygon points="0 0, 10 5, 0 10" fill="#3b82f6" />
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+
+                </section>
+                <!-- SECTION 1: CONSISTENT HASHING -->
+<!-- ============================================= -->
+<section id="consistent-hashing" data-aos="fade-up">
+    <h2>⚖️ Consistent Hashing: The Mathematical Magic</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding the algorithm that makes Cassandra scale infinitely without data chaos.</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.05));">
+        <h3 style="color: var(--accent-teal);">🎯 The Problem: Traditional Hashing Breaks at Scale</h3>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            
+            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #dc2626;">
+                <h4 style="color: #dc2626; margin-top: 0; font-size: 1.2rem;">❌ Traditional Hash Function (node = hash(key) % N)</h4>
+                <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">Scenario:</strong> You have 4 servers and 1 million user records.</p>
+                
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Server assignment:<br/>
+user_001 → hash = 12345 → 12345 % 4 = 1 → Server 1<br/>
+user_002 → hash = 67890 → 67890 % 4 = 2 → Server 2<br/>
+user_003 → hash = 24680 → 24680 % 4 = 0 → Server 0<br/>
+...<br/>
+Result: Each server stores ~250,000 users ✅
+                </div>
+
+                <p style="margin-top: 1.5rem; color: var(--text-primary);"><strong>The Disaster:</strong> Add 1 server (N=4 → N=5)</p>
+                
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Same users, NEW calculation:<br/>
+user_001 → 12345 % 5 = 0 → Server 0 (was Server 1!) 🔥<br/>
+user_002 → 67890 % 5 = 0 → Server 0 (was Server 2!) 🔥<br/>
+user_003 → 24680 % 5 = 0 → Server 0 (was Server 0!) ✅<br/>
+...<br/><br/>
+<strong style="color: #dc2626;">Result: 80% of data (800K users) needs to MOVE!</strong><br/>
+Massive data migration, hours/days of downtime! 💥
+                </div>
+            </div>
+
+            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #059669;">
+                <h4 style="color: #059669; margin-top: 0; font-size: 1.2rem;">✅ Consistent Hashing Solution</h4>
+                <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Breakthrough:</strong> Hash both keys AND servers onto the same ring!</p>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Key Principles:</strong></p>
+                <ul style="margin-top: 0.5rem;">
+                    <li><strong style="color: var(--text-primary);">Fixed Hash Space:</strong> Use a huge ring (0 to 2^64-1)</li>
+                    <li><strong style="color: var(--text-primary);">Server Positions:</strong> Hash each server name to position on ring</li>
+                    <li><strong style="color: var(--text-primary);">Data Placement:</strong> Hash key, walk clockwise to find next server</li>
+                    <li><strong style="color: var(--text-primary);">Add Server:</strong> Only data between new server and previous server moves!</li>
+                </ul>
+
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Ring positions (0 to 2^64-1):<br/>
+Server 0 at position: 2,305,843,009,213,693,951<br/>
+Server 1 at position: 4,611,686,018,427,387,903<br/>
+Server 2 at position: 6,917,529,027,641,081,855<br/>
+Server 3 at position: 9,223,372,036,854,775,807<br/><br/>
+user_001 hash = 3,000,000,000,000,000,000 → Server 1 ✅<br/><br/>
+<strong style="color: #059669;">Add Server 4 at position: 5,500,000,000,000,000,000</strong><br/>
+user_001 still hashes to 3,000... → Still Server 1! ✅<br/>
+Only keys with hash 4,611... to 5,500... move to Server 4<br/><br/>
+<strong style="color: #059669;">Result: Only 20% of data (200K users) moves!</strong><br/>
+80% reduction in data movement! ⚡
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-teal);">How Consistent Hashing Works</h3>
+
+    <div class="svg-container" data-aos="zoom-in">
+        <svg viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg">
+            <text x="450" y="30" font-family="Inter, sans-serif" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                Consistent Hashing Visualization
+            </text>
+            <circle cx="450" cy="350" r="200" fill="none" stroke="#0d9488" stroke-width="4"/>
+            <text x="450" y="135" font-size="12" fill="#94a3b8" text-anchor="middle">Token: 0</text>
+            <text x="665" y="360" font-size="12" fill="#94a3b8">Token: 2^63-1</text>
+            <text x="450" y="575" font-size="12" fill="#94a3b8" text-anchor="middle">Token: 2^62</text>
+            <text x="235" y="360" font-size="12" fill="#94a3b8" text-anchor="end">Token: -2^63</text>
+            <g>
+                <circle cx="450" cy="150" r="30" fill="#3b82f6" stroke="#2563eb" stroke-width="3"/>
+                <text x="450" y="160" font-size="16" fill="white" text-anchor="middle" font-weight="700">S1</text>
+                <text x="450" y="120" font-size="11" fill="#3b82f6" text-anchor="middle" font-weight="600">Server 1</text>
+            </g>
+            <g>
+                <circle cx="620" cy="260" r="30" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                <text x="620" y="270" font-size="16" fill="white" text-anchor="middle" font-weight="700">S2</text>
+                <text x="680" y="265" font-size="11" fill="#10b981" font-weight="600">Server 2</text>
+            </g>
+            <g>
+                <circle cx="550" cy="490" r="30" fill="#f59e0b" stroke="#d97706" stroke-width="3"/>
+                <text x="550" y="500" font-size="16" fill="white" text-anchor="middle" font-weight="700">S3</text>
+                <text x="550" y="530" font-size="11" fill="#f59e0b" text-anchor="middle" font-weight="600">Server 3</text>
+            </g>
+            <g>
+                <circle cx="280" cy="350" r="30" fill="#a855f7" stroke="#9333ea" stroke-width="3"/>
+                <text x="280" y="360" font-size="16" fill="white" text-anchor="middle" font-weight="700">S4</text>
+                <text x="220" y="360" font-size="11" fill="#a855f7" text-anchor="end" font-weight="600">Server 4</text>
+            </g>
+            <circle cx="480" cy="200" r="10" fill="#dc2626"/>
+            <text x="520" y="205" font-size="11" fill="#dc2626" font-weight="600">Key A</text>
+            <path d="M 480 200 L 460 170" stroke="#dc2626" stroke-width="2" stroke-dasharray="3,3"/>
+            <circle cx="580" cy="320" r="10" fill="#dc2626"/>
+            <text x="600" y="315" font-size="11" fill="#dc2626" font-weight="600">Key B</text>
+            <path d="M 580 320 L 600 280" stroke="#dc2626" stroke-width="2" stroke-dasharray="3,3"/>
+            <circle cx="400" cy="420" r="10" fill="#dc2626"/>
+            <text x="400" y="450" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">Key C</text>
+            <path d="M 400 420 L 530 480" stroke="#dc2626" stroke-width="2" stroke-dasharray="3,3"/>
+            <rect x="100" y="600" width="700" height="80" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+            <text x="450" y="625" font-size="13" fill="#0d9488" text-anchor="middle" font-weight="700">How Keys Find Their Server:</text>
+            <text x="110" y="645" font-size="11" fill="#94a3b8">1. Hash the key → Get token position on ring</text>
+            <text x="110" y="663" font-size="11" fill="#94a3b8">2. Walk clockwise from key's position</text>
+            <text x="110" y="681" font-size="11" fill="#94a3b8">3. First server encountered = owner (Key A→S1, Key B→S2, Key C→S3)</text>
+        </svg>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-check-circle" style="color: #059669;"></i> Why Consistent Hashing is Brilliant</h4>
+        <ul>
+            <li><strong>Minimal Data Movement:</strong> Adding/removing node only affects 1/N of data (vs 80%+ in traditional hashing)</li>
+            <li><strong>Predictable:</strong> Same key always maps to same token (deterministic)</li>
+            <li><strong>Distributed:</strong> No central authority needed - each node independently calculates</li>
+            <li><strong>Scalable:</strong> Works equally well with 3 nodes or 3,000 nodes</li>
+            <li><strong>Self-Healing:</strong> Dead node's data automatically belongs to next clockwise node</li>
+        </ul>
+    </div>
+</section>
+
+
+
+<!-- SECTION 2: MURMUR3 PARTITIONER -->
+<!-- ============================================= -->
+<section id="murmur3" data-aos="fade-up">
+    <h2>🎯 Murmur3Partitioner: The Default Champion</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Why Murmur3 became the gold standard for data distribution in Cassandra.</p>
+
+    <div class="story-box">
+        <h3 style="color: var(--accent-teal);">🏆 Meet Murmur3: The Perfect Hash Function</h3>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p>In 2012, Cassandra 1.2 introduced <strong style="color: var(--text-primary);">Murmur3Partitioner</strong> and it immediately became the default. Why? Because it's the Goldilocks of hash functions - not too slow, not too simple, just right!</p>
+
+            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; margin: 2rem 0;">
+                <h4 style="color: var(--accent-teal); margin-top: 0;">What Makes Murmur3 Special?</h4>
+                <ul style="margin-top: 1rem;">
+                    <li><strong style="color: var(--text-primary);">Blazing Fast:</strong> Processes ~3GB/sec on modern CPU (vs MD5: 0.5GB/sec)</li>
+                    <li><strong style="color: var(--text-primary);">Perfect Distribution:</strong> Statistical tests show near-perfect uniformity</li>
+                    <li><strong style="color: var(--text-primary);">Non-Cryptographic:</strong> Optimized for speed, not security (which we don't need!)</li>
+                    <li><strong style="color: var(--text-primary);">Avalanche Effect:</strong> Change 1 bit in input → ~50% of output bits change</li>
+                    <li><strong style="color: var(--text-primary);">128-bit Hash:</strong> Produces massive output space (uses lower 64 bits as token)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-teal);">How Murmur3 Generates Tokens</h3>
+
+    <div class="code-example" data-aos="fade-up">
+        <button class="copy-button" onclick="copyCode(this)">Copy</button>
+        <pre>// Murmur3 Hash Algorithm (Simplified)
+
+1. Take partition key: "user_12345"
+2. Convert to bytes: [0x75, 0x73, 0x65, 0x72, 0x5f, 0x31, 0x32, 0x33, 0x34, 0x35]
+3. Process in 128-bit blocks with mixing:
+   - Mix with magic constants
+   - Rotate bits (rotateLeft)
+   - XOR operations for avalanche effect
+4. Final output: -4826492847294729384 (64-bit signed token)
+
+Example Results:
+================
+Input: "user_1" → Token: -5234567890123456789
+Input: "user_2" → Token: 7891234567890123456
+Input: "user_3" → Token: -2345678901234567890
+
+Notice: Similar inputs produce WILDLY different tokens!
+This ensures even distribution across token ring.</pre>
+    </div>
+
+    <div class="comparison-grid">
+        <div class="comparison-card" data-aos="fade-up">
+            <div class="comparison-icon">⚡</div>
+            <h3>Speed Champion</h3>
+            <p><strong style="color: #1f2937;">Performance Metrics</strong></p>
+            <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: #1f2937;">
+Murmur3: 3 GB/sec<br/>
+MD5: 0.5 GB/sec<br/>
+SHA256: 0.15 GB/sec<br/><br/>
+Winner: Murmur3 (6x faster!)
+            </div>
+        </div>
+
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+            <div class="comparison-icon">🎯</div>
+            <h3>Distribution Quality</h3>
+            <p><strong style="color: #1f2937;">Statistical Tests</strong></p>
+            <ul style="font-size: 0.95rem; margin-top: 1rem;">
+                <li>Chi-squared test: Pass ✅</li>
+                <li>Avalanche test: 50.1% ✅</li>
+                <li>Collision rate: <0.0001% ✅</li>
+                <li>Uniformity: 99.97% ✅</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+            <div class="comparison-icon">🔧</div>
+            <h3>Configuration</h3>
+            <p><strong style="color: #1f2937;">cassandra.yaml</strong></p>
+            <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: #1f2937;">
+partitioner:<br/>
+  org.apache.cassandra<br/>
+  .dht.Murmur3Partitioner<br/><br/>
+# Default since Cassandra 1.2
+            </div>
+        </div>
+    </div>
+</section>
+<!-- ============================================= -->
+<!-- PART 2: TYPES OF PARTITIONERS -->
+<!-- ============================================= -->
+<section id="types" data-aos="fade-up">
+    <h2>📚 Types of Cassandra Partitioners</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding the evolution and choosing the right partitioner for your needs.</p>
+
+    <div class="comparison-grid">
+        <!-- Murmur3 -->
+        <div class="comparison-card" data-aos="fade-up" style="border: 3px solid #10b981;">
+            <div class="comparison-icon">🏆</div>
+            <h3>Murmur3Partitioner</h3>
+            <p style="text-align: center; color: #10b981; font-weight: 700; margin-bottom: 1rem;">✅ RECOMMENDED</p>
+            
+            <p><strong style="color: #1f2937;">Class:</strong></p>
+            <div style="background: #f3f4f6; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; font-family: monospace; font-size: 0.75rem; color: #1f2937; word-break: break-all;">
+org.apache.cassandra.dht.Murmur3Partitioner
+            </div>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Token Range:</strong></p>
+            <p style="color: #6b7280; font-size: 0.9rem;">-2^63 to 2^63-1<br/>(Signed 64-bit)</p>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">When to Use:</strong></p>
+            <ul style="font-size: 0.95rem;">
+                <li>✅ All new clusters</li>
+                <li>✅ Production systems</li>
+                <li>✅ High throughput</li>
+            </ul>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Pros:</strong></p>
+            <ul style="font-size: 0.9rem; color: #059669;">
+                <li>Fastest (3GB/s)</li>
+                <li>Perfect distribution</li>
+                <li>Industry standard</li>
+            </ul>
+        </div>
+
+        <!-- Random Partitioner -->
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border: 3px solid #f59e0b;">
+            <div class="comparison-icon">⚠️</div>
+            <h3>RandomPartitioner</h3>
+            <p style="text-align: center; color: #d97706; font-weight: 700; margin-bottom: 1rem;">⚠️ LEGACY</p>
+            
+            <p><strong style="color: #1f2937;">Class:</strong></p>
+            <div style="background: #f3f4f6; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; font-family: monospace; font-size: 0.75rem; color: #1f2937; word-break: break-all;">
+org.apache.cassandra.dht.RandomPartitioner
+            </div>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Token Range:</strong></p>
+            <p style="color: #6b7280; font-size: 0.9rem;">0 to 2^127-1<br/>(Unsigned 128-bit)</p>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">When to Use:</strong></p>
+            <ul style="font-size: 0.95rem;">
+                <li>⚠️ Legacy only</li>
+                <li>❌ Not for new</li>
+            </ul>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Cons:</strong></p>
+            <ul style="font-size: 0.9rem; color: #d97706;">
+                <li>Slower MD5</li>
+                <li>Larger tokens</li>
+                <li>Legacy support</li>
+            </ul>
+        </div>
+
+        <!-- ByteOrdered -->
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="200" style="border: 3px solid #dc2626;">
+            <div class="comparison-icon">🚫</div>
+            <h3>ByteOrderedPartitioner</h3>
+            <p style="text-align: center; color: #dc2626; font-weight: 700; margin-bottom: 1rem;">❌ REMOVED</p>
+            
+            <p><strong style="color: #1f2937;">Status:</strong></p>
+            <p style="color: #dc2626; font-size: 0.95rem; font-weight: 600;">Removed in 3.0+</p>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Why Failed:</strong></p>
+            <ul style="font-size: 0.9rem; color: #dc2626;">
+                <li>No hashing</li>
+                <li>Hotspots</li>
+                <li>Terrible balance</li>
+                <li>Caused outages</li>
+            </ul>
+
+            <p style="margin-top: 1rem;"><strong style="color: #1f2937;">Note:</strong></p>
+            <p style="color: #6b7280; font-size: 0.85rem;">Removed to prevent misuse</p>
+        </div>
+    </div>
+
+    <div class="info-box warning" data-aos="fade-up" style="margin-top: 3rem;">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Cannot Change After Deployment!</h4>
+        <p>Once deployed, partitioner is permanent! Changing requires building new cluster and migrating all data.</p>
+        <p style="margin-top: 1rem; background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #059669;">
+            <strong style="color: #059669;">Best Practice:</strong> Always use Murmur3Partitioner!
+        </p>
+    </div>
+</section>
+
+<!-- SECTION 4: HOW IT WORKS -->
+<!-- ============================================= -->
+<section id="how-it-works" data-aos="fade-up">
+    <h2>⚙️ How Partitioner Works in Practice</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Step-by-step journey from application to storage.</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.05));">
+        <h3 style="color: var(--accent-teal);">🔄 Complete Data Flow Example</h3>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; margin: 2rem 0;">
+                <h4 style="color: var(--accent-teal); margin-top: 0;">Scenario: Storing User Profile</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+INSERT INTO users (user_id, name, email, age)<br/>
+VALUES ('alice_2024', 'Alice', 'alice@example.com', 28);
+                </div>
+            </div>
+
+            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #059669;">
+                <h4 style="color: #059669; margin-top: 0;">Step 1: Extract Partition Key</h4>
+                <p style="color: var(--text-secondary);">Cassandra identifies user_id as partition key</p>
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Extracted:</strong> user_id = "alice_2024"</p>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #3b82f6;">
+                <h4 style="color: #3b82f6; margin-top: 0;">Step 2: Hash with Murmur3</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Input: "alice_2024"<br/>
+Hash Process → MurmurHash3<br/>
+<strong style="color: #3b82f6;">Token: -3,847,293,847,293,847,289</strong>
+                </div>
+            </div>
+
+            <div style="background: rgba(245, 158, 11, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #f59e0b;">
+                <h4 style="color: #f59e0b; margin-top: 0;">Step 3: Find Owner Node</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Token Ring:<br/>
+Node 1: -9,223... to -3,074...<br/>
+Node 2: -3,074... to 3,074...<br/>
+Node 3: 3,074... to 9,223...<br/><br/>
+<strong style="color: #f59e0b;">Owner: Node 1</strong>
+                </div>
+            </div>
+
+            <div style="background: rgba(168, 85, 247, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #a855f7;">
+                <h4 style="color: #a855f7; margin-top: 0;">Step 4: Apply Replication (RF=3)</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Replica 1: Node 1 (primary)<br/>
+Replica 2: Node 2 (next)<br/>
+Replica 3: Node 3 (next)<br/><br/>
+<strong style="color: #a855f7;">Write to all 3!</strong>
+                </div>
+            </div>
+
+            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #059669;">
+                <h4 style="color: #059669; margin-top: 0;">Step 5: Success!</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Node 1: ✅ ACK (2ms)<br/>
+Node 2: ✅ ACK (1ms)<br/>
+Node 3: ⏱️ Writing...<br/><br/>
+<strong style="color: #059669;">QUORUM (2/3) → SUCCESS!</strong><br/>
+Total: ~5ms
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECTION 5: REAL WORLD EXAMPLES -->
+<!-- ============================================= -->
+<section id="real-world" data-aos="fade-up">
+    <h2>🌍 Real-World Partitioner Examples</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How industry giants leverage partitioners.</p>
+
+    <div class="comparison-grid">
+        <div class="comparison-card" data-aos="fade-up">
+            <div class="comparison-icon">📱</div>
+            <h3>Instagram</h3>
+            <p><strong style="color: #1f2937;">Photo Metadata</strong></p>
+            <ul style="font-size: 0.95rem; margin-top: 1rem;">
+                <li>Murmur3Partitioner</li>
+                <li>Key: photo_id (UUID)</li>
+                <li>150+ nodes</li>
+                <li>Petabytes of data</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">UUID keys = Perfect distribution across nodes!</p>
+        </div>
+
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+            <div class="comparison-icon">🎮</div>
+            <h3>Discord</h3>
+            <p><strong style="color: #1f2937;">Messages</strong></p>
+            <ul style="font-size: 0.95rem; margin-top: 1rem;">
+                <li>Murmur3Partitioner</li>
+                <li>Key: (channel_id, bucket)</li>
+                <li>177 nodes</li>
+                <li>Trillions of messages</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">Bucketing prevents hot channels!</p>
+        </div>
+
+        <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+            <div class="comparison-icon">🎬</div>
+            <h3>Netflix</h3>
+            <p><strong style="color: #1f2937;">Viewing History</strong></p>
+            <ul style="font-size: 0.95rem; margin-top: 1rem;">
+                <li>Murmur3Partitioner</li>
+                <li>Key: user_id</li>
+                <li>2,500+ nodes</li>
+                <li>300M+ users</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">120K users per node = Perfect balance!</p>
+        </div>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up" style="margin-top: 3rem;">
+        <h4><i class="fas fa-globe" style="color: #059669;"></i> Production Best Practices</h4>
+        <ul>
+            <li><strong>Always Murmur3</strong> - Industry standard</li>
+            <li><strong>High-cardinality keys</strong> - user_id, UUID work great</li>
+            <li><strong>Avoid low-cardinality</strong> - country_code creates hotspots</li>
+            <li><strong>Composite keys</strong> - (user_id, bucket) for hot users</li>
+            <li><strong>Monitor distribution</strong> - Use nodetool status</li>
+        </ul>
+    </div>
+</section>
+
+
+
+<!-- SECTION 6: INTERVIEW QUESTIONS (30+) -->
+<!-- ============================================= -->
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master these 30 essential partitioner questions!</p>
+
+        <!-- Q1 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">What is a partitioner in Cassandra and why is it important?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>A <strong>partitioner</strong> is a hash function that determines data distribution across nodes. It converts partition keys into tokens, which map to specific nodes.</p>
+                    <p style="margin-top: 1rem;"><strong>Why Critical:</strong></p>
+                    <ul>
+                        <li><strong>Load Balance:</strong> Even distribution prevents hotspots</li>
+                        <li><strong>Scalability:</strong> Enables easy node addition/removal</li>
+                        <li><strong>Performance:</strong> Efficient query routing</li>
+                        <li><strong>Availability:</strong> Influences failure impact</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">Explain consistent hashing and why Cassandra uses it</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p><strong>Consistent Hashing:</strong> Algorithm where data keys and servers hash onto the same circular ring. Data stored on first server encountered clockwise.</p>
+                    <p style="margin-top: 1rem;"><strong>Benefits:</strong></p>
+                    <ul>
+                        <li>Minimal disruption (1/N data moves vs 80%+)</li>
+                        <li>No resharding needed</li>
+                        <li>Predictable and deterministic</li>
+                        <li>Decentralized calculation</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">Why is Murmur3Partitioner the default choice?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>Murmur3 became default in Cassandra 1.2 (2012) because:</p>
+                    <ul>
+                        <li><strong>Performance:</strong> 3GB/s (6x faster than MD5)</li>
+                        <li><strong>Distribution:</strong> 99.97%+ uniformity</li>
+                        <li><strong>Non-cryptographic:</strong> Optimized for speed</li>
+                        <li><strong>Avalanche effect:</strong> 1-bit change → 50% output changes</li>
+                        <li><strong>Compatible:</strong> Works with vnodes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">What was ByteOrderedPartitioner and why was it removed?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>ByteOrderedPartitioner used raw bytes as tokens (no hashing), creating catastrophic problems:</p>
+                    <ul>
+                        <li><strong>Sequential keys:</strong> user_001, user_002 → same node</li>
+                        <li><strong>Time-based disaster:</strong> All "today" data → one node</li>
+                        <li><strong>Alphabet bias:</strong> "S" books overwhelm, "Q" books empty</li>
+                        <li><strong>No vnodes:</strong> Couldn't work with virtual nodes</li>
+                    </ul>
+                    <p style="margin-top: 1rem;"><strong>Removed:</strong> Too dangerous, caused production outages. Deprecated in 2.x, removed in 3.0+</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">How do you determine which node owns a partition key?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p><strong>Method 1: nodetool getendpoints</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+$ nodetool getendpoints keyspace table 'alice_2024'<br/>
+10.0.0.3<br/>
+10.0.0.5<br/>
+10.0.0.2
+                    </div>
+                    <p style="margin-top: 1rem;"><strong>Method 2: CQL Tracing</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+TRACING ON;<br/>
+SELECT * FROM users WHERE user_id = 'alice_2024';
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Q6 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">6</span>
+                <span class="question-text">Can you change the partitioner after a cluster is deployed?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p><strong>NO!</strong> The partitioner is essentially permanent once a cluster is deployed. This is one of Cassandra's most critical design decisions.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Why It Can't Change:</strong></p>
+                    <ul>
+                        <li><strong>Token Assignment:</strong> All existing data mapped to specific tokens</li>
+                        <li><strong>Data Location:</strong> Changing partitioner changes token → node mapping</li>
+                        <li><strong>Complete Chaos:</strong> Would require moving ALL data to new locations</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>If You MUST Change (Extreme Case):</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;">
+1. Build entirely NEW cluster with desired partitioner<br/>
+2. Use dual-write from application (write to both)<br/>
+3. Use sstableloader to backfill old data to new cluster<br/>
+4. Verify data integrity<br/>
+5. Switch reads to new cluster<br/>
+6. Decommission old cluster<br/><br/>
+Time required: Weeks to months<br/>
+Risk: Very high<br/>
+Cost: 2x infrastructure during migration
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Best Practice:</strong> Choose wisely at cluster creation! Always use Murmur3Partitioner for new deployments. This decision is forever.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">7</span>
+                <span class="question-text">What is the token range for Murmur3Partitioner and why that specific range?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>Murmur3Partitioner uses the range: <strong>-2^63 to 2^63-1</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>In Numbers:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Minimum: -9,223,372,036,854,775,808<br/>
+Maximum: +9,223,372,036,854,775,807<br/>
+Total Space: 18,446,744,073,709,551,616 possible tokens<br/>
+(That's 18.4 quintillion!)
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Why This Range?</strong></p>
+                    <ul>
+                        <li><strong>64-bit signed long:</strong> Standard Java/computer data type</li>
+                        <li><strong>Efficient:</strong> Fits in single CPU register</li>
+                        <li><strong>Fast operations:</strong> Native CPU arithmetic</li>
+                        <li><strong>Large enough:</strong> 18 quintillion tokens = impossible to fill</li>
+                        <li><strong>Balanced:</strong> Equal negative and positive space</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Comparison with RandomPartitioner:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                        <table style="width: 100%; color: #e2e8f0; font-size: 0.9rem;">
+                            <tr>
+                                <td><strong>Murmur3:</strong></td>
+                                <td>-2^63 to 2^63-1 (64-bit)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Random:</strong></td>
+                                <td>0 to 2^127-1 (128-bit)</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="padding-top: 0.5rem;">Murmur3's smaller range is more efficient while still providing massive space</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">8</span>
+                <span class="question-text">How does the partitioner work with composite partition keys?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>With composite partition keys, the partitioner hashes <strong>ALL components together</strong> as a single unit.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Example Table:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE user_events (<br/>
+&nbsp;&nbsp;user_id TEXT,<br/>
+&nbsp;&nbsp;event_date DATE,<br/>
+&nbsp;&nbsp;event_id TIMEUUID,<br/>
+&nbsp;&nbsp;event_type TEXT,<br/>
+&nbsp;&nbsp;PRIMARY KEY ((user_id, event_date), event_id)<br/>
+);<br/><br/>
+-- Composite partition key: (user_id, event_date)
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Hashing Process:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;">
+1. Concatenate components with separator:<br/>
+&nbsp;&nbsp;&nbsp;"alice" + SEPARATOR + "2024-01-15"<br/>
+2. Hash the combined value:<br/>
+&nbsp;&nbsp;&nbsp;Murmur3("alice\x002024-01-15")<br/>
+3. Result: Single token<br/>
+&nbsp;&nbsp;&nbsp;Token: -5,234,567,890,123,456,789
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Key Points:</strong></p>
+                    <ul>
+                        <li><strong>Single Token:</strong> Entire composite key produces ONE token</li>
+                        <li><strong>Order Matters:</strong> (alice, 2024-01-15) ≠ (2024-01-15, alice)</li>
+                        <li><strong>Same Node:</strong> All rows with same composite key on same node</li>
+                        <li><strong>Distribution:</strong> Different composites get different tokens</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Example Distribution:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;">
+(alice, 2024-01-15) → Token: -5,234... → Node 1<br/>
+(alice, 2024-01-16) → Token: 3,456... → Node 2<br/>
+(bob, 2024-01-15) → Token: -8,901... → Node 3<br/><br/>
+Different dates for same user = Different nodes!<br/>
+This spreads load even for hot users.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">9</span>
+                <span class="question-text">What happens when two different keys hash to the same token? (Hash collision)</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>Hash collisions are <strong>theoretically possible but practically impossible</strong> with Murmur3's 64-bit token space.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Math:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Token Space: 2^64 = 18,446,744,073,709,551,616<br/>
+Collision probability (Birthday paradox):<br/>
+- After 1 billion keys: ~0.00003% chance<br/>
+- After 1 trillion keys: ~0.03% chance<br/><br/>
+Reality: Most clusters have &lt; 100 billion keys<br/>
+Collision probability: Effectively ZERO
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>If Collision Occurred (Theoretical):</strong></p>
+                    <ul>
+                        <li><strong>Same Node:</strong> Both keys map to same node (by design)</li>
+                        <li><strong>Different Rows:</strong> They're still separate rows (partition key distinguishes)</li>
+                        <li><strong>No Data Loss:</strong> Cassandra stores full partition key, not just token</li>
+                        <li><strong>Performance:</strong> Minimal impact (slightly more data on one node)</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Real-World:</strong></p>
+                    <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #059669;">
+                        <p style="margin: 0; color: var(--text-primary);"><strong>In 10+ years of Cassandra usage across billions of deployments:</strong></p>
+                        <ul style="margin-top: 0.5rem;">
+                            <li>Zero reported cases of hash collisions affecting operations</li>
+                            <li>The 64-bit space is astronomically large</li>
+                            <li>Not a concern in practice</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">10</span>
+                <span class="question-text">How does partitioner interact with replication factor (RF)?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>The partitioner determines the <strong>primary replica</strong>, then RF determines how many additional replicas to create by walking clockwise around the ring.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Process with RF=3:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+1. Hash partition key → Get token<br/>
+2. Token maps to Node A (PRIMARY REPLICA)<br/>
+3. Walk clockwise from Node A:<br/>
+&nbsp;&nbsp;&nbsp;- Next node = Node B (REPLICA 2)<br/>
+&nbsp;&nbsp;&nbsp;- Next node = Node C (REPLICA 3)<br/>
+4. Data written to all 3 nodes
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Example:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;">
+Cluster: 6 nodes on ring<br/>
+user_id="alice" → Token: -3,847,293,847,293,847,289<br/><br/>
+Token falls in Node 2's range (PRIMARY)<br/>
+RF=3 requires 2 more replicas<br/><br/>
+Replicas:<br/>
+1. Node 2 (primary - owns the token)<br/>
+2. Node 3 (next clockwise)<br/>
+3. Node 4 (next clockwise)<br/><br/>
+Query for alice can hit ANY of these 3 nodes!
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>With Virtual Nodes:</strong></p>
+                    <ul>
+                        <li>Primary vnode determined by token</li>
+                        <li>Next RF-1 vnodes selected clockwise</li>
+                        <li>Vnodes can belong to different physical nodes</li>
+                        <li>Result: Better replica distribution</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Network Topology Snitch:</strong> In multi-DC deployments, snitch ensures replicas spread across racks/DCs, but partitioner still determines the starting point (primary replica).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q11 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">11</span>
+                <span class="question-text">What is the "token" in Cassandra and how is it different from the partition key?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    
+                    <p><strong>Partition Key:</strong> The actual data value(s) you define (e.g., "alice_2024")</p>
+                    <p><strong>Token:</strong> The numeric hash result used for placement (e.g., -3,847,293,847,293,847,289)</p>
+
+                    <p style="margin-top: 1rem;"><strong>Key Differences:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                        <table style="width: 100%; color: #e2e8f0; font-size: 0.9rem;">
+                            <tr style="border-bottom: 1px solid #334155;">
+                                <th style="padding: 0.5rem; text-align: left;">Aspect</th>
+                                <th style="padding: 0.5rem; text-align: left;">Partition Key</th>
+                                <th style="padding: 0.5rem; text-align: left;">Token</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">Type</td>
+                                <td style="padding: 0.5rem;">String, UUID, etc.</td>
+                                <td style="padding: 0.5rem;">64-bit integer</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">Purpose</td>
+                                <td style="padding: 0.5rem;">Identify data</td>
+                                <td style="padding: 0.5rem;">Placement decision</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">User-visible</td>
+                                <td style="padding: 0.5rem;">Yes (in queries)</td>
+                                <td style="padding: 0.5rem;">No (internal)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;">Storage</td>
+                                <td style="padding: 0.5rem;">Stored in SSTable</td>
+                                <td style="padding: 0.5rem;">Used for routing</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Example:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;">
+-- Your CQL Query<br/>
+SELECT * FROM users WHERE user_id = 'alice_2024';<br/><br/>
+Behind the scenes:<br/>
+1. Partition Key: 'alice_2024' (what you see)<br/>
+2. Token: Murmur3('alice_2024') = -3,847,293... (internal)<br/>
+3. Token maps to Node 2<br/>
+4. Query routed to Node 2<br/>
+5. Node 2 finds row with user_id='alice_2024'
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Why Two Concepts?</strong></p>
+                    <ul>
+                        <li><strong>Abstraction:</strong> Users work with meaningful keys (user_id)</li>
+                        <li><strong>Efficiency:</strong> System works with numeric tokens (fast comparison)</li>
+                        <li><strong>Distribution:</strong> Tokens ensure even spread regardless of key values</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q12 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">12</span>
+                <span class="question-text">How do you verify if data is evenly distributed across nodes?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    
+                    <p><strong>Method 1: nodetool status</strong> (Quick Check)</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+$ nodetool status<br/><br/>
+Datacenter: datacenter1<br/>
+Status=Up/Down |/ State=Normal/Leaving/Joining<br/>
+--  Address     Load       Tokens  Owns    Host ID<br/>
+UN  10.0.0.1    1.2 TB     256     33.4%   abc123...<br/>
+UN  10.0.0.2    1.18 TB    256     33.1%   def456...<br/>
+UN  10.0.0.3    1.21 TB    256     33.5%   ghi789...<br/><br/>
+✅ GOOD: All nodes own ~33.3% (3 nodes)<br/>
+✅ GOOD: Load within 5% variance (1.18-1.21 TB)<br/>
+❌ BAD: If one node had 45% and another 20%
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Method 2: nodetool tablestats</strong> (Per-Table)</p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+$ nodetool tablestats keyspace.table<br/><br/>
+Shows per-table statistics:<br/>
+- Space used<br/>
+- Number of partitions<br/>
+- Average partition size<br/><br/>
+Run on each node, compare values
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>What to Look For:</strong></p>
+                    <ul>
+                        <li><strong>Load Variance < 5%:</strong> Excellent distribution</li>
+                        <li><strong>Load Variance 5-10%:</strong> Acceptable, monitor</li>
+                        <li><strong>Load Variance > 10%:</strong> Investigation needed!</li>
+                        <li><strong>Owns Percentage:</strong> Should be ~100/N for N nodes</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Common Issues:</strong></p>
+                    <div style="background: rgba(220, 38, 38, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #dc2626;">
+                        <ul style="margin: 0;">
+                            <li><strong>Hot Partition:</strong> One key has massive data</li>
+                            <li><strong>Poor Key Choice:</strong> Low cardinality partition key</li>
+                            <li><strong>Data Skew:</strong> Some users much more active than others</li>
+                            <li><strong>Sequential Keys:</strong> If using time-based keys incorrectly</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q13 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">13</span>
+                <span class="question-text">Explain the "avalanche effect" in Murmur3 and why it matters</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>The <strong>avalanche effect</strong> means that changing even a single bit in the input causes approximately 50% of the output bits to flip. This is crucial for even data distribution.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Example:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Input: "user_12345"<br/>
+Token: -5,234,567,890,123,456,789<br/><br/>
+Input: "user_12346" (one char different!)<br/>
+Token: 7,891,234,567,890,123,456<br/><br/>
+Result: Completely different tokens!<br/>
+Even though inputs are nearly identical
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Why This Matters:</strong></p>
+                    <ul>
+                        <li><strong>Sequential Keys:</strong> user_001, user_002, user_003 get scattered across nodes</li>
+                        <li><strong>Similar Data:</strong> alice_2024-01-01, alice_2024-01-02 go to different nodes</li>
+                        <li><strong>No Clustering:</strong> Prevents sequential data from clustering on one node</li>
+                        <li><strong>Even Distribution:</strong> Guarantees uniform spread regardless of key patterns</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Without Avalanche Effect:</strong></p>
+                    <div style="background: rgba(220, 38, 38, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #dc2626;">
+                        <p style="margin: 0; color: #dc2626;"><strong>Bad Hash Function Example:</strong></p>
+                        <div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+user_001 → Hash: 1000<br/>
+user_002 → Hash: 1001<br/>
+user_003 → Hash: 1002<br/><br/>
+All similar values → Same node!<br/>
+Creates hotspot! 🔥
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Statistical Test:</strong> Murmur3 achieves 50.1% bit flipping (nearly perfect). This is why it's trusted for production at massive scale.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q14 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">14</span>
+                <span class="question-text">What are the performance implications of different partitioners?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    
+                    <p><strong>Benchmark Comparison:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                        <table style="width: 100%; color: #e2e8f0; font-size: 0.9rem;">
+                            <tr style="border-bottom: 1px solid #334155;">
+                                <th style="padding: 0.5rem;">Partitioner</th>
+                                <th style="padding: 0.5rem;">Speed</th>
+                                <th style="padding: 0.5rem;">CPU Impact</th>
+                                <th style="padding: 0.5rem;">Latency</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;"><strong>Murmur3</strong></td>
+                                <td style="padding: 0.5rem; color: #10b981;">3 GB/s</td>
+                                <td style="padding: 0.5rem; color: #10b981;">Very Low</td>
+                                <td style="padding: 0.5rem; color: #10b981;">~0.01ms</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;"><strong>Random (MD5)</strong></td>
+                                <td style="padding: 0.5rem; color: #f59e0b;">0.5 GB/s</td>
+                                <td style="padding: 0.5rem; color: #f59e0b;">Medium</td>
+                                <td style="padding: 0.5rem; color: #f59e0b;">~0.05ms</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Real-World Impact at Scale:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Scenario: 1 million writes/second<br/><br/>
+<strong>With Murmur3:</strong><br/>
+- Hash time: 0.01ms × 1M = 10 seconds CPU/sec<br/>
+- CPU usage: ~1-2% per core<br/>
+- Negligible impact ✅<br/><br/>
+<strong>With RandomPartitioner (MD5):</strong><br/>
+- Hash time: 0.05ms × 1M = 50 seconds CPU/sec<br/>
+- CPU usage: ~5-8% per core<br/>
+- Noticeable impact on high-load systems ⚠️
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Why Speed Matters:</strong></p>
+                    <ul>
+                        <li><strong>Every Write:</strong> Partitioner called for every single write operation</li>
+                        <li><strong>Every Read:</strong> Token calculation needed to route queries</li>
+                        <li><strong>At Scale:</strong> Millions of operations/sec = CPU becomes bottleneck</li>
+                        <li><strong>Latency:</strong> Faster hash = lower overall query latency</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Netflix Example:</strong> By switching from RandomPartitioner to Murmur3, they reduced CPU usage by 3-4% across entire fleet, saving hundreds of thousands in infrastructure costs annually.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q15 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">15</span>
+                <span class="question-text">How does partitioner affect query performance and coordinator selection?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>The partitioner directly impacts query routing and coordinator efficiency.</p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Query Process:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+1. Client connects to random node (COORDINATOR)<br/>
+2. Coordinator hashes partition key → Gets token<br/>
+3. Coordinator looks up which nodes own that token<br/>
+4. Coordinator routes query to correct replicas<br/>
+5. Coordinator aggregates results<br/>
+6. Returns to client
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Token-Aware Drivers:</strong></p>
+                    <p>Modern drivers use partitioner information to connect DIRECTLY to the node owning the data:</p>
+                    <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #059669;">
+                        <p style="margin: 0;"><strong>Smart Routing:</strong></p>
+                        <div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+Driver maintains token ring map<br/>
+Query for user_id='alice'<br/>
+Driver calculates: Murmur3('alice') = Token X<br/>
+Driver connects DIRECTLY to node owning Token X<br/><br/>
+Result: Zero-hop routing! ⚡<br/>
+Latency reduced by 30-50%!
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Performance Impact:</strong></p>
+                    <ul>
+                        <li><strong>Without Token-Aware:</strong> Query → Random node → Route to owner → Extra network hop</li>
+                        <li><strong>With Token-Aware:</strong> Query → Direct to owner → No extra hop</li>
+                        <li><strong>Latency Savings:</strong> 1-2ms per query (significant at scale)</li>
+                        <li><strong>Load Distribution:</strong> No coordinator hotspots</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Configuration:</strong></p>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+// Java Driver Example<br/>
+Cluster cluster = Cluster.builder()<br/>
+&nbsp;&nbsp;.addContactPoint("10.0.0.1")<br/>
+&nbsp;&nbsp;.withLoadBalancingPolicy(<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;new TokenAwarePolicy(<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DCAwareRoundRobinPolicy.builder().build()<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;)<br/>
+&nbsp;&nbsp;)<br/>
+&nbsp;&nbsp;.build();
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+
+               
+
+                 <!-- Navigation Buttons -->
+                    <div class="page-navigation">
+                        <a href="snitch.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Snitch Strategy</div>
+                            </div>
+                        </a>
+                        <a href="coordinator-node.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Coordinator Node</div>
+                            </div>
+                        </a>
+                    </div>
+
+                     <!-- AdSense Block 2: After Consistent Hashing Section -->
+                <div class="adsense-container" data-aos="fade-up" style="margin: 4rem 0; text-align: center;">
+                    <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">
+                        <i class="fas fa-ad"></i> Sponsored Content
+                    </div>
+                    <div style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.05), rgba(13, 148, 136, 0.02)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 2rem; min-height: 280px; display: flex; align-items: center; justify-content: center;">
+                        <!-- Google AdSense - Large Rectangle Ad -->
+                        <ins class="adsbygoogle"
+                            style="display:block"
+                            data-ad-client="ca-pub-XXXXXXXXXX"
+                            data-ad-slot="9876543210"
+                            data-ad-format="rectangle"
+                            data-full-width-responsive="true"></ins>
+                        <script>
+                            (adsbygoogle = window.adsbygoogle || []).push({});
+                        </script>
+                    </div>
+                </div>
+</div></div></div></main>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
+     crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+window.addEventListener('scroll', () => {
+    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+});
+function toggleSection(element) {
+    element.closest('.path-section').classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

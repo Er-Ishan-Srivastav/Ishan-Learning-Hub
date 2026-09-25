@@ -1,0 +1,2861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Materialized Views in Cassandra - Master automatic denormalization and query flexibility!">
+    <title>Materialized Views in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+  <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html" class="active">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced CQL Features
+                    </span>
+                    <h1>Materialized <span class="gradient-text">Views</span></h1>
+                    <p>Automate denormalization and enable flexible querying without manual table duplication!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="cql-intro.html">CQL Guide</a>
+                <span class="separator">›</span>
+                <span class="current">Materialized Views</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#what-are-mvs">🛠️ What Are Materialized Views?</a></li>
+                            <li><a href="#creating-MVS">🚀 Creating MVS</a></li>
+                            <li><a href="#real-examples">⚙️ Examples</a></li>
+                            <li><a href="#best-practices">📋 Practice</a></li>
+                            <li><a href="#performance">⚡ Performance</a></li>
+                            <li><a href="#interview-questions">💼 Interview Prep</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Emma's Denormalization Nightmare</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Emma built a movie review platform with millions of reviews. Users want to view reviews by movie AND by user. She tried three approaches to handle this dual-access pattern...</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">❌ Attempt 1: Secondary Index (Too Slow!)</h3>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="keyword">CREATE TABLE</span> reviews (
+    review_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    movie_id <span class="type">UUID</span>,
+    user_id <span class="type">UUID</span>,
+    rating <span class="type">INT</span>,
+    content <span class="type">TEXT</span>
+);
+
+<span class="keyword">CREATE INDEX</span> idx_movie <span class="keyword">ON</span> reviews(movie_id);
+
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews 
+<span class="keyword">WHERE</span> movie_id = <span class="number">123</span>;  <span class="comment">-- Scatter-gather query!</span>
+                </div>
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Problems:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🔥 Coordinator contacts ALL 50 nodes</li>
+                    <li>⏱️ Query takes 2-3 seconds under load</li>
+                    <li>💥 Timeout errors during peak traffic</li>
+                    <li>😡 Users complain about slow page loads</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #f59e0b;">
+                <h3 style="color: #f59e0b; margin-top: 0;">⚠️ Attempt 2: Manual Denormalization (Maintenance Hell!)</h3>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="keyword">CREATE TABLE</span> reviews_by_movie (
+    movie_id <span class="type">UUID</span>,
+    review_id <span class="type">UUID</span>,
+    user_id <span class="type">UUID</span>,
+    rating <span class="type">INT</span>,
+    content <span class="type">TEXT</span>,
+    <span class="keyword">PRIMARY KEY</span> (movie_id, review_id)
+);
+
+<span class="keyword">CREATE TABLE</span> reviews_by_user (
+    user_id <span class="type">UUID</span>,
+    review_id <span class="type">UUID</span>,
+    movie_id <span class="type">UUID</span>,
+    rating <span class="type">INT</span>,
+    content <span class="type">TEXT</span>,
+    <span class="keyword">PRIMARY KEY</span> (user_id, review_id)
+);
+
+<span class="comment">-- Every INSERT/UPDATE/DELETE needs to update BOTH tables!</span>
+<span class="keyword">BEGIN BATCH</span>
+  <span class="keyword">UPDATE</span> reviews_by_movie <span class="keyword">SET</span> rating = <span class="number">5</span> <span class="keyword">WHERE</span> ...;
+  <span class="keyword">UPDATE</span> reviews_by_user <span class="keyword">SET</span> rating = <span class="number">5</span> <span class="keyword">WHERE</span> ...;
+<span class="keyword">APPLY BATCH</span>;
+                </div>
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Problems:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🐛 Application code becomes complex (BATCH everywhere)</li>
+                    <li>💥 Bugs! Forgot to update one table → data inconsistency!</li>
+                    <li>📝 Every developer must remember to update both tables</li>
+                    <li>⏱️ Code reviews become nightmares</li>
+                    <li>🔥 Production incident: Data out of sync!</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The PERFECT Solution: Materialized Views!</h3>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Step 1: Create base table</span>
+<span class="keyword">CREATE TABLE</span> reviews (
+    review_id <span class="type">UUID</span>,
+    movie_id <span class="type">UUID</span>,
+    user_id <span class="type">UUID</span>,
+    rating <span class="type">INT</span>,
+    content <span class="type">TEXT</span>,
+    created_at <span class="type">TIMESTAMP</span>,
+    <span class="keyword">PRIMARY KEY</span> (review_id)
+);
+
+<span class="comment">-- Step 2: Create materialized view for movie queries</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> reviews_by_movie <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews
+    <span class="keyword">WHERE</span> movie_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> review_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (movie_id, review_id);
+
+<span class="comment">-- Step 3: Create materialized view for user queries</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> reviews_by_user <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews
+    <span class="keyword">WHERE</span> user_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> review_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (user_id, review_id);
+
+<span class="comment">-- That's it! Cassandra maintains views automatically!</span>
+
+<span class="comment">-- Insert into base table only:</span>
+<span class="keyword">INSERT INTO</span> reviews (review_id, movie_id, user_id, rating, content)
+<span class="keyword">VALUES</span> (uuid(), <span class="number">123</span>, <span class="number">456</span>, <span class="number">5</span>, <span class="string">'Great movie!'</span>);
+
+<span class="comment">-- Views update automatically! No BATCH needed! 🎉</span>
+
+<span class="comment">-- Query by movie (FAST! ⚡)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews_by_movie 
+<span class="keyword">WHERE</span> movie_id = <span class="number">123</span>;
+
+<span class="comment">-- Query by user (FAST! ⚡)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews_by_user 
+<span class="keyword">WHERE</span> user_id = <span class="number">456</span>;
+                </div>
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Benefits:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>✅ <strong>Automatic updates:</strong> Cassandra maintains views!</li>
+                    <li>✅ <strong>Simple code:</strong> Write to base table only!</li>
+                    <li>✅ <strong>Always consistent:</strong> No bugs from forgetting to update!</li>
+                    <li>✅ <strong>Blazing fast:</strong> Both queries return in 5ms!</li>
+                    <li>✅ <strong>No application complexity:</strong> Database handles it!</li>
+                </ul>
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Emma's app is now fast, reliable, and easy to maintain! 🎉</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+                    </section>
+
+                    <section id="what-are-mvs" data-aos="fade-up">
+                        <h2>🎬 What are Materialized Views?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Automatically maintained denormalized tables that stay in sync with the base table!</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-lightbulb" style="color: var(--accent-purple);"></i> Simple Definition</h4>
+                            <p><strong>Materialized View (MV):</strong> A read-only table that Cassandra automatically updates when the base table changes.</p>
+                            
+                            <p style="margin-top: 1.5rem;"><strong>Think of Materialized Views as:</strong></p>
+                            <ul>
+                                <li>🪞 <strong>Magic Mirror:</strong> Automatically reflects changes from base table</li>
+                                <li>🔄 <strong>Auto-Sync Tables:</strong> Cassandra handles all updates for you</li>
+                                <li>📋 <strong>Smart Copy:</strong> Different primary key, always up-to-date</li>
+                                <li>🎯 <strong>Query Shortcuts:</strong> Fast access patterns without code complexity</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">How Materialized Views Work</h3>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">How Materialized Views Work</text>
+
+                                <!-- Base Table -->
+                                <rect x="50" y="80" width="280" height="120" rx="12" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="190" y="110" font-size="18" fill="#8b5cf6" text-anchor="middle" font-weight="700">Base Table: reviews</text>
+                                <text x="70" y="140" font-size="13" fill="#94a3b8">PK: review_id</text>
+                                <text x="70" y="165" font-size="12" fill="#94a3b8">review_id | movie_id | user_id</text>
+                                <text x="70" y="185" font-size="12" fill="#94a3b8">1         | 101      | 201</text>
+
+                                <!-- Arrow: INSERT -->
+                                <path d="M 190 210 L 190 270" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)"/>
+                                <text x="210" y="245" font-size="14" fill="#10b981" font-weight="700">INSERT/UPDATE/DELETE</text>
+
+                                <!-- Cassandra Auto-Update -->
+                                <rect x="100" y="270" width="180" height="60" rx="8" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2"/>
+                                <text x="190" y="295" font-size="14" fill="#10b981" text-anchor="middle" font-weight="700">Cassandra</text>
+                                <text x="190" y="315" font-size="13" fill="#94a3b8" text-anchor="middle">Auto-Updates Views</text>
+
+                                <!-- Arrows to MVs -->
+                                <path d="M 120 330 L 120 400" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+                                <path d="M 260 330 L 620 400" stroke="#0d9488" stroke-width="3" marker-end="url(#arrowTeal)"/>
+
+                                <!-- MV 1: reviews_by_movie -->
+                                <rect x="20" y="400" width="200" height="80" rx="12" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="3"/>
+                                <text x="120" y="425" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="700">MV: reviews_by_movie</text>
+                                <text x="40" y="450" font-size="12" fill="#94a3b8">PK: (movie_id, review_id)</text>
+                                <text x="40" y="470" font-size="11" fill="#94a3b8">movie_id | review_id | user_id</text>
+
+                                <!-- MV 2: reviews_by_user -->
+                                <rect x="520" y="400" width="200" height="80" rx="12" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="3"/>
+                                <text x="620" y="425" font-size="16" fill="#0d9488" text-anchor="middle" font-weight="700">MV: reviews_by_user</text>
+                                <text x="540" y="450" font-size="12" fill="#94a3b8">PK: (user_id, review_id)</text>
+                                <text x="540" y="470" font-size="11" fill="#94a3b8">user_id | review_id | movie_id</text>
+
+                                <!-- Note -->
+                                <rect x="250" y="350" width="300" height="40" rx="8" fill="rgba(139, 92, 246, 0.1)" stroke="#8b5cf6" stroke-width="2"/>
+                                <text x="400" y="375" font-size="13" fill="#e2e8f0" text-anchor="middle">✨ All updates happen automatically!</text>
+
+                                <defs>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#10b981"/>
+                                    </marker>
+                                    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#f59e0b"/>
+                                    </marker>
+                                    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#0d9488"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                    <h3 style="color: var(--accent-purple);">When to Use Materialized Views</h3>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>Perfect For</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Multiple Access Patterns:</strong> Query same data by different keys</li>
+                                    <li><strong>Read-Heavy Workloads:</strong> More reads than writes</li>
+                                    <li><strong>Simple Denormalization:</strong> Just changing primary key</li>
+                                    <li><strong>Automatic Consistency:</strong> Need guaranteed sync</li>
+                                    <li><strong>Reduce Code Complexity:</strong> Avoid manual BATCH statements</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Avoid For</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Write-Heavy Tables:</strong> High INSERT/UPDATE volume (slow!)</li>
+                                    <li><strong>Many MVs on One Table:</strong> > 3 MVs = performance hit</li>
+                                    <li><strong>Frequent Schema Changes:</strong> MVs harder to modify</li>
+                                    <li><strong>Complex Transformations:</strong> Can't filter or aggregate</li>
+                                    <li><strong>Large Base Tables:</strong> Initial MV build takes time</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #8b5cf6;">
+                                <div class="comparison-icon">💡</div>
+                                <h3>Trade-offs</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Write Performance:</strong> -20% to -40% on base table</li>
+                                    <li><strong>Storage:</strong> Each MV doubles storage for that data</li>
+                                    <li><strong>Consistency:</strong> Eventually consistent (slight delay)</li>
+                                    <li><strong>Limitations:</strong> Can't filter rows, only reorganize</li>
+                                    <li><strong>Build Time:</strong> Large tables take hours to populate</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+<section id="creating-mvs" data-aos="fade-up">
+    <h2>🔨 Creating Materialized Views</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master the syntax and rules for creating materialized views!</p>
+
+    <h3 style="color: var(--accent-purple);">Basic Syntax</h3>
+
+    <div class="code-block">
+<span class="comment">-- Basic MV syntax</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> view_name <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> column1, column2, column3
+    <span class="keyword">FROM</span> base_table
+    <span class="keyword">WHERE</span> column1 <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> column2 <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (column1, column2);
+
+<span class="comment">-- Real example: Query movies by genre</span>
+<span class="keyword">CREATE TABLE</span> movies (
+    movie_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    title <span class="type">TEXT</span>,
+    genre <span class="type">TEXT</span>,
+    release_year <span class="type">INT</span>,
+    rating <span class="type">DECIMAL</span>
+);
+
+<span class="keyword">CREATE MATERIALIZED VIEW</span> movies_by_genre <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> movies
+    <span class="keyword">WHERE</span> genre <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> movie_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (genre, movie_id);
+
+<span class="comment">-- Now you can query by genre!</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> movies_by_genre
+<span class="keyword">WHERE</span> genre = <span class="string">'Sci-Fi'</span>;
+    </div>
+
+    <div class="info-box warning" data-aos="fade-up">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Critical MV Rules</h4>
+        <ol style="margin-top: 1rem; line-height: 1.9;">
+            <li><strong>Include ALL Primary Key Columns:</strong> Base table PK must be in MV WHERE and PRIMARY KEY</li>
+            <li><strong>IS NOT NULL Required:</strong> All PK columns must have IS NOT NULL in WHERE</li>
+            <li><strong>Static Columns:</strong> Can only be included if partition key is the same</li>
+            <li><strong>No Filtering:</strong> Can't use WHERE with conditions other than IS NOT NULL</li>
+            <li><strong>No Aggregations:</strong> Can't use COUNT, SUM, AVG, etc.</li>
+        </ol>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Complete Example: E-Commerce Orders</h3>
+
+    <div class="code-block">
+<span class="comment">-- Base Table: Orders by order_id</span>
+<span class="keyword">CREATE TABLE</span> orders (
+    order_id <span class="type">UUID</span>,
+    customer_id <span class="type">UUID</span>,
+    product_id <span class="type">UUID</span>,
+    order_date <span class="type">DATE</span>,
+    status <span class="type">TEXT</span>,
+    total <span class="type">DECIMAL</span>,
+    <span class="keyword">PRIMARY KEY</span> (order_id)
+);
+
+<span class="comment">-- MV 1: Query orders by customer</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> orders_by_customer <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">WHERE</span> customer_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> order_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (customer_id, order_id);
+
+<span class="comment">-- MV 2: Query orders by product</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> orders_by_product <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">WHERE</span> product_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> order_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (product_id, order_id);
+
+<span class="comment">-- MV 3: Query orders by status and date (compound partition key)</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> orders_by_status <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">WHERE</span> status <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> order_date <span class="keyword">IS NOT NULL</span>
+      <span class="keyword">AND</span> order_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> ((status, order_date), order_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (order_id <span class="keyword">DESC</span>);
+
+<span class="comment">-----------------------------------</span>
+<span class="comment">-- Usage Examples</span>
+<span class="comment">-----------------------------------</span>
+
+<span class="comment">-- Insert into base table ONLY</span>
+<span class="keyword">INSERT INTO</span> orders (order_id, customer_id, product_id, order_date, status, total)
+<span class="keyword">VALUES</span> (uuid(), uuid(), uuid(), <span class="string">'2025-01-03'</span>, <span class="string">'shipped'</span>, <span class="number">99.99</span>);
+
+<span class="comment">-- All MVs update automatically! ✨</span>
+
+<span class="comment">-- Query by customer</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_customer
+<span class="keyword">WHERE</span> customer_id = ?;
+
+<span class="comment">-- Query by product</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_product
+<span class="keyword">WHERE</span> product_id = ?;
+
+<span class="comment">-- Query by status</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_status
+<span class="keyword">WHERE</span> status = <span class="string">'shipped'</span> 
+  <span class="keyword">AND</span> order_date = <span class="string">'2025-01-03'</span>;
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Selecting Specific Columns</h3>
+
+    <div class="code-block">
+<span class="comment">-- You don't have to SELECT *</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> customer_order_summary <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> customer_id, order_id, order_date, total
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">WHERE</span> customer_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> order_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (customer_id, order_date, order_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (order_date <span class="keyword">DESC</span>);
+
+<span class="comment">-- This MV only includes 4 columns (smaller, faster!)</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Dropping Materialized Views</h3>
+
+    <div class="code-block">
+<span class="comment">-- Drop a materialized view</span>
+<span class="keyword">DROP MATERIALIZED VIEW</span> orders_by_customer;
+
+<span class="comment">-- Drop with IF EXISTS</span>
+<span class="keyword">DROP MATERIALIZED VIEW IF EXISTS</span> orders_by_product;
+
+<span class="comment">-- Check existing MVs</span>
+<span class="keyword">DESCRIBE</span> <span class="keyword">MATERIALIZED VIEWS</span>;
+    </div>
+</section>
+<section id="real-examples" data-aos="fade-up">
+    <h2>🏗️ Real-World Materialized View Examples</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-ready MV patterns from real applications!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 1: Social Media - Posts by User and Hashtag</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Base Table: Posts by post_id</span>
+<span class="keyword">CREATE TABLE</span> posts (
+    post_id <span class="type">TIMEUUID</span>,
+    user_id <span class="type">UUID</span>,
+    content <span class="type">TEXT</span>,
+    hashtags <span class="type">SET&lt;TEXT&gt;</span>,
+    likes <span class="type">INT</span>,
+    created_at <span class="type">TIMESTAMP</span>,
+    <span class="keyword">PRIMARY KEY</span> (post_id)
+);
+
+<span class="comment">-- MV: Get user's timeline</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> posts_by_user <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> posts
+    <span class="keyword">WHERE</span> user_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> post_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (user_id, post_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (post_id <span class="keyword">DESC</span>);
+
+<span class="comment">-- Query: Get user's posts (newest first)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> posts_by_user
+<span class="keyword">WHERE</span> user_id = ?
+<span class="keyword">LIMIT</span> <span class="number">20</span>;
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 2: IoT Sensors - Data by Sensor and by Location</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Base Table: Sensor readings by timestamp</span>
+<span class="keyword">CREATE TABLE</span> sensor_data (
+    sensor_id <span class="type">UUID</span>,
+    timestamp <span class="type">TIMESTAMP</span>,
+    location <span class="type">TEXT</span>,
+    temperature <span class="type">DECIMAL</span>,
+    humidity <span class="type">DECIMAL</span>,
+    battery <span class="type">INT</span>,
+    <span class="keyword">PRIMARY KEY</span> ((sensor_id, <span class="keyword">DATE</span>(timestamp)), timestamp)
+) <span class="keyword">WITH CLUSTERING ORDER BY</span> (timestamp <span class="keyword">DESC</span>);
+
+<span class="comment">-- MV: Query by location</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> sensor_data_by_location <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> sensor_data
+    <span class="keyword">WHERE</span> location <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> sensor_id <span class="keyword">IS NOT NULL</span>
+      <span class="keyword">AND</span> timestamp <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (location, timestamp, sensor_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (timestamp <span class="keyword">DESC</span>);
+
+<span class="comment">-- Query: All sensors in a building</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sensor_data_by_location
+<span class="keyword">WHERE</span> location = <span class="string">'Building-A'</span>
+  <span class="keyword">AND</span> timestamp >= <span class="string">'2025-01-03'</span>;
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 3: E-Learning - Courses by Instructor and Category</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Base Table: Courses</span>
+<span class="keyword">CREATE TABLE</span> courses (
+    course_id <span class="type">UUID</span>,
+    instructor_id <span class="type">UUID</span>,
+    category <span class="type">TEXT</span>,
+    title <span class="type">TEXT</span>,
+    duration <span class="type">INT</span>,
+    price <span class="type">DECIMAL</span>,
+    rating <span class="type">DECIMAL</span>,
+    <span class="keyword">PRIMARY KEY</span> (course_id)
+);
+
+<span class="comment">-- MV: Courses by instructor</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> courses_by_instructor <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> courses
+    <span class="keyword">WHERE</span> instructor_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> course_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (instructor_id, rating, course_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (rating <span class="keyword">DESC</span>);
+
+<span class="comment">-- MV: Courses by category</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> courses_by_category <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> courses
+    <span class="keyword">WHERE</span> category <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> course_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (category, rating, course_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (rating <span class="keyword">DESC</span>);
+
+<span class="comment">-- Query: Instructor's top-rated courses</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> courses_by_instructor
+<span class="keyword">WHERE</span> instructor_id = ?
+<span class="keyword">LIMIT</span> <span class="number">10</span>;
+
+<span class="comment">-- Query: Top Python courses</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> courses_by_category
+<span class="keyword">WHERE</span> category = <span class="string">'Python'</span>
+<span class="keyword">LIMIT</span> <span class="number">20</span>;
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 4: Event Tracking - Events by User and by Type</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Base Table: Events</span>
+<span class="keyword">CREATE TABLE</span> events (
+    event_id <span class="type">TIMEUUID</span>,
+    user_id <span class="type">UUID</span>,
+    event_type <span class="type">TEXT</span>,
+    event_data <span class="type">TEXT</span>,
+    created_at <span class="type">TIMESTAMP</span>,
+    <span class="keyword">PRIMARY KEY</span> (event_id)
+);
+
+<span class="comment">-- MV: User activity timeline</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> events_by_user <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> events
+    <span class="keyword">WHERE</span> user_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> event_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (user_id, event_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (event_id <span class="keyword">DESC</span>);
+
+<span class="comment">-- MV: Events by type (for analytics)</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> events_by_type <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> events
+    <span class="keyword">WHERE</span> event_type <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> event_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (event_type, event_id)
+    <span class="keyword">WITH CLUSTERING ORDER BY</span> (event_id <span class="keyword">DESC</span>);
+
+<span class="comment">-- Query: User's recent activity</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> events_by_user
+<span class="keyword">WHERE</span> user_id = ?
+<span class="keyword">LIMIT</span> <span class="number">50</span>;
+
+<span class="comment">-- Query: All login events</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> events_by_type
+<span class="keyword">WHERE</span> event_type = <span class="string">'login'</span>;
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<section id="best-practices" data-aos="fade-up">
+    <h2>⭐ Materialized View Best Practices & Limitations</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Learn what works, what doesn't, and how to optimize MVs!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>DO's</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Limit MVs per Table:</strong> Max 3-5 MVs (performance!)</li>
+                <li><strong>Use for Read-Heavy:</strong> More reads than writes</li>
+                <li><strong>Include Base PK:</strong> Always in WHERE and PRIMARY KEY</li>
+                <li><strong>Monitor Build Progress:</strong> Large tables take time</li>
+                <li><strong>Test Performance Impact:</strong> Measure write latency</li>
+                <li><strong>Use Appropriate Replication:</strong> Same or less than base</li>
+                <li><strong>Document Your MVs:</strong> Explain query patterns</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>DON'Ts</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Don't Create Too Many:</strong> > 5 MVs = slow writes</li>
+                <li><strong>Don't Use for Writes:</strong> MVs are read-only!</li>
+                <li><strong>Don't Filter Rows:</strong> Can't use WHERE col = value</li>
+                <li><strong>Don't Aggregate:</strong> No COUNT, SUM, AVG</li>
+                <li><strong>Don't Use on Write-Heavy:</strong> > 10K writes/sec</li>
+                <li><strong>Don't Expect Instant:</strong> Eventually consistent</li>
+                <li><strong>Don't Ignore Write Cost:</strong> -20% to -40% throughput</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">💡</div>
+            <h3>Pro Tips</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Build During Low Traffic:</strong> Initial population is heavy</li>
+                <li><strong>Select Only Needed Columns:</strong> Smaller = faster</li>
+                <li><strong>Use Compound Keys:</strong> (status, date) for bucketing</li>
+                <li><strong>Monitor Repair:</strong> Ensure MVs stay in sync</li>
+                <li><strong>Consider Manual Denorm:</strong> For write-heavy tables</li>
+                <li><strong>Test on Production Load:</strong> Simulate real traffic</li>
+                <li><strong>Plan for Rebuilds:</strong> DROP + CREATE if corrupt</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Major Limitations</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">❌ Limitation #1: Cannot Filter Rows</h4>
+                <p style="color: var(--text-secondary);">You can only reorganize data, not filter it!</p>
+                
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- ❌ WRONG: Can't filter by value</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> active_users <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> users
+    <span class="keyword">WHERE</span> status = <span class="string">'active'</span>  <span class="comment">-- ERROR!</span>
+    <span class="keyword">PRIMARY KEY</span> (user_id);
+
+<span class="comment">-- ✅ CORRECT: Only IS NOT NULL allowed</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> users_by_status <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> users
+    <span class="keyword">WHERE</span> status <span class="keyword">IS NOT NULL</span>
+      <span class="keyword">AND</span> user_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (status, user_id);
+
+<span class="comment">-- Then filter in query:</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users_by_status
+<span class="keyword">WHERE</span> status = <span class="string">'active'</span>;
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">❌ Limitation #2: Cannot Aggregate Data</h4>
+                <p style="color: var(--text-secondary);">No COUNT, SUM, AVG, GROUP BY, or computed columns!</p>
+                
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- ❌ WRONG: Can't aggregate</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> order_totals <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> customer_id, <span class="keyword">SUM</span>(total) <span class="keyword">AS</span> total_spent  <span class="comment">-- ERROR!</span>
+    <span class="keyword">FROM</span> orders
+    <span class="keyword">GROUP BY</span> customer_id;
+
+<span class="comment">-- ✅ WORKAROUND: Use counters in separate table</span>
+<span class="keyword">CREATE TABLE</span> customer_totals (
+    customer_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    total_spent <span class="type">COUNTER</span>
+);
+
+<span class="comment">-- Update in application when order created:</span>
+<span class="keyword">UPDATE</span> customer_totals
+<span class="keyword">SET</span> total_spent = total_spent + ?
+<span class="keyword">WHERE</span> customer_id = ?;
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">❌ Limitation #3: Write Performance Impact</h4>
+                <p style="color: var(--text-secondary);">Each MV adds 20-40% overhead to write operations!</p>
+                
+                <div class="info-box warning" style="margin-top: 1rem;">
+                    <h4><i class="fas fa-tachometer-alt" style="color: #d97706;"></i> Performance Impact</h4>
+                    <ul>
+                        <li><strong>1 MV:</strong> -20% write throughput</li>
+                        <li><strong>2 MVs:</strong> -35% write throughput</li>
+                        <li><strong>3 MVs:</strong> -50% write throughput</li>
+                        <li><strong>5+ MVs:</strong> -70%+ write throughput (not recommended!)</li>
+                    </ul>
+                    <p style="margin-top: 1rem;"><strong>Solution:</strong> Limit to 3-5 MVs maximum per table.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">❌ Limitation #4: Eventually Consistent</h4>
+                <p style="color: var(--text-secondary);">MVs update asynchronously - slight delay possible!</p>
+                
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Write to base table</span>
+<span class="keyword">INSERT INTO</span> orders (...) <span class="keyword">VALUES</span> (...);
+
+<span class="comment">-- Immediately query MV</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_customer WHERE customer_id = ?;
+<span class="comment">-- ⚠️ May not see the new order yet! (milliseconds delay)</span>
+
+<span class="comment">-- In most cases, delay is < 10ms (acceptable!)</span>
+<span class="comment">-- For critical consistency, query base table directly</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #dc2626;"></div>
+            <div class="timeline-content" style="border-left-color: #dc2626;">
+                <h4 style="color: #dc2626;">❌ Limitation #5: Static Column Restrictions</h4>
+                <p style="color: var(--text-secondary);">Can only include static columns if partition key is the same!</p>
+                
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="keyword">CREATE TABLE</span> user_posts (
+    user_id <span class="type">UUID</span>,
+    post_id <span class="type">TIMEUUID</span>,
+    username <span class="type">TEXT</span> <span class="keyword">STATIC</span>,  <span class="comment">-- Static column</span>
+    content <span class="type">TEXT</span>,
+    <span class="keyword">PRIMARY KEY</span> (user_id, post_id)
+);
+
+<span class="comment">-- ❌ WRONG: Can't include static if partition key changes</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> posts_by_id <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> *
+    <span class="keyword">FROM</span> user_posts
+    <span class="keyword">WHERE</span> post_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> user_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (post_id, user_id);  <span class="comment">-- ERROR! Static column issue</span>
+
+<span class="comment">-- ✅ CORRECT: Don't select static column</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> posts_by_id <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> post_id, user_id, content  <span class="comment">-- No username</span>
+    <span class="keyword">FROM</span> user_posts
+    <span class="keyword">WHERE</span> post_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> user_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (post_id, user_id);
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<section id="performance" data-aos="fade-up">
+    <h2>⚡ Performance Considerations</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Optimize MV performance for production workloads!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">📊 Write Performance Impact</h3>
+        <p style="color: var(--text-secondary); line-height: 1.8;">
+            Every MV adds overhead because Cassandra must:
+        </p>
+        <ol style="color: var(--text-secondary); line-height: 1.9; margin-top: 1rem;">
+            <li><strong>Parse the write:</strong> Determine which MVs are affected</li>
+            <li><strong>Generate MV mutations:</strong> Create writes for each MV</li>
+            <li><strong>Write to base table:</strong> Normal write operation</li>
+            <li><strong>Write to MV tables:</strong> Additional writes (async but still overhead)</li>
+            <li><strong>Maintain consistency:</strong> Track MV updates via batchlog</li>
+        </ol>
+
+        <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Example: Write with 3 MVs</span>
+<span class="keyword">INSERT INTO</span> orders (...) <span class="keyword">VALUES</span> (...);
+
+<span class="comment">-- Cassandra internally does:</span>
+<span class="comment">-- 1. Write to orders (base table)</span>
+<span class="comment">-- 2. Write to orders_by_customer (MV 1)</span>
+<span class="comment">-- 3. Write to orders_by_product (MV 2)</span>
+<span class="comment">-- 4. Write to orders_by_status (MV 3)</span>
+<span class="comment">-- Total: 4 writes instead of 1!</span>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Building MVs on Large Tables</h3>
+
+    <div class="info-box expert" data-aos="fade-up">
+        <h4><i class="fas fa-clock" style="color: var(--accent-purple);"></i> MV Build Time Estimates</h4>
+        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+            <thead style="background: rgba(139, 92, 246, 0.1);">
+                <tr>
+                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Table Size</th>
+                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Rows</th>
+                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Build Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Small</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 1M rows</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1-5 minutes</td>
+                </tr>
+                <tr style="background: rgba(71, 85, 105, 0.05);">
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Medium</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1M - 10M rows</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-60 minutes</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Large</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10M - 100M rows</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">1-6 hours</td>
+                </tr>
+                <tr style="background: rgba(71, 85, 105, 0.05);">
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Huge</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light)">> 100M rows</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">6+ hours</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin-top: 1.5rem;"><strong>During build:</strong></p>
+        <ul>
+            <li>High CPU usage across cluster</li>
+            <li>Increased disk I/O</li>
+            <li>MV is queryable but incomplete</li>
+            <li>Don't create during peak traffic!</li>
+        </ul>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Monitoring MV Health</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check MV build progress</span>
+nodetool viewbuildstatus keyspace_name view_name
+
+<span class="comment">-- Example output:</span>
+<span class="comment">/*
+orders_by_customer: SUCCESS (100%)
+orders_by_product: BUILDING (45%)
+*/</span>
+
+<span class="comment">-- Check for MV repair issues</span>
+nodetool repair keyspace_name view_name
+
+<span class="comment">-- View MV statistics</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> system_views.views;
+
+<span class="comment">-- Check lag between base table and MV</span>
+<span class="comment">-- Monitor write timestamps in both tables</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Optimization Strategies</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>Fast MVs</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Limit to 3 MVs:</strong> Per table maximum</li>
+                <li><strong>Select Only Needed:</strong> Fewer columns = faster</li>
+                <li><strong>Appropriate CL:</strong> LOCAL_QUORUM for writes</li>
+                <li><strong>Regular Repair:</strong> Keep MVs in sync</li>
+                <li><strong>Monitor Lag:</strong> Alert if > 1 second behind</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>Slow MVs</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Too Many MVs:</strong> > 5 per table kills writes</li>
+                <li><strong>SELECT *:</strong> Unnecessary data slows down</li>
+                <li><strong>No Monitoring:</strong> Don't notice sync issues</li>
+                <li><strong>Wrong CL:</strong> ALL consistency = very slow</li>
+                <li><strong>No Repair:</strong> MVs drift out of sync</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="info-box warning" data-aos="fade-up" style="margin-top: 2rem;">
+        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> When NOT to Use MVs</h4>
+        <p><strong>Consider manual denormalization instead if:</strong></p>
+        <ul style="margin-top: 1rem; line-height: 1.9;">
+            <li>Write throughput > 10,000 writes/second per table</li>
+            <li>Need more than 5 different access patterns</li>
+            <li>Write latency is critical (< 5ms required)</li>
+            <li>Table has frequent schema changes</li>
+            <li>Need to filter or aggregate data</li>
+        </ul>
+    </div>
+</section>
+<section id="live-console" data-aos="fade-up">
+    <h2>🖥️ Interactive Materialized View Console</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Practice creating materialized views in our simulator!</p>
+
+    <div class="live-console" data-aos="fade-up">
+        <div class="console-header">
+            <div class="console-title">
+                <i class="fas fa-terminal"></i>
+                CQL Materialized View Playground
+            </div>
+            <div class="console-controls">
+                <button class="console-btn primary" onclick="executeMV()">
+                    <i class="fas fa-play"></i> Run Command
+                </button>
+                <button class="console-btn" onclick="loadMVExample(1)">Example 1</button>
+                <button class="console-btn" onclick="loadMVExample(2)">Example 2</button>
+                <button class="console-btn" onclick="loadMVExample(3)">Example 3</button>
+                <button class="console-btn" onclick="clearMVConsole()">
+                    <i class="fas fa-eraser"></i> Clear
+                </button>
+            </div>
+        </div>
+        <div class="console-body">
+            <div style="margin-bottom: 1rem;">
+                <label style="color: #8b5cf6; font-weight: 600; margin-bottom: 0.5rem; display: block;">Enter CQL Command:</label>
+                <textarea id="mvInput" class="console-input" rows="10" placeholder="CREATE MATERIALIZED VIEW ..." style="resize: vertical; min-height: 250px;">CREATE MATERIALIZED VIEW reviews_by_movie AS
+    SELECT * FROM reviews
+    WHERE movie_id IS NOT NULL 
+      AND review_id IS NOT NULL
+    PRIMARY KEY (movie_id, review_id);</textarea>
+            </div>
+            <div id="mvOutput" class="console-output">
+                <div class="console-log" style="color: #94a3b8;">
+                    <strong>🚀 Materialized View Simulator Ready!</strong><br/>
+                    Try the examples or create your own MV...<br/><br/>
+                    <strong>Available Examples:</strong><br/>
+                    • Example 1: Basic MV creation<br/>
+                    • Example 2: MV with clustering order<br/>
+                    • Example 3: Multiple MVs on same table
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master materialized views for your next Cassandra interview!</p>
+
+        <!-- Question 1 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">What is a materialized view and how is it different from a secondary index?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Materialized views are automatically maintained denormalized tables, while secondary indexes are lookups that enable filtering on non-primary key columns.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Materialized View:</strong></p>
+                    <ul>
+                        <li><strong>What:</strong> A complete table with different primary key</li>
+                        <li><strong>Data:</strong> Full copy of data, automatically synchronized</li>
+                        <li><strong>Queries:</strong> Fast, single-partition reads</li>
+                        <li><strong>Writes:</strong> Cassandra updates automatically</li>
+                        <li><strong>Performance:</strong> Read-optimized, write overhead 20-40%</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Secondary Index:</strong></p>
+                    <ul>
+                        <li><strong>What:</strong> Lookup structure (column_value → partition_key)</li>
+                        <li><strong>Data:</strong> No data duplication, just pointers</li>
+                        <li><strong>Queries:</strong> Slower, scatter-gather across all nodes</li>
+                        <li><strong>Writes:</strong> Automatic index updates</li>
+                        <li><strong>Performance:</strong> Write overhead ~10%, reads slower than MV</li>
+                    </ul>
+
+                    <table style="width: 100%; margin-top: 1.5rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Feature</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">MV</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Index</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Read Speed</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">⚡ Fast (5ms)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">🐌 Slower (50ms+)</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Write Impact</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">-20% to -40%</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">-10%</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Storage</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">2x (full copy)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">+10-20%</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Best For</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Known query patterns</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Ad-hoc queries</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">What are the main limitations of materialized views?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: MVs have five major limitations: no row filtering, no aggregations, write performance impact, eventual consistency, and static column restrictions.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>1. Cannot Filter Rows</strong></p>
+                    <p>You can only use WHERE with IS NOT NULL, not actual filtering.</p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ❌ Can't do this:</span>
+<span class="keyword">WHERE</span> status = <span class="string">'active'</span>
+
+<span class="comment">-- ✅ Only this:</span>
+<span class="keyword">WHERE</span> status <span class="keyword">IS NOT NULL</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>2. Cannot Aggregate Data</strong></p>
+                    <p>No COUNT, SUM, AVG, MAX, MIN, or GROUP BY allowed.</p>
+
+                    <p style="margin-top: 1.5rem;"><strong>3. Write Performance Impact</strong></p>
+                    <ul>
+                        <li>Each MV adds 20-40% write overhead</li>
+                        <li>3 MVs = 50% slower writes</li>
+                        <li>Cassandra must update base table + all MVs</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>4. Eventually Consistent</strong></p>
+                    <ul>
+                        <li>MV updates are async (usually < 10ms delay)</li>
+                        <li>Read immediately after write may miss data</li>
+                        <li>Not suitable for strict consistency requirements</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>5. Static Column Restrictions</strong></p>
+                    <p>Can only include static columns if partition key remains the same in MV.</p>
+
+                    <p style="margin-top: 1rem;"><strong>Workarounds:</strong></p>
+                    <ul>
+                        <li>For filtering: Reorganize then filter in query</li>
+                        <li>For aggregations: Use counter tables or application-level</li>
+                        <li>For consistency: Query base table directly</li>
+                        <li>For heavy writes: Consider manual denormalization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">How does Cassandra maintain materialized views internally?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Cassandra uses a batchlog-based approach to ensure MVs are updated atomically with the base table.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>The MV Update Process:</strong></p>
+                    <ol style="line-height: 1.9;">
+                        <li><strong>Write Received:</strong> Client writes to base table</li>
+                        <li><strong>MV Detection:</strong> Coordinator identifies which MVs are affected</li>
+                        <li><strong>Mutation Generation:</strong> Creates write mutations for each MV</li>
+                        <li><strong>Batchlog Entry:</strong> Writes to distributed batchlog for durability</li>
+                        <li><strong>Parallel Writes:</strong> Sends writes to base table + all MVs</li>
+                        <li><strong>Async Completion:</strong> MVs update asynchronously</li>
+                        <li><strong>Batchlog Cleanup:</strong> Removes batchlog entry when complete</li>
+                    </ol>
+
+                    <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Example: Write with 2 MVs</span>
+<span class="keyword">INSERT INTO</span> reviews (review_id, movie_id, user_id, rating)
+<span class="keyword">VALUES</span> (uuid(), <span class="number">101</span>, <span class="number">201</span>, <span class="number">5</span>);
+
+<span class="comment">-- Internally Cassandra does:</span>
+<span class="comment">-- 1. Write to batchlog: [reviews, reviews_by_movie, reviews_by_user]</span>
+<span class="comment">-- 2. Write to reviews table (base)</span>
+<span class="comment">-- 3. Write to reviews_by_movie (MV 1)</span>
+<span class="comment">-- 4. Write to reviews_by_user (MV 2)</span>
+<span class="comment">-- 5. Remove batchlog entry when all succeed</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why Batchlog?</strong></p>
+                    <ul>
+                        <li><strong>Crash Recovery:</strong> If node fails mid-write, batchlog ensures MV updates complete</li>
+                        <li><strong>Consistency:</strong> Prevents base table and MVs from getting out of sync</li>
+                        <li><strong>Replay:</strong> Other nodes replay batchlog if coordinator fails</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Trade-off:</strong></p>
+                    <p>Batchlog adds overhead (extra write + disk space), which is why MVs impact write performance.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">When should you use materialized views vs manual denormalization?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Use MVs for read-heavy workloads with simple denormalization needs. Use manual denormalization for write-heavy workloads or when you need more control.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Use Materialized Views When:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ <strong>Read-Heavy:</strong> 80%+ reads, < 10K writes/sec</li>
+                        <li>✅ <strong>Simple Reorganization:</strong> Just changing primary key structure</li>
+                        <li>✅ <strong>Reduce Complexity:</strong> Don't want BATCH logic in application</li>
+                        <li>✅ <strong>Few Access Patterns:</strong> 2-3 different query patterns max</li>
+                        <li>✅ <strong>Automatic Sync:</strong> Need guaranteed consistency without code</li>
+                        <li>✅ <strong>Development Speed:</strong> Faster to implement than manual</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Use Manual Denormalization When:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ <strong>Write-Heavy:</strong> > 10K writes/sec</li>
+                        <li>✅ <strong>Many Access Patterns:</strong> > 5 different ways to query</li>
+                        <li>✅ <strong>Need Filtering:</strong> Want to filter rows (MVs can't)</li>
+                        <li>✅ <strong>Need Aggregation:</strong> Want computed columns</li>
+                        <li>✅ <strong>Custom Logic:</strong> Complex transformation rules</li>
+                        <li>✅ <strong>Performance Critical:</strong> Can't afford 20-40% write overhead</li>
+                        <li>✅ <strong>Batch Control:</strong> Want fine-grained control over when tables sync</li>
+                    </ul>
+
+                    <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Materialized View Approach (automatic)</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> reviews_by_movie <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews
+    <span class="keyword">WHERE</span> movie_id <span class="keyword">IS NOT NULL</span> <span class="keyword">AND</span> review_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (movie_id, review_id);
+
+<span class="keyword">INSERT INTO</span> reviews (...) <span class="keyword">VALUES</span> (...);  <span class="comment">-- MV updates automatically!</span>
+
+<span class="comment">-----------------------------------</span>
+
+<span class="comment">-- Manual Denormalization (more control)</span>
+<span class="keyword">CREATE TABLE</span> reviews_by_movie (...);
+
+<span class="comment">-- Application code handles sync:</span>
+<span class="keyword">BEGIN BATCH</span>
+  <span class="keyword">INSERT INTO</span> reviews (...) <span class="keyword">VALUES</span> (...);
+  <span class="keyword">INSERT INTO</span> reviews_by_movie (...) <span class="keyword">VALUES</span> (...);
+<span class="keyword">APPLY BATCH</span>;
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Decision Matrix:</strong></p>
+                    <p>If (read_heavy AND simple_reorg AND < 5 patterns) → Use MV<br/>
+                    Else → Use manual denormalization</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">How do you rebuild a materialized view that has become inconsistent?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Drop and recreate the MV, or use nodetool repair for minor inconsistencies.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Option 1: Full Rebuild (Recommended for Major Issues)</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Step 1: Drop the corrupted MV</span>
+<span class="keyword">DROP MATERIALIZED VIEW</span> reviews_by_movie;
+
+<span class="comment">-- Step 2: Recreate with same definition</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> reviews_by_movie <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> reviews
+    <span class="keyword">WHERE</span> movie_id <span class="keyword">IS NOT NULL</span> 
+      <span class="keyword">AND</span> review_id <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (movie_id, review_id);
+
+<span class="comment">-- Cassandra rebuilds from base table automatically</span>
+<span class="comment">-- Monitor progress:</span>
+nodetool viewbuildstatus keyspace_name reviews_by_movie
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Option 2: Repair (For Minor Inconsistencies)</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Run repair on the MV</span>
+nodetool repair keyspace_name reviews_by_movie
+
+<span class="comment">-- This syncs data across replicas</span>
+<span class="comment">-- Use for: occasional missing rows, replica drift</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Common Causes of Inconsistency:</strong></p>
+                    <ul>
+                        <li><strong>Node Failures:</strong> Node crashed during MV update</li>
+                        <li><strong>Network Partitions:</strong> Split brain scenarios</li>
+                        <li><strong>Disk Corruption:</strong> SSTable corruption on MV</li>
+                        <li><strong>Upgrade Issues:</strong> Bug in Cassandra version</li>
+                        <li><strong>No Regular Repair:</strong> Replicas drifted over time</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Prevention Best Practices:</strong></p>
+                    <ul>
+                        <li>✅ Run nodetool repair weekly on MVs</li>
+                        <li>✅ Monitor MV lag (base table vs MV timestamps)</li>
+                        <li>✅ Use LOCAL_QUORUM consistency level</li>
+                        <li>✅ Monitor batchlog size (shouldn't grow unbounded)</li>
+                        <li>✅ Test MV queries after cluster maintenance</li>
+                    </ul>
+
+                    <div class="info-box warning" style="margin-top: 1rem;">
+                        <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Important Notes</h4>
+                        <ul>
+                            <li><strong>Rebuild Time:</strong> Large base tables take hours to rebuild MV</li>
+                            <li><strong>During Rebuild:</strong> MV is queryable but incomplete</li>
+                            <li><strong>Traffic Impact:</strong> Rebuild causes high CPU/disk I/O</li>
+                            <li><strong>Recommendation:</strong> Rebuild during low-traffic windows</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Materialized View Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">Congratulations! You now understand Materialized Views at a production level!</strong></p>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Key Concepts Mastered:</h4>
+        <ul style="line-height: 1.9;">
+            <li><strong style="color: var(--text-primary);">Automatic Denormalization:</strong> Cassandra maintains MVs for you</li>
+            <li><strong style="color: var(--text-primary);">Different Primary Key:</strong> Same data, organized differently</li>
+            <li><strong style="color: var(--text-primary);">Eventually Consistent:</strong> Slight delay (usually < 10ms)</li>
+            <li><strong style="color: var(--text-primary);">Write Overhead:</strong> 20-40% per MV</li>
+            <li><strong style="color: var(--text-primary);">Read Performance:</strong> Fast as regular tables (5ms)</li>
+        </ul>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">The Golden Rules:</h4>
+        <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; border-left: 3px solid #059669; margin-top: 1rem;">
+            <ol style="line-height: 2; margin: 0;">
+                <li><strong style="color: var(--text-primary);">Limit to 3-5 MVs:</strong> Per table maximum</li>
+                <li><strong style="color: var(--text-primary);">Include Base PK:</strong> Always in WHERE and PRIMARY KEY</li>
+                <li><strong style="color: var(--text-primary);">IS NOT NULL Only:</strong> Can't filter by value</li>
+                <li><strong style="color: var(--text-primary);">Read-Heavy Workloads:</strong> Best use case</li>
+                <li><strong style="color: var(--text-primary);">Monitor Write Impact:</strong> Track latency</li>
+            </ol>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">When to Use What:</h4>
+        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+            <thead style="background: rgba(139, 92, 246, 0.1);">
+                <tr>
+                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Scenario</th>
+                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Solution</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Read-heavy, simple reorg</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #059669;">✅ Use Materialized View</strong></td>
+                </tr>
+                <tr style="background: rgba(71, 85, 105, 0.05);">
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Write-heavy (> 10K/sec)</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #dc2626;">❌ Manual Denormalization</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Need to filter rows</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #dc2626;">❌ Manual Denormalization</strong></td>
+                </tr>
+                <tr style="background: rgba(71, 85, 105, 0.05);">
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Need aggregations</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #dc2626;">❌ Counter Tables</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">2-3 access patterns</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #059669;">✅ Use Materialized View</strong></td>
+                </tr>
+                <tr style="background: rgba(71, 85, 105, 0.05);">
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 5 access patterns</td>
+                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong style="color: #dc2626;">❌ Manual Denormalization</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Major Limitations to Remember:</h4>
+        <div style="background: rgba(220, 38, 38, 0.15); padding: 1.5rem; border-radius: 12px; border-left: 3px solid #dc2626; margin-top: 1rem;">
+            <ul style="line-height: 1.9; margin: 0;">
+                <li>❌ Cannot filter rows (only IS NOT NULL)</li>
+                <li>❌ Cannot aggregate data (no COUNT, SUM, AVG)</li>
+                <li>❌ Write overhead: 20-40% per MV</li>
+                <li>❌ Eventually consistent (slight delay)</li>
+                <li>❌ Static column restrictions</li>
+                <li>❌ Build time on large tables (hours)</li>
+            </ul>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Production Checklist:</h4>
+        <div style="background: rgba(13, 148, 136, 0.15); padding: 1.5rem; border-radius: 12px; border-left: 3px solid #0d9488; margin-top: 1rem;">
+            <ul style="line-height: 1.9; margin: 0;">
+                <li>✅ Base table PK included in MV WHERE and PRIMARY KEY</li>
+                <li>✅ All PK columns have IS NOT NULL</li>
+                <li>✅ Limited to 3-5 MVs per table</li>
+                <li>✅ Write performance tested (measured impact)</li>
+                <li>✅ MV build scheduled during low traffic</li>
+                <li>✅ Regular nodetool repair on MVs</li>
+                <li>✅ Monitoring for MV lag/inconsistencies</li>
+                <li>✅ Documentation of access patterns</li>
+            </ul>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Quick Command Reference:</h4>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Create MV</span>
+<span class="keyword">CREATE MATERIALIZED VIEW</span> view_name <span class="keyword">AS</span>
+    <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> base_table
+    <span class="keyword">WHERE</span> col1 <span class="keyword">IS NOT NULL</span> <span class="keyword">AND</span> col2 <span class="keyword">IS NOT NULL</span>
+    <span class="keyword">PRIMARY KEY</span> (col1, col2);
+
+<span class="comment">-- Drop MV</span>
+<span class="keyword">DROP MATERIALIZED VIEW</span> view_name;
+
+<span class="comment">-- Check build status</span>
+nodetool viewbuildstatus keyspace view_name
+
+<span class="comment">-- Repair MV</span>
+nodetool repair keyspace view_name
+        </div>
+
+        <p style="margin-top: 2rem; font-size: 1.2rem; text-align: center; color: var(--text-primary);">
+            <strong style="color: var(--accent-purple);">🚀 You're now ready to use Materialized Views in production!</strong>
+        </p>
+
+        <p style="text-align: center; margin-top: 1rem; font-size: 1rem;">
+            Remember Emma's story: MVs = Automatic denormalization without code complexity! 🎉
+        </p>
+    </div>
+</div>
+<div class="page-navigation">
+    <a href="indexes.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Indexes</div>
+        </div>
+    </a>
+    <a href="cql-best-practices.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">CQL Best Practices</div>
+        </div>
+    </a>
+</div>
+     <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    // Initialize AOS
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+    // Progress Bar
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    // Mobile Menu
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    // Toggle Section
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    // Toggle Question
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    // Scroll to Top
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // MV Console Functions
+    function clearMVConsole() {
+        document.getElementById('mvOutput').innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared. Ready for new commands...</div>';
+    }
+
+    function addMVLog(message, type = '') {
+        const output = document.getElementById('mvOutput');
+        const logDiv = document.createElement('div');
+        logDiv.className = `console-log log-${type}`;
+        logDiv.innerHTML = message;
+        output.appendChild(logDiv);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function executeMV() {
+        const input = document.getElementById('mvInput').value.trim().toUpperCase();
+        if (!input) {
+            alert('Please enter a command!');
+            return;
+        }
+
+        clearMVConsole();
+        
+        addMVLog('════════════════════════════════════════', '');
+        addMVLog('<strong>EXECUTING MATERIALIZED VIEW COMMAND</strong>', 'info');
+        addMVLog('════════════════════════════════════════<br/>', '');
+        
+        if (input.includes('CREATE MATERIALIZED VIEW')) {
+            const viewMatch = input.match(/CREATE\s+MATERIALIZED\s+VIEW\s+(\w+)/);
+            const viewName = viewMatch ? viewMatch[1] : 'unknown_view';
+            
+            const baseMatch = input.match(/FROM\s+(\w+)/);
+            const baseName = baseMatch ? baseMatch[1] : 'unknown_table';
+            
+            addMVLog(`<strong>Step 1: Validating Syntax</strong>`, 'input');
+            addMVLog(`View Name: ${viewName}`, '');
+            addMVLog(`Base Table: ${baseName}`, '');
+            
+            // Check for IS NOT NULL
+            if (!input.includes('IS NOT NULL')) {
+                addMVLog('<br/><strong style="color: #dc2626;">❌ ERROR: Missing IS NOT NULL in WHERE clause!</strong>', 'error');
+                addMVLog('All primary key columns must have IS NOT NULL', 'error');
+                addMVLog('<br/>Example:', 'info');
+                addMVLog('WHERE column1 IS NOT NULL AND column2 IS NOT NULL', 'info');
+                return;
+            }
+            
+            addMVLog(`WHERE clause: ✓ Contains IS NOT NULL<br/>`, 'success');
+            
+            addMVLog(`<strong>Step 2: Creating Materialized View</strong>`, 'info');
+            addMVLog(`Analyzing base table structure...`, '');
+            addMVLog(`Validating primary key consistency...`, '');
+            addMVLog(`<strong style="color: #10b981;">✓ Materialized view created successfully!</strong><br/>`, 'success');
+            
+            addMVLog(`<strong>Step 3: Building View from Base Table</strong>`, 'info');
+            addMVLog(`Scanning base table: ${baseName}`, '');
+            addMVLog(`Populating view: ${viewName}`, '');
+            addMVLog(`Progress: 100% (simulated)`, '');
+            addMVLog(`<strong style="color: #10b981;">✓ View build completed!</strong><br/>`, 'success');
+            
+            addMVLog('<br/>════════════════════════════════════════', '');
+            addMVLog('<strong style="color: #059669;">CREATE MATERIALIZED VIEW completed!</strong>', 'success');
+            addMVLog('════════════════════════════════════════', '');
+            
+            addMVLog('<br/><strong style="color: #8b5cf6;">📝 Important Notes:</strong>', 'info');
+            addMVLog('• View updates automatically when base table changes', 'info');
+            addMVLog('• View is eventually consistent (slight delay)', 'info');
+            addMVLog('• Each write to base table updates this view', 'info');
+            addMVLog('• Write performance impact: ~20-40%', 'info');
+            
+            addMVLog('<br/><strong style="color: #0d9488;">💡 Query Example:</strong>', 'info');
+            addMVLog(`SELECT * FROM ${viewName} WHERE partition_key = ?;`, 'info');
+            
+        } else if (input.includes('DROP MATERIALIZED VIEW')) {
+            const viewMatch = input.match(/DROP\s+MATERIALIZED\s+VIEW\s+(\w+)/);
+            const viewName = viewMatch ? viewMatch[1] : 'unknown_view';
+            
+            addMVLog(`<strong>Dropping Materialized View: ${viewName}</strong>`, 'warning');
+            addMVLog(`Removing view from schema...`, '');
+            addMVLog(`Cleaning up view data...`, '');
+            addMVLog(`<strong style="color: #10b981;">✓ Materialized view dropped successfully!</strong>`, 'success');
+            
+            addMVLog('<br/><strong style="color: #d97706;">⚠️ Note:</strong>', 'warning');
+            addMVLog('Base table data is NOT affected', 'warning');
+            addMVLog('To recreate, use CREATE MATERIALIZED VIEW again', 'warning');
+            
+        } else if (input.includes('SELECT')) {
+            addMVLog(`<strong>Querying Materialized View</strong>`, 'info');
+            addMVLog(`Executing query...`, '');
+            
+            if (input.includes('WHERE')) {
+                addMVLog(`Using partition key: ✓`, 'success');
+                addMVLog(`Query executed in 5ms`, '');
+                addMVLog(`Returned 47 rows`, '');
+            } else {
+                addMVLog(`<strong style="color: #d97706;">⚠️ WARNING: No WHERE clause!</strong>`, 'warning');
+                addMVLog(`This will scan the entire view`, 'warning');
+            }
+            
+            addMVLog(`<strong style="color: #10b981;">✓ Query completed!</strong>`, 'success');
+            
+        } else {
+            addMVLog('Error: Not a valid materialized view command', 'error');
+            addMVLog('Try: CREATE MATERIALIZED VIEW view_name AS...', 'error');
+        }
+    }
+
+    function loadMVExample(num) {
+        const examples = {
+            1: `CREATE MATERIALIZED VIEW reviews_by_movie AS
+    SELECT * FROM reviews
+    WHERE movie_id IS NOT NULL 
+      AND review_id IS NOT NULL
+    PRIMARY KEY (movie_id, review_id);`,
+            
+            2: `CREATE MATERIALIZED VIEW orders_by_customer AS
+    SELECT * FROM orders
+    WHERE customer_id IS NOT NULL 
+      AND order_date IS NOT NULL
+      AND order_id IS NOT NULL
+    PRIMARY KEY (customer_id, order_date, order_id)
+    WITH CLUSTERING ORDER BY (order_date DESC);`,
+            
+            3: `-- Multiple MVs on same base table
+
+-- Base table
+CREATE TABLE events (
+    event_id TIMEUUID PRIMARY KEY,
+    user_id UUID,
+    event_type TEXT,
+    created_at TIMESTAMP
+);
+
+-- MV 1: By user
+CREATE MATERIALIZED VIEW events_by_user AS
+    SELECT * FROM events
+    WHERE user_id IS NOT NULL 
+      AND event_id IS NOT NULL
+    PRIMARY KEY (user_id, event_id);
+
+-- MV 2: By type
+CREATE MATERIALIZED VIEW events_by_type AS
+    SELECT * FROM events
+    WHERE event_type IS NOT NULL 
+      AND event_id IS NOT NULL
+    PRIMARY KEY (event_type, event_id);`
+        };
+        
+        document.getElementById('mvInput').value = examples[num] || examples[1];
+    }
+</script>
+</body>
+</html>

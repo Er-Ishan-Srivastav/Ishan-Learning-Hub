@@ -1,0 +1,2297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete BATCH Guide for Cassandra - Master batch operations, logged vs unlogged batches, performance optimization, and best practices!">
+    <meta name="keywords" content="cassandra batch, cql batch, batch operations cassandra, logged batch, unlogged batch">
+    <title>BATCH Operations Complete Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+         /* Navigation Buttons */
+    .page-navigation {
+        display: flex;
+        justify-content: space-between;
+        gap: 2rem;
+        margin-top: 5rem;
+        padding-top: 4rem;
+        border-top: 3px solid var(--border-light);
+    }
+
+    .nav-button {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.75rem 2.25rem;
+        background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+        border: 2px solid var(--border-light);
+        border-radius: 16px;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.4s ease;
+        flex: 1;
+        max-width: 450px;
+    }
+
+    .nav-button:hover {
+        border-color: var(--accent-teal);
+        box-shadow: 0 15px 40px rgba(13, 148, 136, 0.3);
+        transform: translateY(-5px);
+        color: var(--text-primary);
+    }
+
+    .nav-button.next {
+        margin-left: auto;
+        flex-direction: row-reverse;
+    }
+
+    .nav-icon {
+        font-size: 2.5rem;
+        color: var(--accent-teal);
+    }
+
+    .nav-text {
+        flex: 1;
+    }
+
+    .nav-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
+    .nav-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    /* Scroll to Top */
+    .scroll-top {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+        color: white;
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.4s ease;
+        box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+        z-index: 1000;
+    }
+
+    .scroll-top.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .scroll-top:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(13, 148, 136, 0.4);
+    }
+
+        :root {
+            --primary-blue: #3b82f6;
+            --dark-blue: #2563eb;
+            --light-blue: #60a5fa;
+            --accent-indigo: #6366f1;
+            --accent-sky: #0ea5e9;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-blue), var(--accent-sky));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(59, 130, 246, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: codepulse 2s ease-in-out infinite;
+        }
+
+        @keyframes codepulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-sky);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--primary-blue);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-sky);
+            background: rgba(14, 165, 233, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 25%, #6366f1 50%, #0ea5e9 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(59, 130, 246, 0.3);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-sky);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-sky);
+            border-left-color: var(--accent-sky);
+            padding-left: 1.25rem;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .code-label {
+            color: var(--primary-blue);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-button {
+            padding: 0.5rem 1rem;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-button:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        .code-content {
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .keyword {
+            color: #c792ea;
+            font-weight: 600;
+        }
+
+        .string {
+            color: #c3e88d;
+        }
+
+        .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .function {
+            color: #82aaff;
+        }
+
+        .syntax-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(14, 165, 233, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2.5rem 0;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .syntax-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+        }
+
+        .syntax-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.3);
+            border-color: var(--primary-blue);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+            border-color: var(--accent-sky);
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--light-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.tip {
+            border-left-color: var(--accent-sky);
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.error {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+        }
+
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--code-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        th {
+            background: var(--code-darker);
+            color: var(--primary-blue);
+            font-weight: 700;
+        }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+   <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Batch Operation</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html" class="active">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+   </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-layer-group"></i>
+                        Section 9: Advanced Operations
+                    </span>
+                    <h1>Master <span class="gradient-text">BATCH Operations</span></h1>
+                    <p>Complete guide to batch operations in Cassandra - logged vs unlogged batches, atomicity, performance optimization, and when NOT to use batches!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-9-overview.html">Section 9: Advanced Operations</a>
+                <span class="separator">›</span>
+                <span class="current">BATCH Operations</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#intro">🎯 Introduction</a></li>
+                            <li><a href="#beginner">📚 Beginner Guide</a></li>
+                            <li><a href="#basic-syntax">📖 Basic Syntax</a></li>
+                            <li><a href="#logged-batch">📝 Logged BATCH</a></li>
+                            <li><a href="#unlogged-batch">⚡ Unlogged BATCH</a></li>
+                            <li><a href="#comparison">⚖️ Logged vs Unlogged</a></li>
+                            <li><a href="#when-to-use">✅ When to Use</a></li>
+                            <li><a href="#antipatterns">❌ Anti-Patterns</a></li>
+                            <li><a href="#examples">💡 Real Examples</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Introduction -->
+                    <section id="intro" data-aos="fade-up">
+                        <h2>🎯 BATCH in Cassandra</h2>
+                        
+                        <div class="info-box error">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: var(--error-red);"></i> CRITICAL: BATCH is NOT for Performance!</h4>
+                            <p style="font-size: 1.1rem; line-height: 1.9;">
+                                <strong style="color: var(--error-red);">BIGGEST MISCONCEPTION:</strong> Many developers think BATCH makes writes faster. <strong>IT DOESN'T!</strong> In fact, BATCH can make writes SLOWER!
+                            </p>
+                            
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 2rem; border-radius: 12px; margin-top: 2rem; border: 2px solid var(--error-red);">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">⚠️ BATCH is ONLY for:</h5>
+                                <ol style="font-size: 1.05rem; line-height: 2;">
+                                    <li><strong>Atomicity:</strong> Ensuring multiple writes succeed or fail together</li>
+                                    <li><strong>Same Partition:</strong> Multiple operations to THE SAME partition key</li>
+                                </ol>
+                                <p style="margin-top: 1.5rem; font-size: 1.05rem; line-height: 2; color: var(--error-red); font-weight: 600;">
+                                    Using BATCH for "bulk inserts" or "performance" is an ANTI-PATTERN!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="svg-container" style="border: 3px solid var(--error-red); margin-top: 3rem;">
+                            <svg viewBox="0 0 1200 750" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#059669" />
+                                    </marker>
+                                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+                                    </marker>
+                                </defs>
+
+                                <text x="600" y="35" font-family="Inter, sans-serif" font-size="26" font-weight="900" fill="#dc2626" text-anchor="middle">
+                                    ⚠️ BATCH Performance: MYTH vs REALITY
+                                </text>
+
+                                <!-- LEFT: MYTH (Wrong Thinking) -->
+                                <g transform="translate(50, 80)">
+                                    <rect width="500" height="600" rx="15" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="3"/>
+                                    <text x="250" y="40" font-size="20" font-weight="800" fill="#dc2626" text-anchor="middle">
+                                        ❌ MYTH: "BATCH = Faster!"
+                                    </text>
+
+                                    <!-- Developer thinking -->
+                                    <g transform="translate(20, 70)">
+                                        <rect width="460" height="80" rx="10" fill="#0f172a" stroke="#dc2626" stroke-width="2"/>
+                                        <text x="230" y="30" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="700">
+                                            Developer's Wrong Assumption:
+                                        </text>
+                                        <text x="230" y="55" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                            "I'll group 1000 inserts in BATCH"
+                                        </text>
+                                        <text x="230" y="72" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                            "→ One network call = FAST!"
+                                        </text>
+                                    </g>
+
+                                    <!-- What actually happens -->
+                                    <text x="250" y="185" font-size="16" font-weight="700" fill="#dc2626" text-anchor="middle">
+                                        What Actually Happens:
+                                    </text>
+
+                                    <!-- Problem 1 -->
+                                    <g transform="translate(20, 200)">
+                                        <rect width="460" height="70" rx="8" fill="#dc2626" opacity="0.2" stroke="#dc2626" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            1️⃣ Coordinator Bottleneck
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • Coordinator must hold ALL 1000 writes in memory
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • Can cause Out Of Memory errors!
+                                        </text>
+                                    </g>
+
+                                    <!-- Problem 2 -->
+                                    <g transform="translate(20, 285)">
+                                        <rect width="460" height="70" rx="8" fill="#dc2626" opacity="0.2" stroke="#dc2626" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            2️⃣ Sequential Processing
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • All writes wait for SLOWEST one to complete
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • No parallelism = SLOW!
+                                        </text>
+                                    </g>
+
+                                    <!-- Problem 3 -->
+                                    <g transform="translate(20, 370)">
+                                        <rect width="460" height="90" rx="8" fill="#dc2626" opacity="0.2" stroke="#dc2626" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" begin="1s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            3️⃣ Batchlog Overhead (if logged)
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • Writes entire batch to batchlog first (3 replicas!)
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • Then writes actual data
+                                        </text>
+                                        <text x="25" y="79" font-size="11" fill="#e2e8f0">
+                                            • Double the work!
+                                        </text>
+                                    </g>
+
+                                    <!-- Result -->
+                                    <g transform="translate(20, 475)">
+                                        <rect width="460" height="90" rx="10" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="3">
+                                            <animate attributeName="opacity" values="0.3;0.5;0.3" dur="1.5s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="230" y="30" font-size="16" fill="white" text-anchor="middle" font-weight="800">
+                                            RESULT: 2-10x SLOWER!
+                                        </text>
+                                        <text x="230" y="55" font-size="13" fill="white" text-anchor="middle">
+                                            Plus: Timeouts, OOM errors,
+                                        </text>
+                                        <text x="230" y="75" font-size="13" fill="white" text-anchor="middle">
+                                            Cluster instability
+                                        </text>
+                                    </g>
+                                </g>
+
+                                <!-- RIGHT: REALITY (Correct Approach) -->
+                                <g transform="translate(650, 80)">
+                                    <rect width="500" height="600" rx="15" fill="#059669" opacity="0.1" stroke="#059669" stroke-width="3"/>
+                                    <text x="250" y="40" font-size="20" font-weight="800" fill="#059669" text-anchor="middle">
+                                        ✅ REALITY: Parallel Individual Writes
+                                    </text>
+
+                                    <!-- Correct approach -->
+                                    <g transform="translate(20, 70)">
+                                        <rect width="460" height="80" rx="10" fill="#0f172a" stroke="#059669" stroke-width="2"/>
+                                        <text x="230" y="30" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="700">
+                                            Smart Developer's Approach:
+                                        </text>
+                                        <text x="230" y="55" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                            "Send 1000 writes individually"
+                                        </text>
+                                        <text x="230" y="72" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                            "→ In PARALLEL using async/await!"
+                                        </text>
+                                    </g>
+
+                                    <!-- What happens -->
+                                    <text x="250" y="185" font-size="16" font-weight="700" fill="#059669" text-anchor="middle">
+                                        What Actually Happens:
+                                    </text>
+
+                                    <!-- Benefit 1 -->
+                                    <g transform="translate(20, 200)">
+                                        <rect width="460" height="70" rx="8" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            1️⃣ True Parallelism
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • Each write goes directly to responsible node
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • All 1000 writes happen SIMULTANEOUSLY!
+                                        </text>
+                                    </g>
+
+                                    <!-- Benefit 2 -->
+                                    <g transform="translate(20, 285)">
+                                        <rect width="460" height="70" rx="8" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            2️⃣ No Coordinator Bottleneck
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • Load distributed across ALL nodes
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • No single point of failure
+                                        </text>
+                                    </g>
+
+                                    <!-- Benefit 3 -->
+                                    <g transform="translate(20, 370)">
+                                        <rect width="460" height="90" rx="8" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="2">
+                                            <animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" begin="1s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="15" y="25" font-size="13" fill="#e2e8f0" font-weight="700">
+                                            3️⃣ No Batchlog Overhead
+                                        </text>
+                                        <text x="25" y="45" font-size="11" fill="#e2e8f0">
+                                            • Direct writes to data nodes
+                                        </text>
+                                        <text x="25" y="62" font-size="11" fill="#e2e8f0">
+                                            • No extra logging
+                                        </text>
+                                        <text x="25" y="79" font-size="11" fill="#e2e8f0">
+                                            • Minimal overhead!
+                                        </text>
+                                    </g>
+
+                                    <!-- Result -->
+                                    <g transform="translate(20, 475)">
+                                        <rect width="460" height="90" rx="10" fill="#059669" opacity="0.3" stroke="#059669" stroke-width="3">
+                                            <animate attributeName="opacity" values="0.3;0.5;0.3" dur="1.5s" repeatCount="indefinite"/>
+                                        </rect>
+                                        <text x="230" y="30" font-size="16" fill="white" text-anchor="middle" font-weight="800">
+                                            RESULT: 10x FASTER!
+                                        </text>
+                                        <text x="230" y="55" font-size="13" fill="white" text-anchor="middle">
+                                            Plus: Stable cluster,
+                                        </text>
+                                        <text x="230" y="75" font-size="13" fill="white" text-anchor="middle">
+                                            Predictable performance
+                                        </text>
+                                    </g>
+                                </g>
+
+                                <!-- Bottom comparison -->
+                                <rect x="50" y="700" width="1100" height="35" rx="8" fill="#3b82f6" opacity="0.2" stroke="#3b82f6" stroke-width="2"/>
+                                <text x="600" y="725" font-size="14" fill="#3b82f6" text-anchor="middle" font-weight="700">
+                                    💡 Golden Rule: Use BATCH for ATOMICITY (correctness), NEVER for PERFORMANCE (speed)!
+                                </text>
+                            </svg>
+                        </div>
+                    </section>
+
+                    <!-- Beginner Guide -->
+                    <section id="beginner" data-aos="fade-up">
+                        <h2>📚 Beginner's Guide to BATCH</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue);">
+                            <h4><i class="fas fa-book-reader" style="color: var(--primary-blue);"></i> What is BATCH?</h4>
+                            
+                            <p style="font-size: 1.1rem; line-height: 2;">
+                                <strong>Simple Explanation:</strong> BATCH lets you group multiple INSERT, UPDATE, or DELETE statements together.
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">🏦 Bank Transfer Analogy:</h5>
+                                <p style="line-height: 2;">
+                                    Imagine transferring money between two bank accounts:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li><strong>Without BATCH:</strong>
+                                        <ul style="margin-top: 0.5rem;">
+                                            <li>Step 1: Deduct $100 from Account A → Success ✓</li>
+                                            <li>Step 2: Add $100 to Account B → FAILS ✗</li>
+                                            <li><strong style="color: var(--error-red);">Problem:</strong> Money vanished! Account A lost $100, Account B didn't receive it!</li>
+                                        </ul>
+                                    </li>
+                                    <li style="margin-top: 1rem;"><strong>With BATCH:</strong>
+                                        <ul style="margin-top: 0.5rem;">
+                                            <li>Both operations happen together as ONE unit</li>
+                                            <li>Either BOTH succeed, or BOTH fail</li>
+                                            <li><strong style="color: var(--success-green);">Safe:</strong> No money lost!</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--error-red);">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">🚨 Common Misunderstanding:</h5>
+                                <p style="line-height: 2;">
+                                    <strong>Wrong Thinking:</strong> "I have 10,000 rows to insert. Let me put them in a BATCH to make it faster!"
+                                </p>
+                                <p style="line-height: 2; margin-top: 1rem;">
+                                    <strong style="color: var(--error-red);">Reality:</strong> This will make it MUCH SLOWER because:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li>BATCH adds overhead (logging, coordination)</li>
+                                    <li>Coordinator node becomes bottleneck</li>
+                                    <li>All writes wait for slowest one to complete</li>
+                                </ul>
+                                <p style="line-height: 2; margin-top: 1rem; font-weight: 600; color: var(--error-red);">
+                                    💡 For bulk inserts: Send individual writes in parallel, NOT in a BATCH!
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Basic Syntax -->
+                    <section id="basic-syntax" data-aos="fade-up">
+                        <h2>📖 BATCH Syntax</h2>
+
+                        <div class="syntax-card">
+                            <h3>Basic BATCH Syntax</h3>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-label">BATCH Syntax</span>
+                                    <button class="copy-button" onclick="copyCode(this)">Copy</button>
+                                </div>
+                                <div class="code-content">
+<span class="keyword">BEGIN</span> [<span class="keyword">UNLOGGED</span>] <span class="keyword">BATCH</span><br/>
+[<span class="keyword">USING TIMESTAMP</span> timestamp]<br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> table1 (...) <span class="keyword">VALUES</span> (...);<br/>
+&nbsp;&nbsp;<span class="keyword">UPDATE</span> table2 <span class="keyword">SET</span> ... <span class="keyword">WHERE</span> ...;<br/>
+&nbsp;&nbsp;<span class="keyword">DELETE FROM</span> table3 <span class="keyword">WHERE</span> ...;<br/>
+<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">-- Logged BATCH (default - ensures atomicity)</span><br/>
+<span class="keyword">BEGIN BATCH</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users (user_id, name) <span class="keyword">VALUES</span> (?, ?);<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> user_emails (email, user_id) <span class="keyword">VALUES</span> (?, ?);<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">-- Unlogged BATCH (no atomicity guarantee)</span><br/>
+<span class="keyword">BEGIN UNLOGGED BATCH</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> logs (log_id, message) <span class="keyword">VALUES</span> (?, ?);<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> logs (log_id, message) <span class="keyword">VALUES</span> (?, ?);<br/>
+<span class="keyword">APPLY BATCH</span>;
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box tip">
+                            <h4><i class="fas fa-info-circle" style="color: var(--accent-sky);"></i> BATCH Rules</h4>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li>Can contain INSERT, UPDATE, DELETE statements</li>
+                                <li>All statements share same timestamp (if specified)</li>
+                                <li>Cannot contain SELECT statements</li>
+                                <li>Cannot contain other BATCH statements (no nesting)</li>
+                                <li>Recommended: Keep batches small (5-10 statements)</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Logged BATCH -->
+                    <section id="logged-batch" data-aos="fade-up">
+                        <h2>📝 Logged BATCH (Default)</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue);">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--primary-blue);"></i> Understanding Logged BATCH</h4>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                <strong>What "Logged" Means:</strong> Cassandra writes the entire batch to a special log (the batchlog) before executing it.
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">📝 Package Delivery Analogy:</h5>
+                                <p style="line-height: 2;">
+                                    Think of sending a package with "signature required":
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li><strong>Step 1:</strong> Delivery company writes down "Package for Alice: Address XYZ" in their permanent log</li>
+                                    <li><strong>Step 2:</strong> Attempts delivery to Alice</li>
+                                    <li><strong>Step 3a (Success):</strong> Alice signs, log updated "DELIVERED"</li>
+                                    <li><strong>Step 3b (Failure):</strong> Alice not home, log says "RETRY TOMORROW"</li>
+                                </ul>
+                                <p style="line-height: 2; margin-top: 1rem;">
+                                    The log ensures the package will EVENTUALLY be delivered, even if there are temporary failures!
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--success-green);">
+                                <h5 style="color: var(--success-green); margin-bottom: 1rem;">✅ Logged BATCH Guarantees:</h5>
+                                <ol style="line-height: 2; font-size: 1.05rem;">
+                                    <li><strong>Atomicity:</strong> All statements succeed together, or all fail together</li>
+                                    <li><strong>Durability:</strong> Written to batchlog first (survives failures)</li>
+                                    <li><strong>Eventual completion:</strong> Will retry automatically until all succeed</li>
+                                </ol>
+                                <p style="margin-top: 1rem; line-height: 2;">
+                                    <strong>Use Case:</strong> When you NEED all operations to succeed (like bank transfer)
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(217, 119, 6, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--warning-orange); margin-top: 1.5rem;">
+                                <h5 style="color: var(--warning-orange); margin-bottom: 1rem;">⚠️ Performance Cost:</h5>
+                                <p style="line-height: 2;">
+                                    Logged BATCH is SLOW because:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li>Extra write to batchlog (3 replicas)</li>
+                                    <li>Coordinator must wait for all operations</li>
+                                    <li>Additional read to check batchlog status</li>
+                                </ul>
+                                <p style="margin-top: 1rem; line-height: 2; font-weight: 600;">
+                                    Typically 2-5x slower than individual writes!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Logged BATCH Example</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- User Registration: Must succeed together</span><br/>
+<span class="keyword">BEGIN BATCH</span><br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Create user record</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users (user_id, username, email, created_at)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (uuid(), <span class="string">'alice'</span>, <span class="string">'<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fd9c91949e98bd98859c908d9198d39e9290">[email&#160;protected]</a>'</span>, <span class="function">toTimestamp</span>(<span class="function">now</span>()));<br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Create email-to-user lookup (for login)</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users_by_email (email, user_id, username)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a7c6cbcec4c2e7c2dfc6cad7cbc289c4c8ca">[email&#160;protected]</a>'</span>, uuid(), <span class="string">'alice'</span>);<br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Initialize user preferences</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> user_preferences (user_id, theme, language)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (uuid(), <span class="string">'dark'</span>, <span class="string">'en'</span>);<br/>
+<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ✅ All 3 tables updated together atomically</span><br/>
+<span class="comment">// ✅ If any fails, none are written</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Unlogged BATCH -->
+                    <section id="unlogged-batch" data-aos="fade-up">
+                        <h2>⚡ Unlogged BATCH</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue);">
+                            <h4><i class="fas fa-bolt" style="color: var(--primary-blue);"></i> Understanding Unlogged BATCH</h4>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                <strong>What "Unlogged" Means:</strong> Skips the batchlog - just groups statements together and sends them to nodes.
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">📬 Regular Mail Analogy:</h5>
+                                <p style="line-height: 2;">
+                                    Think of sending multiple letters together:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li>You put 5 letters in one envelope</li>
+                                    <li>Mail carrier delivers them as a group</li>
+                                    <li>BUT no tracking, no signature required</li>
+                                    <li>If delivery fails, some letters might be delivered, some might not</li>
+                                </ul>
+                                <p style="line-height: 2; margin-top: 1rem; font-weight: 600;">
+                                    Faster delivery, but less guarantee!
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--success-green);">
+                                <h5 style="color: var(--success-green); margin-bottom: 1rem;">✅ Unlogged BATCH Benefits:</h5>
+                                <ul style="line-height: 2; font-size: 1.05rem;">
+                                    <li><strong>Faster:</strong> No batchlog overhead</li>
+                                    <li><strong>Groups requests:</strong> Single network call to coordinator</li>
+                                    <li><strong>Same partition optimization:</strong> All writes to same partition sent together</li>
+                                </ul>
+                                <p style="margin-top: 1rem; line-height: 2; font-weight: 600;">
+                                    <strong>Use Case:</strong> Multiple writes to SAME partition where atomicity isn't critical
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--error-red); margin-top: 1.5rem;">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">❌ NO Atomicity Guarantee:</h5>
+                                <p style="line-height: 2;">
+                                    If coordinator fails mid-batch:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li>Some statements might succeed</li>
+                                    <li>Some statements might fail</li>
+                                    <li>No automatic retry</li>
+                                    <li>Application must handle partial failures</li>
+                                </ul>
+                                <p style="margin-top: 1rem; line-height: 2; font-weight: 600; color: var(--error-red);">
+                                    Only use when you don't care about some statements failing!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Unlogged BATCH Example</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Writing logs: Same partition, no atomicity needed</span><br/>
+<span class="keyword">BEGIN UNLOGGED BATCH</span><br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- All logs for same application (same partition)</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> app_logs (app_id, log_time, message)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'app-001'</span>, <span class="function">now</span>(), <span class="string">'User login successful'</span>);<br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> app_logs (app_id, log_time, message)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'app-001'</span>, <span class="function">now</span>(), <span class="string">'Page view: /dashboard'</span>);<br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> app_logs (app_id, log_time, message)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'app-001'</span>, <span class="function">now</span>(), <span class="string">'API call: GET /users'</span>);<br/>
+<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ✅ Efficient: All to same partition</span><br/>
+<span class="comment">// ✅ If one log fails, others still written (acceptable)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Comparison -->
+                    <section id="comparison" data-aos="fade-up">
+                        <h2>⚖️ Logged vs Unlogged BATCH</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" style="border: 2px solid var(--primary-blue);">
+                                <h4 style="color: var(--primary-blue);">📝 Logged BATCH</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✓ Atomic (all-or-nothing)</li>
+                                    <li>✓ Durable (batchlog survives failures)</li>
+                                    <li>✓ Automatic retries</li>
+                                    <li>✗ 2-5x slower</li>
+                                    <li>✗ Extra writes (batchlog)</li>
+                                    <li>✗ Coordinator bottleneck</li>
+                                </ul>
+                                <p style="margin-top: 1rem; font-weight: 600; color: var(--primary-blue);">
+                                    Use for: Critical operations requiring atomicity
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" style="border: 2px solid var(--success-green);">
+                                <h4 style="color: var(--success-green);">⚡ Unlogged BATCH</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✓ Faster (no batchlog)</li>
+                                    <li>✓ Less overhead</li>
+                                    <li>✓ Groups statements efficiently</li>
+                                    <li>✗ NOT atomic</li>
+                                    <li>✗ Partial failures possible</li>
+                                    <li>✗ No automatic retry</li>
+                                </ul>
+                                <p style="margin-top: 1rem; font-weight: 600; color: var(--success-green);">
+                                    Use for: Same-partition writes where failures OK
+                                </p>
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Logged BATCH</th>
+                                    <th>Unlogged BATCH</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Atomicity</strong></td>
+                                    <td style="color: var(--success-green);">✓ Guaranteed</td>
+                                    <td style="color: var(--error-red);">✗ Not guaranteed</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Performance</strong></td>
+                                    <td style="color: var(--error-red);">Slow (2-5x overhead)</td>
+                                    <td style="color: var(--success-green);">Faster</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Batchlog</strong></td>
+                                    <td>Yes (written to 3 replicas)</td>
+                                    <td>No</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Retries</strong></td>
+                                    <td style="color: var(--success-green);">Automatic</td>
+                                    <td style="color: var(--error-red);">None</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Use Case</strong></td>
+                                    <td>Critical operations</td>
+                                    <td>Same-partition writes</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <!-- When to Use -->
+                    <section id="when-to-use" data-aos="fade-up">
+                        <h2>✅ When to Use BATCH</h2>
+
+                        <div class="info-box success">
+                            <h4><i class="fas fa-check-circle" style="color: var(--success-green);"></i> Valid BATCH Use Cases</h4>
+                            
+                            <h5 style="margin-top: 1.5rem;">1. Denormalized Data (Logged BATCH)</h5>
+                            <p style="line-height: 2;">
+                                <strong>Scenario:</strong> You store same data in multiple tables for different query patterns
+                            </p>
+                            <p style="line-height: 2;">
+                                <strong>Example:</strong> User registration creates entries in users, users_by_email, and user_preferences
+                            </p>
+                            <p style="line-height: 2; color: var(--success-green); font-weight: 600;">
+                                ✓ Use logged BATCH to ensure all tables updated together
+                            </p>
+
+                            <h5 style="margin-top: 1.5rem;">2. Same Partition Multiple Writes (Unlogged BATCH)</h5>
+                            <p style="line-height: 2;">
+                                <strong>Scenario:</strong> Many INSERTs/UPDATEs to same partition key
+                            </p>
+                            <p style="line-height: 2;">
+                                <strong>Example:</strong> Writing multiple log entries for same application
+                            </p>
+                            <p style="line-height: 2; color: var(--success-green); font-weight: 600;">
+                                ✓ Use unlogged BATCH to group writes efficiently
+                            </p>
+
+                            <h5 style="margin-top: 1.5rem;">3. Maintaining Consistency (Logged BATCH)</h5>
+                            <p style="line-height: 2;">
+                                <strong>Scenario:</strong> Related writes that MUST succeed together
+                            </p>
+                            <p style="line-height: 2;">
+                                <strong>Example:</strong> Inventory deduction + order creation
+                            </p>
+                            <p style="line-height: 2; color: var(--success-green); font-weight: 600;">
+                                ✓ Use logged BATCH for critical consistency
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Anti-patterns -->
+                    <section id="antipatterns" data-aos="fade-up">
+                        <h2>❌ BATCH Anti-Patterns</h2>
+
+                        <div class="info-box error">
+                            <h4><i class="fas fa-ban" style="color: var(--error-red);"></i> DON'T Use BATCH For These!</h4>
+                            
+                            <h5 style="margin-top: 1.5rem;">❌ Anti-Pattern #1: Bulk Inserts</h5>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <div class="code-content">
+<span class="comment">-- ❌ BAD: Using BATCH for 10,000 inserts</span><br/>
+<span class="keyword">BEGIN BATCH</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users ... <span class="comment">-- 10,000 statements!</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users ...<br/>
+&nbsp;&nbsp;<span class="comment">-- ... 9,998 more ...</span><br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ❌ Coordinator out of memory!</span><br/>
+<span class="comment">// ❌ Cluster instability!</span><br/>
+<span class="comment">// ❌ Timeout errors!</span>
+                                </div>
+                            </div>
+                            <p style="margin-top: 1rem; line-height: 2; color: var(--error-red); font-weight: 600;">
+                                ✓ CORRECT: Send individual writes in parallel using async/await!
+                            </p>
+
+                            <h5 style="margin-top: 2rem;">❌ Anti-Pattern #2: Cross-Partition without Need</h5>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <div class="code-content">
+<span class="comment">-- ❌ BAD: BATCH across different partition keys</span><br/>
+<span class="keyword">BEGIN BATCH</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users <span class="keyword">WHERE</span> user_id = <span class="string">'user1'</span> ...<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users <span class="keyword">WHERE</span> user_id = <span class="string">'user2'</span> ...<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users <span class="keyword">WHERE</span> user_id = <span class="string">'user3'</span> ...<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ❌ Coordinator coordinates across multiple nodes</span><br/>
+<span class="comment">// ❌ Slower than individual writes!</span>
+                                </div>
+                            </div>
+
+                            <h5 style="margin-top: 2rem;">❌ Anti-Pattern #3: Performance Optimization</h5>
+                            <p style="line-height: 2;">
+                                <strong style="color: var(--error-red);">Myth:</strong> "BATCH makes writes faster!"
+                            </p>
+                            <p style="line-height: 2;">
+                                <strong>Reality:</strong> BATCH adds overhead and makes writes SLOWER!
+                            </p>
+                            <p style="line-height: 2; margin-top: 1rem; font-weight: 600;">
+                                Only use BATCH for correctness (atomicity), never for performance!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Real Examples -->
+                    <section id="examples" data-aos="fade-up">
+                        <h2>💡 Real-World Examples</h2>
+
+                        <div class="syntax-card">
+                            <h3>Example 1: User Registration</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Denormalized tables must stay in sync</span><br/>
+<span class="keyword">BEGIN BATCH</span><br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Main user record</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users (user_id, username, email, created_at)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (?, ?, ?, <span class="function">toTimestamp</span>(<span class="function">now</span>()));<br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Email lookup table (for login by email)</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users_by_email (email, user_id)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (?, ?);<br/>
+<br/>
+&nbsp;&nbsp;<span class="comment">-- Username lookup table (for uniqueness)</span><br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> users_by_username (username, user_id)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (?, ?);<br/>
+<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ✅ All 3 tables updated atomically</span><br/>
+<span class="comment">// ✅ Can't have orphaned records</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Example 2: Sensor Data (Same Partition)</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Multiple readings from same sensor</span><br/>
+<span class="keyword">BEGIN UNLOGGED BATCH</span><br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> sensor_data (sensor_id, timestamp, temperature)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'sensor-123'</span>, <span class="function">now</span>(), 72.5);<br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> sensor_data (sensor_id, timestamp, temperature)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'sensor-123'</span>, <span class="function">now</span>(), 72.6);<br/>
+<br/>
+&nbsp;&nbsp;<span class="keyword">INSERT INTO</span> sensor_data (sensor_id, timestamp, temperature)<br/>
+&nbsp;&nbsp;<span class="keyword">VALUES</span> (<span class="string">'sensor-123'</span>, <span class="function">now</span>(), 72.7);<br/>
+<br/>
+<span class="keyword">APPLY BATCH</span>;<br/>
+<br/>
+<span class="comment">// ✅ Same partition = efficient</span><br/>
+<span class="comment">// ✅ Unlogged = faster</span><br/>
+<span class="comment">// ✅ Missing one reading isn't critical</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ BATCH Best Practices</h2>
+
+                        <div class="info-box success">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--success-green);"></i> Golden Rules</h4>
+                            <ol style="font-size: 1.05rem; line-height: 2;">
+                                <li><strong>Use BATCH for correctness, not performance</strong></li>
+                                <li><strong>Keep batches small</strong> (5-10 statements max)</li>
+                                <li><strong>Same partition = unlogged BATCH</strong></li>
+                                <li><strong>Cross-partition = logged BATCH (if atomicity needed)</strong></li>
+                                <li><strong>Never batch for bulk inserts</strong></li>
+                                <li><strong>Monitor batch sizes</strong> in production</li>
+                            </ol>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Scenario</th>
+                                    <th>Recommendation</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="background: rgba(5, 150, 105, 0.1);">
+                                    <td>Denormalized writes (must sync)</td>
+                                    <td>Logged BATCH</td>
+                                </tr>
+                                <tr style="background: rgba(5, 150, 105, 0.1);">
+                                    <td>Same partition multiple writes</td>
+                                    <td>Unlogged BATCH</td>
+                                </tr>
+                                <tr style="background: rgba(220, 38, 38, 0.1);">
+                                    <td>Bulk inserts (1000s of rows)</td>
+                                    <td>Individual writes (async)</td>
+                                </tr>
+                                <tr style="background: rgba(220, 38, 38, 0.1);">
+                                    <td>Performance optimization</td>
+                                    <td>Don't use BATCH!</td>
+                                </tr>
+                                <tr style="background: rgba(217, 119, 6, 0.1);">
+                                    <td>Cross-partition (no atomicity need)</td>
+                                    <td>Individual writes</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                     <!-- Navigation Buttons -->
+                    <div class="page-navigation">
+                        <a href="delete-data.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title"> DELETE Data</div>
+                            </div>
+                        </a>
+                        <a href="cql-data-types.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">CQL Data Types</div>
+                            </div>
+                        </a>
+                    </div>
+                     <!-- AdSense Placeholder 3 -->
+                    <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                        <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                            <i class="fas fa-ad"></i> Advertisement
+                        </div>
+                        <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                            <p style="color: var(--text-muted); margin: 0;">Google AdSense - Responsive Ad Unit</p>
+                        </div>
+                        <!-- Replace with actual AdSense code -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+        
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => { sidebar.classList.toggle('active'); });
+
+        function toggleSection(element) { element.closest('.path-section').classList.toggle('expanded'); }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => { scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300); });
+        scrollTopBtn.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            let currentSection = '';
+            sections.forEach(section => {
+                if (window.pageYOffset >= (section.offsetTop - 200)) { currentSection = section.getAttribute('id'); }
+            });
+            tocLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === `#${currentSection}`);
+            });
+        }
+        window.addEventListener('scroll', highlightTOC);
+        highlightTOC();
+
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block').querySelector('.code-content');
+            const text = codeBlock.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = '#059669';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        // Search functionality
+        const searchInput = document.getElementById('page-search');
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const sections = document.querySelectorAll('section[id]');
+
+            if (searchTerm === '') {
+                sections.forEach(section => {
+                    section.style.display = 'block';
+                });
+                return;
+            }
+
+            sections.forEach(section => {
+                const text = section.innerText.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    section.style.display = 'block';
+                    // Highlight search term
+                    section.style.border = '2px solid var(--accent-sky)';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+
+        // Clear highlights when search is empty
+        searchInput.addEventListener('blur', () => {
+            if (searchInput.value === '') {
+                document.querySelectorAll('section[id]').forEach(section => {
+                    section.style.border = '';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

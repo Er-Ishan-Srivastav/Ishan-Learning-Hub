@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-World Project: IoT Sensor Data with Cassandra - Time-series data at scale!">
+    <title>Project: Sensor Data | myPathshala</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --project-green: #10b981;
+            --project-yellow: #fbbf24;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--project-green), var(--project-yellow));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--project-green), var(--project-yellow));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--project-green), var(--project-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--project-green);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--project-green);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--project-green);
+            background: rgba(16, 185, 129, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #10b981 0%, #059669 25%, #047857 50%, #065f46 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #10b981;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(251, 191, 36, 0.15) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #d1fae5 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--project-green); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--project-green), var(--project-yellow));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--project-green);
+            border-left-color: var(--project-green);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(251, 191, 36, 0.08));
+            border-left: 5px solid var(--project-green);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '📊';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--project-green);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--project-green);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--project-green), var(--project-yellow));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--project-green);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--project-green);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--project-green), var(--project-yellow));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--project-green);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(16, 185, 129, 0.05);
+            border-left: 3px solid var(--project-green);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--project-green);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--project-green);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--project-green);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--project-green), var(--project-yellow));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        table {
+            width: 100%;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+
+        td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(71, 85, 105, 0.05);
+        }
+
+        .architecture-diagram {
+            background: rgba(16, 185, 129, 0.05);
+            border: 2px solid var(--project-green);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .architecture-diagram pre {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin: 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">📊</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">IoT Sensor Data</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search project..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+          <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html" class="active">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-project-diagram"></i>
+                        Real-World Project
+                    </span>
+                    <h1><span class="gradient-text">IoT Sensor Data Platform</span></h1>
+                    <p>Build a production-ready time-series data system with Cassandra!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="#projects">Real-World Projects</a>
+                <span class="separator">›</span>
+                <span class="current">IoT Sensor Data</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#overview">📖 Project Overview</a></li>
+                            <li><a href="#requirements">🎯 Requirements</a></li>
+                            <li><a href="#data-model">🗺️ Data Model</a></li>
+                            <li><a href="#schema">📋 Schema Design</a></li>
+                            <li><a href="#implementation">💻 Implementation</a></li>
+                            <li><a href="#queries">🔍 Query Patterns</a></li>
+                            <li><a href="#optimization">⚡ Optimization</a></li>
+                            <li><a href="#deployment">🚀 Deployment</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+
+<section id="overview" data-aos="fade-up">
+    <h2>📖 Project Overview</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Build a real-world IoT platform!</p>
+
+    <div class="story-box" data-aos="fade-up">
+        <h3>The Challenge: Smart Factory IoT</h3>
+        <p style="color: var(--text-secondary); margin-top: 1rem;"><strong>SmartFactory Inc.</strong> operates 500 factories worldwide. Each factory has 1,000 IoT sensors monitoring:</p>
+        <ul style="color: var(--text-secondary); line-height: 2; margin-top: 1rem;">
+            <li>🌡️ <strong>Temperature sensors:</strong> Every 10 seconds</li>
+            <li>⚡ <strong>Power consumption:</strong> Every 5 seconds</li>
+            <li>🏭 <strong>Production metrics:</strong> Every 30 seconds</li>
+            <li>🔔 <strong>Alert sensors:</strong> Real-time events</li>
+        </ul>
+
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 2rem;">
+            <h4 style="color: var(--project-green); margin-top: 0;">Scale Requirements</h4>
+            <table style="margin-top: 1rem;">
+                <tbody>
+                    <tr>
+                        <td><strong>Total Sensors:</strong></td>
+                        <td>500,000 (500 factories × 1,000 sensors)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Points/Second:</strong></td>
+                        <td>~100,000 writes/second</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Points/Day:</strong></td>
+                        <td>8.64 billion data points</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Retention:</strong></td>
+                        <td>90 days (detailed), 2 years (aggregated)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Query Pattern:</strong></td>
+                        <td>Recent data (last 24 hours most common)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p style="color: var(--text-secondary); margin-top: 2rem;"><strong>Why Cassandra?</strong></p>
+        <ul style="color: var(--text-secondary); line-height: 2;">
+            <li>✅ <strong>High write throughput:</strong> 100K+ writes/second</li>
+            <li>✅ <strong>Time-series optimized:</strong> Perfect for sensor data</li>
+            <li>✅ <strong>Linear scalability:</strong> Add nodes as needed</li>
+            <li>✅ <strong>No single point of failure:</strong> Always available</li>
+            <li>✅ <strong>TTL support:</strong> Automatic data expiration</li>
+        </ul>
+    </div>
+</section>
+
+<section id="requirements" data-aos="fade-up">
+    <h2>🎯 Requirements & Use Cases</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">What we need to build!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--project-green);">
+            <div class="comparison-icon">📝</div>
+            <h3>Write Operations</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Insert sensor reading (100K/sec)</li>
+                <li>Batch insert multiple readings</li>
+                <li>Insert with TTL (90 days)</li>
+                <li>Handle late-arriving data</li>
+                <li>Write alerts/anomalies</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--project-yellow);">
+            <div class="comparison-icon">🔍</div>
+            <h3>Read Operations</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Get latest reading for sensor</li>
+                <li>Get readings for time range</li>
+                <li>Get all sensors in factory</li>
+                <li>Get hourly/daily aggregates</li>
+                <li>Real-time dashboard queries</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-teal);">
+            <div class="comparison-icon">📊</div>
+            <h3>Analytics Queries</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Average temperature per hour</li>
+                <li>Peak power consumption</li>
+                <li>Anomaly detection</li>
+                <li>Trend analysis</li>
+                <li>Comparative reports</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-purple);">
+            <div class="comparison-icon">🚨</div>
+            <h3>Operational</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Auto-expire old data (TTL)</li>
+                <li>Handle node failures</li>
+                <li>Scale horizontally</li>
+                <li>Monitor performance</li>
+                <li>Backup critical data</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section id="data-model" data-aos="fade-up">
+    <h2>🗺️ Data Model Design</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Cassandra data modeling!</p>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Cassandra Data Modeling Rules</h4>
+        <ol style="font-size: 1.05rem; line-height: 2;">
+            <li><strong>Know your queries first!</strong> Model data around access patterns</li>
+            <li><strong>Denormalize:</strong> Duplicate data for query efficiency</li>
+            <li><strong>Partition key:</strong> Distributes data across nodes</li>
+            <li><strong>Clustering key:</strong> Sorts data within partition</li>
+            <li><strong>One partition per query:</strong> Avoid multi-partition reads</li>
+        </ol>
+    </div>
+
+    <h3 style="color: var(--project-green);">Query-Driven Design</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Query Pattern</th>
+                <th>Access Pattern</th>
+                <th>Table Needed</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Q1:</strong> Latest reading for sensor</td>
+                <td>By sensor_id, recent first</td>
+                <td>sensor_data_by_sensor</td>
+            </tr>
+            <tr>
+                <td><strong>Q2:</strong> Readings by time range</td>
+                <td>By sensor_id + time</td>
+                <td>sensor_data_by_sensor</td>
+            </tr>
+            <tr>
+                <td><strong>Q3:</strong> All sensors in factory</td>
+                <td>By factory_id</td>
+                <td>sensors_by_factory</td>
+            </tr>
+            <tr>
+                <td><strong>Q4:</strong> Hourly aggregates</td>
+                <td>By sensor_id + hour</td>
+                <td>sensor_hourly_stats</td>
+            </tr>
+            <tr>
+                <td><strong>Q5:</strong> Recent alerts</td>
+                <td>By factory_id + time</td>
+                <td>alerts_by_factory</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="schema" data-aos="fade-up">
+    <h2>📋 Schema Design</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete table schemas!</p>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">1</div>
+        <div class="step-content">
+            <h3>Keyspace Creation</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Create keyspace</span>
+<span class="keyword">CREATE KEYSPACE</span> iot_sensors
+<span class="keyword">WITH</span> replication = {
+    <span class="string">'class'</span>: <span class="string">'NetworkTopologyStrategy'</span>,
+    <span class="string">'datacenter1'</span>: <span class="number">3</span>,  <span class="comment">-- 3 replicas</span>
+    <span class="string">'datacenter2'</span>: <span class="number">3</span>   <span class="comment">-- Multi-DC for HA</span>
+};
+
+<span class="keyword">USE</span> iot_sensors;
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">2</div>
+        <div class="step-content">
+            <h3>Main Sensor Data Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Raw sensor readings (high write throughput)</span>
+<span class="keyword">CREATE TABLE</span> sensor_data_by_sensor (
+    sensor_id <span class="type">UUID</span>,              <span class="comment">-- Partition key</span>
+    reading_time <span class="type">TIMESTAMP</span>,       <span class="comment">-- Clustering key (DESC)</span>
+    value <span class="type">DOUBLE</span>,
+    unit <span class="type">TEXT</span>,
+    quality <span class="type">TEXT</span>,               <span class="comment">-- 'good', 'bad', 'uncertain'</span>
+    <span class="keyword">PRIMARY KEY</span> (sensor_id, reading_time)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY ) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (reading_time <span class="keyword">DESC</span>)
+  <span class="keyword">AND</span> default_time_to_live = <span class="number">7776000</span>        <span class="comment">-- 90 days in seconds</span>
+  <span class="keyword">AND</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'TimeWindowCompactionStrategy'</span>,
+    <span class="string">'compaction_window_unit'</span>: <span class="string">'DAYS'</span>,
+    <span class="string">'compaction_window_size'</span>: <span class="number">1</span>
+  };
+
+<span class="comment">-- Why this design?</span>
+<span class="comment">-- ✅ Partition key: sensor_id (distributes data evenly)</span>
+<span class="comment">-- ✅ Clustering: reading_time DESC (recent data first)</span>
+<span class="comment">-- ✅ TTL: Auto-delete after 90 days</span>
+<span class="comment">-- ✅ TWCS: Optimized for time-series data</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">3</div>
+        <div class="step-content">
+            <h3>Sensors Registry Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Sensor metadata and lookup</span>
+<span class="keyword">CREATE TABLE</span> sensors_by_factory (
+    factory_id <span class="type">UUID</span>,             <span class="comment">-- Partition key</span>
+    sensor_id <span class="type">UUID</span>,              <span class="comment">-- Clustering key</span>
+    sensor_type <span class="type">TEXT</span>,            <span class="comment">-- 'temperature', 'power', etc</span>
+    location <span class="type">TEXT</span>,
+    installation_date <span class="type">TIMESTAMP</span>,
+    status <span class="type">TEXT</span>,                 <span class="comment">-- 'active', 'maintenance', 'offline'</span>
+    <span class="keyword">PRIMARY KEY</span> (factory_id, sensor_id)
+);
+
+<span class="comment">-- Query: Get all sensors in factory</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sensors_by_factory 
+<span class="keyword">WHERE</span> factory_id = ?;
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">4</div>
+        <div class="step-content">
+            <h3>Hourly Aggregates Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Pre-aggregated hourly statistics</span>
+<span class="keyword">CREATE TABLE</span> sensor_hourly_stats (
+    sensor_id <span class="type">UUID</span>,
+    hour_bucket <span class="type">TIMESTAMP</span>,       <span class="comment">-- Rounded to hour</span>
+    avg_value <span class="type">DOUBLE</span>,
+    min_value <span class="type">DOUBLE</span>,
+    max_value <span class="type">DOUBLE</span>,
+    count <span class="type">COUNTER</span>,
+    <span class="keyword">PRIMARY KEY</span> (sensor_id, hour_bucket)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (hour_bucket <span class="keyword">DESC</span>)
+  <span class="keyword">AND</span> default_time_to_live = <span class="number">63072000</span>;  <span class="comment">-- 2 years</span>
+
+<span class="comment">-- Query: Get hourly stats for date range</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sensor_hourly_stats
+<span class="keyword">WHERE</span> sensor_id = ? 
+  <span class="keyword">AND</span> hour_bucket >= ? 
+  <span class="keyword">AND</span> hour_bucket <= ?;
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card" data-aos="fade-up">
+        <div class="step-number">5</div>
+        <div class="step-content">
+            <h3>Alerts Table</h3>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Critical alerts and anomalies</span>
+<span class="keyword">CREATE TABLE</span> alerts_by_factory (
+    factory_id <span class="type">UUID</span>,
+    alert_time <span class="type">TIMESTAMP</span>,
+    alert_id <span class="type">UUID</span>,
+    sensor_id <span class="type">UUID</span>,
+    alert_type <span class="type">TEXT</span>,             <span class="comment">-- 'temperature_high', 'power_spike'</span>
+    severity <span class="type">TEXT</span>,               <span class="comment">-- 'low', 'medium', 'high', 'critical'</span>
+    value <span class="type">DOUBLE</span>,
+    threshold <span class="type">DOUBLE</span>,
+    message <span class="type">TEXT</span>,
+    acknowledged <span class="type">BOOLEAN</span>,
+    <span class="keyword">PRIMARY KEY</span> (factory_id, alert_time, alert_id)
+) <span class="keyword">WITH</span> CLUSTERING <span class="keyword">ORDER BY</span> (alert_time <span class="keyword">DESC</span>, alert_id <span class="keyword">ASC</span>)
+  <span class="keyword">AND</span> default_time_to_live = <span class="number">7776000</span>;    <span class="comment">-- 90 days</span>
+
+<span class="comment">-- Query: Get recent alerts for factory</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> alerts_by_factory
+<span class="keyword">WHERE</span> factory_id = ?
+  <span class="keyword">AND</span> alert_time >= ?
+<span class="keyword">LIMIT</span> <span class="number">100</span>;
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="implementation" data-aos="fade-up">
+    <h2>💻 Implementation</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Python implementation!</p>
+
+    <h3 style="color: var(--project-green);">Data Ingestion Service</h3>
+
+    <div class="code-block">
+<span class="comment"># sensor_ingestion.py</span>
+<span class="keyword">from</span> cassandra.cluster <span class="keyword">import</span> Cluster
+<span class="keyword">from</span> cassandra.query <span class="keyword">import</span> BatchStatement
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime
+<span class="keyword">import</span> uuid
+
+<span class="keyword">class</span> <span class="type">SensorDataIngestion</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, contact_points):
+        cluster = Cluster(contact_points)
+        <span class="keyword">self</span>.session = cluster.connect(<span class="string">'iot_sensors'</span>)
+        
+        <span class="comment"># Prepare statements for performance</span>
+        <span class="keyword">self</span>.insert_reading = <span class="keyword">self</span>.session.prepare(<span class="string">"""
+            INSERT INTO sensor_data_by_sensor 
+            (sensor_id, reading_time, value, unit, quality)
+            VALUES (?, ?, ?, ?, ?)
+        """</span>)
+        
+        <span class="keyword">self</span>.insert_alert = <span class="keyword">self</span>.session.prepare(<span class="string">"""
+            INSERT INTO alerts_by_factory
+            (factory_id, alert_time, alert_id, sensor_id, 
+             alert_type, severity, value, threshold, message, acknowledged)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """</span>)
+    
+    <span class="keyword">def</span> <span class="function">insert_sensor_reading</span>(<span class="keyword">self</span>, sensor_id, value, unit, quality=<span class="string">'good'</span>):
+        <span class="string">"""Insert single sensor reading"""</span>
+        reading_time = datetime.now()
+        
+        <span class="keyword">self</span>.session.execute(
+            <span class="keyword">self</span>.insert_reading,
+            (sensor_id, reading_time, value, unit, quality)
+        )
+        
+        <span class="keyword">return</span> reading_time
+    
+    <span class="keyword">def</span> <span class="function">insert_batch_readings</span>(<span class="keyword">self</span>, readings):
+        <span class="string">"""Batch insert for high throughput"""</span>
+        batch = BatchStatement()
+        
+        <span class="keyword">for</span> reading <span class="keyword">in</span> readings:
+            batch.add(
+                <span class="keyword">self</span>.insert_reading,
+                (
+                    reading[<span class="string">'sensor_id'</span>],
+                    reading.get(<span class="string">'reading_time'</span>, datetime.now()),
+                    reading[<span class="string">'value'</span>],
+                    reading[<span class="string">'unit'</span>],
+                    reading.get(<span class="string">'quality'</span>, <span class="string">'good'</span>)
+                )
+            )
+        
+        <span class="keyword">self</span>.session.execute(batch)
+    
+    <span class="keyword">def</span> <span class="function">create_alert</span>(<span class="keyword">self</span>, factory_id, sensor_id, alert_type, 
+                      value, threshold, severity=<span class="string">'medium'</span>):
+        <span class="string">"""Create alert for anomaly"""</span>
+        alert_id = uuid.uuid4()
+        alert_time = datetime.now()
+        message = <span class="function">f</span><span class="string">"{alert_type}: {value} exceeds {threshold}"</span>
+        
+        <span class="keyword">self</span>.session.execute(
+            <span class="keyword">self</span>.insert_alert,
+            (factory_id, alert_time, alert_id, sensor_id,
+             alert_type, severity, value, threshold, 
+             message, <span class="keyword">False</span>)
+        )
+        
+        <span class="keyword">return</span> alert_id
+
+<span class="comment"># Usage example</span>
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    ingestion = SensorDataIngestion([<span class="string">'localhost'</span>])
+    
+    <span class="comment"># Insert single reading</span>
+    sensor_id = uuid.UUID(<span class="string">'123e4567-e89b-12d3-a456-426614174000'</span>)
+    ingestion.insert_sensor_reading(
+        sensor_id=sensor_id,
+        value=<span class="number">23.5</span>,
+        unit=<span class="string">'celsius'</span>
+    )
+    
+    <span class="comment"># Batch insert (efficient!)</span>
+    readings = [
+        {<span class="string">'sensor_id'</span>: sensor_id, <span class="string">'value'</span>: <span class="number">23.6</span>, <span class="string">'unit'</span>: <span class="string">'celsius'</span>},
+        {<span class="string">'sensor_id'</span>: sensor_id, <span class="string">'value'</span>: <span class="number">23.7</span>, <span class="string">'unit'</span>: <span class="string">'celsius'</span>},
+        {<span class="string">'sensor_id'</span>: sensor_id, <span class="string">'value'</span>: <span class="number">23.8</span>, <span class="string">'unit'</span>: <span class="string">'celsius'</span>},
+    ]
+    ingestion.insert_batch_readings(readings)
+    </div>
+
+    <h3 style="color: var(--project-green);">Query Service</h3>
+
+    <div class="code-block">
+<span class="comment"># sensor_queries.py</span>
+<span class="keyword">from</span> cassandra.cluster <span class="keyword">import</span> Cluster
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta
+
+<span class="keyword">class</span> <span class="type">SensorQueries</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, contact_points):
+        cluster = Cluster(contact_points)
+        <span class="keyword">self</span>.session = cluster.connect(<span class="string">'iot_sensors'</span>)
+    
+    <span class="keyword">def</span> <span class="function">get_latest_reading</span>(<span class="keyword">self</span>, sensor_id):
+        <span class="string">"""Get most recent reading for sensor"""</span>
+        query = <span class="string">"""
+            SELECT * FROM sensor_data_by_sensor
+            WHERE sensor_id = ?
+            LIMIT 1
+        """</span>
+        
+        row = <span class="keyword">self</span>.session.execute(query, (sensor_id,)).one()
+        
+        <span class="keyword">if</span> row:
+            <span class="keyword">return</span> {
+                <span class="string">'sensor_id'</span>: row.sensor_id,
+                <span class="string">'reading_time'</span>: row.reading_time,
+                <span class="string">'value'</span>: row.value,
+                <span class="string">'unit'</span>: row.unit,
+                <span class="string">'quality'</span>: row.quality
+            }
+        <span class="keyword">return</span> <span class="keyword">None</span>
+    
+    <span class="keyword">def</span> <span class="function">get_readings_range</span>(<span class="keyword">self</span>, sensor_id, start_time, end_time):
+        <span class="string">"""Get readings for time range"""</span>
+        query = <span class="string">"""
+            SELECT * FROM sensor_data_by_sensor
+            WHERE sensor_id = ?
+              AND reading_time >= ?
+              AND reading_time <= ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(query, (sensor_id, start_time, end_time))
+        
+        <span class="keyword">return</span> [
+            {
+                <span class="string">'reading_time'</span>: row.reading_time,
+                <span class="string">'value'</span>: row.value,
+                <span class="string">'unit'</span>: row.unit,
+                <span class="string">'quality'</span>: row.quality
+            }
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows
+        ]
+    
+    <span class="keyword">def</span> <span class="function">get_last_24_hours</span>(<span class="keyword">self</span>, sensor_id):
+        <span class="string">"""Get readings from last 24 hours"""</span>
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=<span class="number">24</span>)
+        
+        <span class="keyword">return</span> <span class="keyword">self</span>.get_readings_range(sensor_id, start_time, end_time)
+    
+    <span class="keyword">def</span> <span class="function">get_factory_sensors</span>(<span class="keyword">self</span>, factory_id):
+        <span class="string">"""Get all sensors in factory"""</span>
+        query = <span class="string">"""
+            SELECT * FROM sensors_by_factory
+            WHERE factory_id = ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(query, (factory_id,))
+        
+        <span class="keyword">return</span> [
+            {
+                <span class="string">'sensor_id'</span>: row.sensor_id,
+                <span class="string">'sensor_type'</span>: row.sensor_type,
+                <span class="string">'location'</span>: row.location,
+                <span class="string">'status'</span>: row.status
+            }
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows
+        ]
+    
+    <span class="keyword">def</span> <span class="function">get_recent_alerts</span>(<span class="keyword">self</span>, factory_id, hours=<span class="number">24</span>):
+        <span class="string">"""Get recent alerts for factory"""</span>
+        start_time = datetime.now() - timedelta(hours=hours)
+        
+        query = <span class="string">"""
+            SELECT * FROM alerts_by_factory
+            WHERE factory_id = ?
+              AND alert_time >= ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(query, (factory_id, start_time))
+        
+        <span class="keyword">return</span> [
+            {
+                <span class="string">'alert_id'</span>: row.alert_id,
+                <span class="string">'alert_time'</span>: row.alert_time,
+                <span class="string">'sensor_id'</span>: row.sensor_id,
+                <span class="string">'alert_type'</span>: row.alert_type,
+                <span class="string">'severity'</span>: row.severity,
+                <span class="string">'value'</span>: row.value,
+                <span class="string">'message'</span>: row.message,
+                <span class="string">'acknowledged'</span>: row.acknowledged
+            }
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows
+        ]
+    
+    <span class="keyword">def</span> <span class="function">get_hourly_stats</span>(<span class="keyword">self</span>, sensor_id, start_hour, end_hour):
+        <span class="string">"""Get pre-aggregated hourly statistics"""</span>
+        query = <span class="string">"""
+            SELECT * FROM sensor_hourly_stats
+            WHERE sensor_id = ?
+              AND hour_bucket >= ?
+              AND hour_bucket <= ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(query, (sensor_id, start_hour, end_hour))
+        
+        <span class="keyword">return</span> [
+            {
+                <span class="string">'hour'</span>: row.hour_bucket,
+                <span class="string">'avg'</span>: row.avg_value,
+                <span class="string">'min'</span>: row.min_value,
+                <span class="string">'max'</span>: row.max_value,
+                <span class="string">'count'</span>: row.count
+            }
+            <span class="keyword">for</span> row <span class="keyword">in</span> rows
+        ]
+
+<span class="comment"># Usage</span>
+queries = SensorQueries([<span class="string">'localhost'</span>])
+
+<span class="comment"># Get latest reading</span>
+latest = queries.get_latest_reading(sensor_id)
+<span class="function">print</span>(<span class="function">f</span><span class="string">"Latest: {latest['value']} {latest['unit']}"</span>)
+
+<span class="comment"># Get last 24 hours</span>
+readings = queries.get_last_24_hours(sensor_id)
+<span class="function">print</span>(<span class="function">f</span><span class="string">"Readings in last 24h: {len(readings)}"</span>)
+    </div>
+</section>
+
+<section id="queries" data-aos="fade-up">
+    <h2>🔍 Query Patterns</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Common query examples!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Real-Time Dashboard</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Get current status for all sensors in factory</span>
+<span class="comment">-- Step 1: Get all sensors</span>
+<span class="keyword">SELECT</span> sensor_id, sensor_type, location
+<span class="keyword">FROM</span> sensors_by_factory
+<span class="keyword">WHERE</span> factory_id = <span class="string">'factory-uuid'</span>;
+
+<span class="comment">-- Step 2: Get latest reading for each sensor (in parallel)</span>
+<span class="keyword">SELECT</span> reading_time, value, unit, quality
+<span class="keyword">FROM</span> sensor_data_by_sensor
+<span class="keyword">WHERE</span> sensor_id = ?
+<span class="keyword">LIMIT</span> <span class="number">1</span>;
+
+<span class="comment">-- Fast: Each query hits ONE partition!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Historical Trend Analysis</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Get hourly averages for last week</span>
+<span class="keyword">SELECT</span> hour_bucket, avg_value, min_value, max_value
+<span class="keyword">FROM</span> sensor_hourly_stats
+<span class="keyword">WHERE</span> sensor_id = ?
+  <span class="keyword">AND</span> hour_bucket >= <span class="string">'2024-01-01 00:00:00'</span>
+  <span class="keyword">AND</span> hour_bucket <= <span class="string">'2024-01-07 23:00:00'</span>;
+
+<span class="comment">-- Returns: 168 rows (7 days × 24 hours)</span>
+<span class="comment">-- Much faster than aggregating raw data!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Anomaly Detection</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Get recent critical alerts</span>
+<span class="keyword">SELECT</span> alert_time, sensor_id, alert_type, value, message
+<span class="keyword">FROM</span> alerts_by_factory
+<span class="keyword">WHERE</span> factory_id = ?
+  <span class="keyword">AND</span> alert_time >= ?
+  <span class="keyword">AND</span> severity = <span class="string">'critical'</span>
+<span class="keyword">ALLOW FILTERING</span>;
+
+<span class="comment">-- Note: ALLOW FILTERING on small result sets OK</span>
+<span class="comment">-- Better: Create alerts_by_severity table for large scale</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Time Range Queries</h4>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Get all readings for specific time window</span>
+<span class="keyword">SELECT</span> reading_time, value
+<span class="keyword">FROM</span> sensor_data_by_sensor
+<span class="keyword">WHERE</span> sensor_id = ?
+  <span class="keyword">AND</span> reading_time >= <span class="string">'2024-01-09 08:00:00'</span>
+  <span class="keyword">AND</span> reading_time <= <span class="string">'2024-01-09 17:00:00'</span>;
+
+<span class="comment">-- Efficient: Scans ONE partition with time range</span>
+<span class="comment">-- Clustering by time DESC makes recent queries fast!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="optimization" data-aos="fade-up">
+    <h2>⚡ Performance Optimization</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production optimization techniques!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: var(--project-green);">
+            <div class="comparison-icon">📊</div>
+            <h3>Write Optimization</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Batch writes:</strong> 50-100 per batch</li>
+                <li><strong>Async inserts:</strong> Non-blocking writes</li>
+                <li><strong>Prepared statements:</strong> 10x faster</li>
+                <li><strong>Write consistency:</strong> ONE for speed</li>
+                <li><strong>No read-before-write:</strong> Direct inserts</li>
+                <li><strong>TTL:</strong> Auto-cleanup old data</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--project-yellow);">
+            <div class="comparison-icon">🔍</div>
+            <h3>Read Optimization</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Single partition:</strong> One query = one partition</li>
+                <li><strong>LIMIT clause:</strong> Fetch only needed rows</li>
+                <li><strong>Pre-aggregation:</strong> Hourly stats table</li>
+                <li><strong>Read consistency:</strong> ONE for speed</li>
+                <li><strong>Paging:</strong> Avoid large result sets</li>
+                <li><strong>Caching:</strong> Recent data in Redis</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-teal);">
+            <div class="comparison-icon">🗜️</div>
+            <h3>Storage Optimization</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>TWCS:</strong> Time-window compaction</li>
+                <li><strong>Compression:</strong> LZ4 compression</li>
+                <li><strong>TTL:</strong> 90 days auto-expiration</li>
+                <li><strong>Tombstone GC:</strong> Clean old deletes</li>
+                <li><strong>Bloom filters:</strong> Reduce disk reads</li>
+                <li><strong>Row cache:</strong> Hot data in memory</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: var(--accent-purple);">
+            <div class="comparison-icon">⚙️</div>
+            <h3>Compaction Strategy</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Strategy:</strong> TimeWindowCompactionStrategy</li>
+                <li><strong>Window:</strong> 1 day buckets</li>
+                <li><strong>Why TWCS?</strong> Time-series optimized</li>
+                <li><strong>Benefit:</strong> Drop old windows entirely</li>
+                <li><strong>TTL sync:</strong> Align with TTL</li>
+                <li><strong>Performance:</strong> 10x faster than STCS</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="color: var(--project-green);">Aggregation Pipeline</h3>
+
+    <div class="code-block">
+<span class="comment"># aggregation_job.py - Hourly aggregation</span>
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta
+<span class="keyword">import</span> schedule
+
+<span class="keyword">class</span> <span class="type">HourlyAggregation</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(<span class="keyword">self</span>, session):
+        <span class="keyword">self</span>.session = session
+    
+    <span class="keyword">def</span> <span class="function">aggregate_hour</span>(<span class="keyword">self</span>, sensor_id, hour_start):
+        <span class="string">"""Aggregate one hour of data"""</span>
+        hour_end = hour_start + timedelta(hours=<span class="number">1</span>)
+        
+        <span class="comment"># Get raw readings for hour</span>
+        query = <span class="string">"""
+            SELECT value FROM sensor_data_by_sensor
+            WHERE sensor_id = ?
+              AND reading_time >= ?
+              AND reading_time < ?
+        """</span>
+        
+        rows = <span class="keyword">self</span>.session.execute(query, (sensor_id, hour_start, hour_end))
+        values = [row.value <span class="keyword">for</span> row <span class="keyword">in</span> rows]
+        
+        <span class="keyword">if</span> <span class="keyword">not</span> values:
+            <span class="keyword">return</span>
+        
+        <span class="comment"># Calculate statistics</span>
+        avg_value = <span class="function">sum</span>(values) / <span class="function">len</span>(values)
+        min_value = <span class="function">min</span>(values)
+        max_value = <span class="function">max</span>(values)
+        
+        <span class="comment"># Insert aggregated stats</span>
+        insert = <span class="string">"""
+            INSERT INTO sensor_hourly_stats
+            (sensor_id, hour_bucket, avg_value, min_value, max_value, count)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """</span>
+        
+        <span class="keyword">self</span>.session.execute(
+            insert,
+            (sensor_id, hour_start, avg_value, min_value, max_value, <span class="function">len</span>(values))
+        )
+        
+        <span class="function">print</span>(<span class="function">f</span><span class="string">"Aggregated {len(values)} readings for {hour_start}"</span>)
+    
+    <span class="keyword">def</span> <span class="function">run_hourly_job</span>(<span class="keyword">self</span>):
+        <span class="string">"""Run every hour to aggregate previous hour"""</span>
+        <span class="comment"># Aggregate last complete hour</span>
+        now = datetime.now()
+        last_hour = now.replace(minute=<span class="number">0</span>, second=<span class="number">0</span>, microsecond=<span class="number">0</span>) - timedelta(hours=<span class="number">1</span>)
+        
+        <span class="comment"># Get all active sensors</span>
+        sensors = <span class="keyword">self</span>.get_all_sensors()
+        
+        <span class="keyword">for</span> sensor_id <span class="keyword">in</span> sensors:
+            <span class="keyword">self</span>.aggregate_hour(sensor_id, last_hour)
+
+<span class="comment"># Schedule to run every hour</span>
+schedule.every().hour.at(<span class="string">":05"</span>).do(aggregator.run_hourly_job)
+    </div>
+</section>
+
+<section id="deployment" data-aos="fade-up">
+    <h2>🚀 Deployment Architecture</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production deployment!</p>
+
+    <div class="architecture-diagram">
+        <h4 style="color: var(--project-green); margin-top: 0; text-align: center;">Multi-Datacenter Architecture</h4>
+        <pre>
+                        ┌─────────────────────────────────────┐
+                        │      Load Balancer (Global)         │
+                        └──────────────┬──────────────────────┘
+                                       │
+                ┌──────────────────────┼──────────────────────┐
+                │                      │                      │
+                ▼                      ▼                      ▼
+        ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
+        │ Datacenter 1  │      │ Datacenter 2  │      │ Datacenter 3  │
+        │   (US-East)   │      │   (EU-West)   │      │   (AP-South)  │
+        └───────────────┘      └───────────────┘      └───────────────┘
+                │                      │                      │
+        ┌───────┴─────────┐    ┌───────┴─────────┐    ┌───────┴─────────┐
+        │                 │    │                 │    │                 │
+    ┌───▼───┐ ┌───▼───┐  │┌───▼───┐ ┌───▼───┐  │┌───▼───┐ ┌───▼───┐  │
+    │ C* N1 │ │ C* N2 │  ││ C* N1 │ │ C* N2 │  ││ C* N1 │ │ C* N2 │  │
+    └───────┘ └───────┘  │└───────┘ └───────┘  │└───────┘ └───────┘  │
+    ┌───▼───┐            │┌───▼───┐            │┌───▼───┐            │
+    │ C* N3 │            ││ C* N3 │            ││ C* N3 │            │
+    └───────┘            │└───────┘            │└───────┘            │
+                         │                     │                     │
+    ┌─────────────────┐  │┌─────────────────┐  │┌─────────────────┐  │
+    │ Ingestion API   │  ││ Ingestion API   │  ││ Ingestion API   │  │
+    │ Query API       │  ││ Query API       │  ││ Query API       │  │
+    │ Aggregation Job │  ││ Aggregation Job │  ││ Aggregation Job │  │
+    └─────────────────┘  │└─────────────────┘  │└─────────────────┘  │
+                         │                     │                     │
+    ┌─────────────────┐  │┌─────────────────┐  │┌─────────────────┐  │
+    │   Monitoring    │  ││   Monitoring    │  ││   Monitoring    │  │
+    │  (Prometheus)   │  ││  (Prometheus)   │  ││  (Prometheus)   │  │
+    └─────────────────┘  │└─────────────────┘  │└─────────────────┘  │
+                         └                     └                     └
+
+    Replication: NetworkTopologyStrategy
+    - DC1: 3 replicas
+    - DC2: 3 replicas
+    - DC3: 3 replicas
+    
+    Consistency: 
+    - Writes: LOCAL_QUORUM (fast, local)
+    - Reads: LOCAL_ONE (fast, eventual)
+        </pre>
+    </div>
+
+    <h3 style="color: var(--project-green);">Deployment Configuration</h3>
+
+    <div class="code-block">
+<span class="comment"># cassandra.yaml - Production settings</span>
+
+<span class="comment"># Cluster name</span>
+cluster_name: <span class="string">'IoT Sensors Production'</span>
+
+<span class="comment"># Listen addresses</span>
+listen_address: <span class="number">10.0.1.10</span>
+broadcast_address: <span class="number">203.0.113.10</span>
+
+<span class="comment"># Seed nodes (2-3 per DC)</span>
+seed_provider:
+  - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      - seeds: <span class="string">"10.0.1.10,10.0.1.11,10.0.2.10,10.0.2.11"</span>
+
+<span class="comment"># Compaction</span>
+concurrent_compactors: <span class="number">4</span>
+
+<span class="comment"># Memory</span>
+memtable_heap_space_in_mb: <span class="number">2048</span>
+memtable_offheap_space_in_mb: <span class="number">2048</span>
+
+<span class="comment"># Commit log</span>
+commitlog_sync: periodic
+commitlog_sync_period_in_ms: <span class="number">10000</span>
+
+<span class="comment"># Monitoring</span>
+jmx_port: <span class="number">7199</span>
+    </div>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-rocket" style="color: #059669;"></i> Production Checklist</h4>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Configuration</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Cluster Size</strong></td>
+                    <td>9 nodes (3 per DC)</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Replication</strong></td>
+                    <td>RF=3 per DC</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Write Consistency</strong></td>
+                    <td>LOCAL_QUORUM</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Read Consistency</strong></td>
+                    <td>LOCAL_ONE</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>TTL</strong></td>
+                    <td>90 days (raw), 2 years (aggregates)</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Compaction</strong></td>
+                    <td>TimeWindowCompactionStrategy</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Monitoring</strong></td>
+                    <td>Prometheus + Grafana</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><strong>Backup</strong></td>
+                    <td>Daily snapshots to S3</td>
+                    <td>✅</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Summary Box -->
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(251, 191, 36, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--project-green);">🎉 Project Complete!</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You built a production-ready IoT sensor data platform!</strong></p>
+
+        <h4 style="color: var(--project-green); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Built:</h4>
+        <ul style="line-height: 1.9;">
+            <li>📊 <strong>Scale:</strong> 100K writes/second, 8.64B data points/day</li>
+            <li>🗺️ <strong>Data model:</strong> Query-driven design with 5 optimized tables</li>
+            <li>📋 <strong>Schema:</strong> Time-series optimized with TWCS + TTL</li>
+            <li>💻 <strong>Implementation:</strong> Python ingestion + query services</li>
+            <li>🔍 <strong>Queries:</strong> Real-time dashboard, trends, alerts, aggregates</li>
+            <li>⚡ <strong>Optimization:</strong> Batch writes, pre-aggregation, caching</li>
+            <li>🚀 <strong>Deployment:</strong> Multi-DC with 9 nodes (3 per DC)</li>
+        </ul>
+
+        <h4 style="color: var(--project-green); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Learnings:</h4>
+        <ol style="line-height: 1.9;">
+            <li><strong>Data model first:</strong> Know your queries before schema</li>
+            <li><strong>Time-series design:</strong> Partition by sensor, cluster by time DESC</li>
+            <li><strong>TTL is essential:</strong> Auto-expire old data (90 days)</li>
+            <li><strong>TWCS for time-series:</strong> 10x better than STCS</li>
+            <li><strong>Pre-aggregate:</strong> Hourly stats for fast analytics</li>
+            <li><strong>Batch writes:</strong> 50-100 inserts per batch</li>
+            <li><strong>Multi-DC:</strong> Global deployment with LOCAL consistency</li>
+        </ol>
+
+        <h4 style="color: var(--project-green); margin-top: 2rem; margin-bottom: 1rem;">📊 Architecture Highlights:</h4>
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+            <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                <li>✅ <strong>5 tables:</strong> sensor_data, sensors_by_factory, hourly_stats, alerts</li>
+                <li>✅ <strong>Write path:</strong> 100K/sec with batch inserts</li>
+                <li>✅ <strong>Read path:</strong> Single-partition queries (fast!)</li>
+                <li>✅ <strong>Storage:</strong> TWCS + LZ4 + 90-day TTL</li>
+                <li>✅ <strong>Aggregation:</strong> Hourly job for analytics</li>
+                <li>✅ <strong>HA:</strong> RF=3 per DC, LOCAL_QUORUM writes</li>
+            </ul>
+        </div>
+
+        <h4 style="color: var(--project-green); margin-top: 2rem; margin-bottom: 1rem;">🚀 Next Steps:</h4>
+        <ul style="line-height: 1.9;">
+            <li>🔧 Add real-time anomaly detection with Spark</li>
+            <li>📈 Build Grafana dashboards for visualization</li>
+            <li>🔔 Implement alert notification system</li>
+            <li>💾 Set up automated backups to S3</li>
+            <li>📱 Create mobile app for factory managers</li>
+            <li>🤖 Add machine learning for predictive maintenance</li>
+        </ul>
+
+        <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: var(--project-green); font-weight: 700;">
+            🎯 You're ready to build production IoT systems! 📊<br>
+            Apply this pattern to ANY time-series use case!
+        </p>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="page-navigation">
+    <a href="project-sensor-data.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Project Sensor Data</div>
+        </div>
+    </a>
+    <a href="project-timeseries.htm" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next Project</div>
+            <div class="nav-title">Project timeseries</div>
+        </div>
+    </a>
+</div>
+
+<!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

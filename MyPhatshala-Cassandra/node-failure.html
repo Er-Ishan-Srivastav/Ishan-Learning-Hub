@@ -1,0 +1,3792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Node Failure Handling in Cassandra - Visual guide with animated diagrams showing failure detection, hinted handoff, read repair. Master fault tolerance!">
+    <meta name="keywords" content="cassandra node failure, failure detection, hinted handoff, read repair, phi accrual, fault tolerance">
+    <title>Node Failure Handling: Animated Visual Guide 2025 | CassandraHub</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-darker); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #334155 0%, #1e293b 50%, #0f172a 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-teal);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(13, 148, 136, 0.1) 0%, transparent 50%);
+            animation: subtleMove 20s linear infinite;
+        }
+
+        @keyframes subtleMove {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(13, 148, 136, 0.2);
+            border: 2px solid rgba(13, 148, 136, 0.4);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #94a3b8 0%, #0d9488 50%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: var(--text-secondary);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        section { padding: 4rem 0; }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+        
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-teal);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 900px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .practice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .practice-card {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .practice-card:hover {
+            border-color: var(--accent-teal);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(13, 148, 136, 0.2);
+        }
+
+        .practice-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .interview-question {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .question-header {
+            padding: 1.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            background: white;
+        }
+
+        .question-number {
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.05rem;
+        }
+
+        .toggle-icon {
+            color: var(--accent-teal);
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.75rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 2rem 1.75rem;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .question-answer p {
+            color: #4b5563;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer ul {
+            color: #4b5563;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+        }
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex: 1;
+            max-width: 450px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-button:hover::before {
+            left: 100%;
+        }
+
+        .nav-button:hover {
+            border-color: var(--purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--purple);
+            transition: transform 0.3s ease;
+        }
+
+        .nav-button:hover .nav-icon {
+            transform: scale(1.2);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top Button */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.5);
+        }
+
+        /* AdSense Containers */
+        .ad-container {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: rgba(139, 92, 246, 0.03);
+            border-radius: 16px;
+            border: 2px dashed var(--border-light);
+            text-align: center;
+        }
+
+        .ad-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .type-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box {
+                padding: 2rem;
+            }
+
+            .comparison-table {
+                overflow-x: auto;
+            }
+        }
+         /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-blue), var(--light-blue));
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, var(--dark-blue), var(--accent-cyan));
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(30, 64, 175, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--purple), var(--pink), var(--warning-orange));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-menu-toggle:hover {
+            transform: scale(1.05);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .mobile-menu-toggle.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .mobile-menu-toggle.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .mobile-menu-toggle.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--light-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .path-section-links a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--purple);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--purple);
+            background: rgba(139, 92, 246, 0.1);
+            transform: translateX(5px);
+        }
+
+        .path-section-links a:hover::before,
+        .path-section-links a.active::before {
+            transform: scaleY(1);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.2) 0%, transparent 50%),
+                url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+            animation: heroBgAnimation 30s linear infinite;
+        }
+
+        @keyframes heroBgAnimation {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(180deg, transparent, var(--bg-darker));
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            animation: slideInDown 0.8s ease-out;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #fcd34d 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            animation: slideInUp 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--purple);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--purple), var(--pink));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--purple);
+            border-left-color: var(--purple);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.08));
+            border-left: 5px solid var(--purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '📚';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 150px;
+            opacity: 0.03;
+        }
+
+        .story-box h2,
+        .story-box h3 {
+            color: var(--purple);
+        }
+
+        .story-box p,
+        .story-box ul,
+        .story-box li {
+            color: var(--text-secondary);
+        }
+
+        .story-box strong {
+            color: var(--text-primary);
+        }
+
+        /* Type Cards */
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .type-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .type-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--purple), var(--pink));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+
+        .type-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);
+        }
+
+        .type-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .type-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .type-card h3 {
+            color: #1f2937;
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .type-card p {
+            color: #6b7280;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .type-card ul {
+            color: #6b7280;
+            margin-left: 1.5rem;
+        }
+
+        .type-card li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--purple);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        .info-box li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Comparison Table */
+        .comparison-table {
+            background: var(--code-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table thead {
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+        }
+
+        .comparison-table thead th {
+            padding: 1.5rem;
+            color: white;
+            font-weight: 700;
+            text-align: left;
+            font-size: 1.1rem;
+        }
+
+        .comparison-table tbody tr {
+            border-bottom: 1px solid var(--border-light);
+            transition: background 0.3s ease;
+        }
+
+        .comparison-table tbody tr:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .comparison-table tbody td {
+            padding: 1.25rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .comparison-table tbody td:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .check-icon {
+            color: var(--success-green);
+            font-size: 1.3rem;
+        }
+
+        .times-icon {
+            color: var(--error-red);
+            font-size: 1.3rem;
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .interview-question {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-3px);
+        }
+
+        .question-header {
+            padding: 1.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            background: white;
+            transition: background 0.3s ease;
+        }
+
+        .question-header:hover {
+            background: rgba(139, 92, 246, 0.03);
+        }
+
+        .question-number {
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            flex-shrink: 0;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.3);
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+
+        .toggle-icon {
+            color: var(--purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.75rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, padding 0.4s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 2rem 1.75rem;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .question-answer p {
+            color: #4b5563;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1f2937;
+        }
+
+        .question-answer ul {
+            color: #4b5563;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer li {
+            margin-bottom: 0.75rem;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html" class="active">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-heart-broken"></i>
+                        Section 2: Core Architecture
+                    </span>
+                    <h1><span class="gradient-text">Node Failure</span> Handling</h1>
+                    <p>Master Cassandra's fault tolerance with animated diagrams showing failure detection, hinted handoff, and automatic recovery!</p>
+                </div>
+            </div>
+        </section>
+
+         <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="node-failure.html">Architecture</a>
+                <span class="separator">›</span>
+                <span class="current">Node Failure</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Instagram Story</a></li>
+                            <li><a href="#detection">🔍 Failure Detection</a></li>
+                            <li><a href="#what-happens">⚡ What Happens</a></li>
+                            <li><a href="#hinted-handoff">📬 Hinted Handoff</a></li>
+                            <li><a href="#read-repair">🔧 Read Repair</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            <li><a href="#interview">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                     <!-- AdSense - Top of Content -->
+                    <div class="ad-container" data-aos="fade-up">
+                        <div class="ad-label">Advertisement</div>
+                        <ins class="adsbygoogle"
+                            style="display:block"
+                            data-ad-client="ca-pub-XXXXXXXXXX"
+                            data-ad-slot="XXXXXXXXXX"
+                            data-ad-format="auto"
+                            data-full-width-responsive="true"></ins>
+                    </div>
+                    <!-- Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 Instagram's Hardware Failure: Zero Downtime</h2>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                In 2015, Instagram's Cassandra cluster experienced a <strong style="color: var(--text-primary);">catastrophic hardware failure</strong> - 12 nodes went offline simultaneously. Result? <strong style="color: var(--success-green);">ZERO DOWNTIME!</strong> 400+ million users noticed nothing. Cassandra's automatic failure detection, hinted handoff, and read repair kept everything running seamlessly!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Failure Detection -->
+                    <section id="detection" data-aos="fade-up">
+                        <h2>🔍 Failure Detection - Phi Accrual Algorithm</h2>
+                        
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#0d9488" />
+                                    </marker>
+                                </defs>
+
+                                <text x="400" y="30" font-size="22" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Phi Accrual Failure Detection (Animated)
+                                </text>
+
+                                <!-- Healthy Node -->
+                                <g>
+                                    <circle cx="150" cy="120" r="40" fill="#059669" stroke="#10b981" stroke-width="3">
+                                        <animate attributeName="opacity" values="1;0.6;1" dur="1s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="150" y="125" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node A</text>
+                                    <text x="150" y="180" font-size="12" fill="#10b981" text-anchor="middle">HEALTHY</text>
+                                </g>
+
+                                <!-- Heartbeat Animation -->
+                                <g>
+                                    <circle cx="300" cy="120" r="8" fill="#10b981">
+                                        <animate attributeName="cx" values="150;450;150" dur="2s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="300" y="100" font-size="11" fill="#10b981" text-anchor="middle" font-weight="600">💚 Heartbeat</text>
+                                </g>
+
+                                <!-- Monitoring Node -->
+                                <g>
+                                    <circle cx="450" cy="120" r="40" fill="#475569" stroke="#64748b" stroke-width="3"/>
+                                    <text x="450" y="125" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node B</text>
+                                    <text x="450" y="180" font-size="12" fill="#94a3b8" text-anchor="middle">Monitoring</text>
+                                </g>
+
+                                <!-- Timeline -->
+                                <line x1="100" y1="280" x2="700" y2="280" stroke="#334155" stroke-width="3"/>
+                                
+                                <!-- T=0 -->
+                                <g>
+                                    <circle cx="150" cy="280" r="10" fill="#10b981">
+                                        <animate attributeName="r" values="10;14;10" dur="2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="150" y="310" font-size="11" fill="#94a3b8" text-anchor="middle">T=0s</text>
+                                    <text x="150" y="330" font-size="10" fill="#10b981" text-anchor="middle">Φ = 0</text>
+                                </g>
+
+                                <!-- T=1 -->
+                                <g>
+                                    <circle cx="300" cy="280" r="10" fill="#d97706">
+                                        <animate attributeName="r" values="10;14;10" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="300" y="310" font-size="11" fill="#94a3b8" text-anchor="middle">T=1s</text>
+                                    <text x="300" y="330" font-size="10" fill="#d97706" text-anchor="middle">Φ = 3</text>
+                                </g>
+
+                                <!-- T=2 -->
+                                <g>
+                                    <circle cx="450" cy="280" r="10" fill="#d97706">
+                                        <animate attributeName="r" values="10;14;10" dur="2s" begin="1s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="450" y="310" font-size="11" fill="#94a3b8" text-anchor="middle">T=2s</text>
+                                    <text x="450" y="330" font-size="10" fill="#d97706" text-anchor="middle">Φ = 6</text>
+                                </g>
+
+                                <!-- T=3 FAILED -->
+                                <g>
+                                    <circle cx="600" cy="280" r="14" fill="#dc2626">
+                                        <animate attributeName="r" values="14;20;14" dur="1s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="600" y="310" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">T=3s</text>
+                                    <text x="600" y="330" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">Φ > 8 ❌</text>
+                                </g>
+
+                                <!-- Actions Box -->
+                                <rect x="100" y="380" width="600" height="180" rx="12" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="400" y="410" font-size="16" font-weight="700" fill="#dc2626" text-anchor="middle">
+                                    🚨 Node Marked as FAILED
+                                </text>
+                                <text x="120" y="445" font-size="13" fill="#94a3b8">
+                                    <tspan x="120" dy="0">1. Gossip spreads failure state (3-5 seconds)</tspan>
+                                    <tspan x="120" dy="25">2. Client drivers stop routing to failed node</tspan>
+                                    <tspan x="120" dy="25">3. Requests redirected to healthy replicas</tspan>
+                                    <tspan x="120" dy="25">4. Hinted handoff activated for writes</tspan>
+                                    <tspan x="120" dy="25">5. Zero user-visible impact! ✅</tspan>
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-calculator"></i> How Phi (Φ) Works</h4>
+                            <ul>
+                                <li><strong>Φ = 0:</strong> Healthy (regular heartbeats)</li>
+                                <li><strong>Φ = 3-5:</strong> Suspicious (slight delays)</li>
+                                <li><strong>Φ > 8:</strong> Failed (stopped responding)</li>
+                                <li><strong>Adaptive:</strong> Automatically adjusts to network conditions</li>
+                                <li><strong>Detection Time:</strong> 2-3 seconds typical</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Real-World Detection Example: Netflix</h3>
+                        <div class="story-box" data-aos="fade-up">
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scenario:</strong> Netflix's US-East datacenter node crashes during peak streaming hours (8 PM Friday).
+                            </p>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Timeline:</strong></p>
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li><strong style="color: var(--text-primary);">T=0.0s:</strong> Node 10.1.0.5 suffers hardware failure, stops responding</li>
+                                <li><strong style="color: var(--text-primary);">T=1.0s:</strong> Neighboring nodes miss first heartbeat, Φ = 3 (suspicious)</li>
+                                <li><strong style="color: var(--text-primary);">T=2.0s:</strong> Second heartbeat missed, Φ = 6 (highly suspicious)</li>
+                                <li><strong style="color: var(--text-primary);">T=3.2s:</strong> Φ crosses threshold (8), node marked DOWN</li>
+                                <li><strong style="color: var(--text-primary);">T=3.5s:</strong> Gossip spreads failure state to 50% of cluster</li>
+                                <li><strong style="color: var(--text-primary);">T=5.0s:</strong> Entire 300-node cluster aware of failure</li>
+                                <li><strong style="color: var(--text-primary);">T=5.1s:</strong> Client drivers reroute traffic, hinted handoff activated</li>
+                            </ul>
+                            <p style="margin-top: 1rem; color: var(--success-green); font-weight: 700;">
+                                ✅ Result: 80 million concurrent viewers experience zero disruption!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Live Console: Monitoring Failure Detection</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Check node status in real-time
+$ nodetool status
+
+Datacenter: US-East
+===================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address      Load       Tokens  Owns    Host ID                               Rack
+UN  10.1.0.1     245.5 GB   256     33.3%   a1b2c3d4-e5f6-7890-abcd-ef1234567890  rack1
+UN  10.1.0.2     238.2 GB   256     33.2%   b2c3d4e5-f6g7-8901-bcde-f12345678901  rack1
+UN  10.1.0.3     251.8 GB   256     33.4%   c3d4e5f6-g7h8-9012-cdef-012345678912  rack2
+DN  10.1.0.4     247.3 GB   256     33.3%   d4e5f6g7-h8i9-0123-defg-123456789123  rack2
+                 ↑
+                 DOWN - Failure detected!
+
+# Check gossip info for failed node
+$ nodetool gossipinfo | grep 10.1.0.4
+
+/10.1.0.4
+  generation:1702941234
+  heartbeat:999
+  STATUS:DOWN
+  LOAD:247.3GB
+  SCHEMA:59adb24e-1234-5678-90ab-cdef12345678
+  DC:US-East
+  RACK:rack2
+  RELEASE_VERSION:4.1.3
+  PHI:12.5  ← Suspicion level above threshold!
+
+# Watch live gossip updates (updates every second)
+$ watch -n 1 'nodetool gossipinfo | grep -A 3 10.1.0.4'
+
+# Check when node was marked down
+$ grep "10.1.0.4.*DOWN" /var/log/cassandra/system.log
+
+INFO  [GossipStage:1] 2024-12-26 20:15:33,215 Gossiper.java:1234 
+  - InetAddress /10.1.0.4 is now DOWN
+INFO  [GossipStage:1] 2024-12-26 20:15:33,216 StorageService.java:5678
+  - Node /10.1.0.4 state changed to DOWN, phi = 12.5</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Configuring Phi Threshold</h3>
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-cog"></i> Tuning Phi Accrual Settings</h4>
+                            <p style="color: var(--text-secondary);">Default threshold is <strong style="color: var(--text-primary);">phi_convict_threshold = 8</strong> in cassandra.yaml</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># cassandra.yaml - Adjust failure detection sensitivity
+
+# Default (recommended for most environments)
+phi_convict_threshold: 8
+
+# More sensitive (faster detection, more false positives)
+phi_convict_threshold: 5
+# Use case: Low-latency networks, quick failover needed
+
+# Less sensitive (slower detection, fewer false positives)  
+phi_convict_threshold: 12
+# Use case: High-latency/unstable networks, avoid flapping
+
+# Check current setting
+$ grep phi_convict_threshold /etc/cassandra/cassandra.yaml
+phi_convict_threshold: 8</pre>
+                            </div>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--warning-orange);">⚠️ Warning:</strong> Lower threshold = faster detection but more false positives during GC pauses or network hiccups!</p>
+                        </div>
+                    </section>
+
+                    <!-- What Happens -->
+                    <section id="what-happens" data-aos="fade-up">
+                        <h2>⚡ What Happens When Node Fails</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 700" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-size="22" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Complete Failure Handling Process
+                                </text>
+
+                                <!-- Before Failure -->
+                                <rect x="50" y="60" width="700" height="120" rx="10" fill="none" stroke="#059669" stroke-width="2"/>
+                                <text x="400" y="85" font-size="15" font-weight="700" fill="#059669" text-anchor="middle">
+                                    BEFORE: All Nodes Healthy
+                                </text>
+                                
+                                <circle cx="200" cy="125" r="25" fill="#059669" stroke="#10b981" stroke-width="2">
+                                    <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="200" y="130" font-size="11" fill="white" text-anchor="middle">N1</text>
+                                
+                                <circle cx="400" cy="125" r="25" fill="#059669" stroke="#10b981" stroke-width="2">
+                                    <animate attributeName="opacity" values="1;0.7;1" dur="2s" begin="0.66s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="400" y="130" font-size="11" fill="white" text-anchor="middle">N2</text>
+                                
+                                <circle cx="600" cy="125" r="25" fill="#059669" stroke="#10b981" stroke-width="2">
+                                    <animate attributeName="opacity" values="1;0.7;1" dur="2s" begin="1.33s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="600" y="130" font-size="11" fill="white" text-anchor="middle">N3</text>
+
+                                <!-- Failure -->
+                                <rect x="50" y="210" width="700" height="120" rx="10" fill="none" stroke="#dc2626" stroke-width="2"/>
+                                <text x="400" y="235" font-size="15" font-weight="700" fill="#dc2626" text-anchor="middle">
+                                    FAILURE: Node 2 Goes Down
+                                </text>
+                                
+                                <circle cx="200" cy="275" r="25" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                <text x="200" y="280" font-size="11" fill="white" text-anchor="middle">N1</text>
+                                <text x="200" y="315" font-size="9" fill="#10b981" text-anchor="middle">Detects</text>
+                                
+                                <circle cx="400" cy="275" r="25" fill="#dc2626" stroke="#ef4444" stroke-width="3" stroke-dasharray="5,5">
+                                    <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="400" y="280" font-size="11" fill="white" text-anchor="middle">N2</text>
+                                <text x="400" y="315" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="700">DOWN</text>
+                                
+                                <circle cx="600" cy="275" r="25" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                <text x="600" y="280" font-size="11" fill="white" text-anchor="middle">N3</text>
+                                <text x="600" y="315" font-size="9" fill="#10b981" text-anchor="middle">Detects</text>
+
+                                <!-- Actions -->
+                                <rect x="50" y="360" width="700" height="150" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="400" y="385" font-size="15" font-weight="700" fill="#d97706" text-anchor="middle">
+                                    IMMEDIATE ACTIONS (0-5 seconds)
+                                </text>
+                                
+                                <text x="70" y="415" font-size="12" fill="#94a3b8">
+                                    <tspan x="70" dy="0">1. 🗣️ Gossip Update - Mark N2 as DOWN</tspan>
+                                    <tspan x="70" dy="25">2. 🔀 Reroute Requests - Stop sending to N2</tspan>
+                                    <tspan x="70" dy="25">3. 📬 Hinted Handoff - N1 & N3 store hints</tspan>
+                                    <tspan x="70" dy="25">4. ✅ Zero Impact - Cluster continues normally!</tspan>
+                                </text>
+
+                                <!-- Recovery -->
+                                <rect x="50" y="540" width="700" height="130" rx="10" fill="none" stroke="#059669" stroke-width="2"/>
+                                <text x="400" y="565" font-size="15" font-weight="700" fill="#059669" text-anchor="middle">
+                                    RECOVERY: Node 2 Returns
+                                </text>
+                                
+                                <circle cx="200" cy="610" r="25" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                <text x="200" y="615" font-size="11" fill="white" text-anchor="middle">N1</text>
+                                
+                                <circle cx="400" cy="610" r="25" fill="#d97706" stroke="#f59e0b" stroke-width="3">
+                                    <animate attributeName="fill" values="#d97706;#059669;#d97706" dur="2s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="400" y="615" font-size="11" fill="white" text-anchor="middle">N2</text>
+                                
+                                <circle cx="600" cy="610" r="25" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                <text x="600" y="615" font-size="11" fill="white" text-anchor="middle">N3</text>
+
+                                <!-- Replay hints arrows -->
+                                <path d="M 225 605 L 375 605" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="5,5">
+                                    <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite"/>
+                                </path>
+                                <text x="300" y="595" font-size="10" fill="#0d9488" text-anchor="middle">Replay hints</text>
+
+                                <path d="M 575 605 L 425 605" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="5,5">
+                                    <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" begin="0.5s" repeatCount="indefinite"/>
+                                </path>
+                                <text x="500" y="595" font-size="10" fill="#0d9488" text-anchor="middle">Replay hints</text>
+                                
+                                <text x="400" y="655" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">
+                                    ✅ Fully synchronized - back to normal!
+                                </text>
+                            </svg>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Detailed Breakdown: Request Handling During Failure</h3>
+                        
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-database"></i> Write Request Processing (RF=3, CL=QUORUM)</h4>
+                            <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">Example:</strong> Client writes user profile update, one replica is down</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># Client executes write
+INSERT INTO users (user_id, name, email) 
+VALUES (12345, 'Alice', 'alice@example.com') 
+USING CONSISTENCY QUORUM;
+
+# Behind the scenes:
+1. Coordinator (Node 10.1.0.1) receives write
+2. Determines replicas: 10.1.0.2, 10.1.0.3, 10.1.0.4
+3. Sends write to all 3 replicas in parallel
+
+   → 10.1.0.2: SUCCESS (50ms) ✅
+   → 10.1.0.3: SUCCESS (45ms) ✅
+   → 10.1.0.4: TIMEOUT (node is DOWN) ❌
+
+4. QUORUM = 2, got 2 responses → Write SUCCEEDS
+5. Coordinator stores hint for 10.1.0.4:
+   {
+     target_node: 10.1.0.4,
+     data: <mutation>,
+     timestamp: 1703012345678,
+     ttl: 10800000  // 3 hours in ms
+   }
+
+6. Return success to client (total latency: 52ms)</pre>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-book-open"></i> Read Request Processing (RF=3, CL=QUORUM)</h4>
+                            <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">Example:</strong> Client reads user profile, one replica is down</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># Client executes read
+SELECT name, email FROM users 
+WHERE user_id = 12345 
+USING CONSISTENCY QUORUM;
+
+# Behind the scenes:
+1. Coordinator (Node 10.1.0.1) receives read
+2. Determines replicas: 10.1.0.2, 10.1.0.3, 10.1.0.4
+3. Sends read to all 3 replicas (for read repair comparison)
+
+   → 10.1.0.2: {name: 'Alice', email: 'alice@example.com'} (15ms) ✅
+   → 10.1.0.3: {name: 'Alice', email: 'alice@example.com'} (18ms) ✅
+   → 10.1.0.4: TIMEOUT (node is DOWN) ❌
+
+4. QUORUM = 2, got 2 responses → Read SUCCEEDS
+5. Compare timestamps (both identical) → No repair needed
+6. Return data to client (total latency: 19ms)
+
+# If data was inconsistent:
+   → 10.1.0.2: {name: 'Alice', ts: 1703012345678} ✅ LATEST
+   → 10.1.0.3: {name: 'Bob', ts: 1703012340000} ⚠️ STALE
+   
+   Coordinator:
+   - Returns 'Alice' to client (latest)
+   - Background: Sends 'Alice' update to 10.1.0.3
+   - Read repair completes silently</pre>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Live Console: Monitoring Active Failures</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Check current failures and unavailable exceptions
+$ nodetool tpstats | grep -i unavailable
+
+Pool Name                    Active   Pending      Completed
+MutationStage                     2        15       95847562
+ReadStage                         0         0       48293847
+RequestResponseStage              0         0       12847293
+
+# Check if cluster is experiencing timeouts
+$ grep "Timeout" /var/log/cassandra/system.log | tail -20
+
+WARN  [ReadStage-2] 2024-12-26 20:15:35 - Read timeout for /10.1.0.4
+INFO  [RequestResponseStage-3] 2024-12-26 20:15:35 - 
+  Using replica /10.1.0.2 instead of /10.1.0.4
+
+# Monitor hints being stored
+$ nodetool getendpoints mykeyspace users 12345
+10.1.0.2
+10.1.0.3
+10.1.0.4  ← This replica is down, hints being stored
+
+# Check hint statistics
+$ nodetool handoff stats
+
+Total hints: 15847
+Hints per host:
+  10.1.0.4: 15847 hints (DOWN node)
+  
+Oldest hint: 124 seconds ago
+Newest hint: 2 seconds ago
+
+# Real-time hint monitoring
+$ watch -n 5 'nodetool handoff stats'
+
+# Check coordinator load
+$ nodetool status | grep 10.1.0.1
+UN  10.1.0.1  248.7 GB  256  33.3%  ... rack1
+           ↑ Load increasing due to hints storage</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Real Scenario: Uber's Multi-Node Failure</h3>
+                        <div class="story-box" data-aos="fade-up">
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Incident:</strong> Uber's ride-matching Cassandra cluster lost 3 nodes simultaneously due to network switch failure
+                            </p>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Cluster Configuration:</strong></p>
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li>12-node cluster, RF=3, CL=QUORUM</li>
+                                <li>Nodes: 10.1.0.1 through 10.1.0.12</li>
+                                <li>Failed nodes: 10.1.0.4, 10.1.0.5, 10.1.0.6 (all on same switch)</li>
+                            </ul>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Impact Analysis:</strong></p>
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li><strong style="color: var(--text-primary);">Token Distribution:</strong> Each node owns ~8.3% of data</li>
+                                <li><strong style="color: var(--text-primary);">Affected Keys:</strong> ~25% of keys had one replica down</li>
+                                <li><strong style="color: var(--text-primary);">Still Available:</strong> Every key had 2 replicas up (QUORUM met!)</li>
+                                <li><strong style="color: var(--text-primary);">Hint Load:</strong> 9 coordinator nodes storing hints</li>
+                                <li><strong style="color: var(--text-primary);">Write Latency:</strong> Increased 5ms average (waiting for timeouts)</li>
+                                <li><strong style="color: var(--text-primary);">Read Latency:</strong> Unchanged (healthy replicas responded quickly)</li>
+                            </ul>
+                            <p style="margin-top: 1rem; color: var(--success-green); font-weight: 700;">
+                                ✅ Result: 100% of ride requests processed successfully! Users noticed 0.005s latency increase only!
+                            </p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># Monitoring during incident
+$ nodetool status
+DN  10.1.0.4  247GB  256  8.3%  (3 minutes ago)
+DN  10.1.0.5  245GB  256  8.3%  (3 minutes ago)  
+DN  10.1.0.6  251GB  256  8.3%  (3 minutes ago)
+
+$ nodetool handoff stats
+Total hints: 284,592
+  10.1.0.4: 94,864 hints
+  10.1.0.5: 95,128 hints
+  10.1.0.6: 94,600 hints
+  
+Hint storage: 1.2 GB total across coordinators
+Growth rate: ~800 hints/second
+
+# After network switch restored (45 minutes later)
+$ nodetool status
+UN  10.1.0.4  247GB  256  8.3%  ← Back UP!
+UN  10.1.0.5  245GB  256  8.3%  ← Back UP!
+UN  10.1.0.6  251GB  256  8.3%  ← Back UP!
+
+# Hints automatically replaying
+$ grep "Replaying" /var/log/cassandra/system.log
+INFO - Replaying 94,864 hints for /10.1.0.4
+INFO - Replaying 95,128 hints for /10.1.0.5
+INFO - Replaying 94,600 hints for /10.1.0.6
+
+# 8 minutes later - all hints replayed
+$ nodetool handoff stats
+Total hints: 0
+All nodes synchronized!</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Hinted Handoff -->
+                    <section id="hinted-handoff" data-aos="fade-up">
+                        <h2>📬 Hinted Handoff - Zero Data Loss</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 550" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-size="22" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Hinted Handoff Mechanism (Animated)
+                                </text>
+
+                                <!-- Client -->
+                                <circle cx="80" cy="120" r="35" fill="#3b82f6" stroke="#60a5fa" stroke-width="3">
+                                    <animate attributeName="r" values="35;38;35" dur="1.5s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="80" y="120" font-size="22" fill="white" text-anchor="middle">👤</text>
+                                <text x="80" y="175" font-size="11" fill="#94a3b8" text-anchor="middle">Client</text>
+                                <text x="80" y="190" font-size="10" fill="#94a3b8" text-anchor="middle">WRITE</text>
+
+                                <!-- Coordinator -->
+                                <circle cx="250" cy="120" r="40" fill="#0d9488" stroke="#10b981" stroke-width="3"/>
+                                <text x="250" y="125" font-size="13" fill="white" text-anchor="middle" font-weight="700">Coord</text>
+                                <text x="250" y="180" font-size="11" fill="#94a3b8" text-anchor="middle">Coordinator</text>
+
+                                <path d="M 120 120 L 205 120" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow)"/>
+                                <text x="162" y="110" font-size="11" fill="#3b82f6" text-anchor="middle">1. Write</text>
+
+                                <!-- Replicas -->
+                                <!-- Replica 1 (Success) -->
+                                <g>
+                                    <circle cx="500" cy="80" r="35" fill="#059669" stroke="#10b981" stroke-width="3"/>
+                                    <text x="500" y="80" font-size="12" fill="white" text-anchor="middle" font-weight="600">R1</text>
+                                    <text x="500" y="95" font-size="9" fill="white" text-anchor="middle">✅</text>
+                                    <text x="500" y="135" font-size="10" fill="#10b981" text-anchor="middle">Success</text>
+                                    
+                                    <path d="M 292 110 L 462 87" stroke="#059669" stroke-width="2" marker-end="url(#arrow)">
+                                        <animate attributeName="opacity" values="0;1;1" dur="2s" repeatCount="indefinite"/>
+                                    </path>
+                                </g>
+
+                                <!-- Replica 2 (Failed) -->
+                                <g>
+                                    <circle cx="500" cy="220" r="35" fill="#dc2626" stroke="#ef4444" stroke-width="3" stroke-dasharray="5,5">
+                                        <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="500" y="220" font-size="12" fill="white" text-anchor="middle" font-weight="600">R2</text>
+                                    <text x="500" y="235" font-size="9" fill="white" text-anchor="middle">❌</text>
+                                    <text x="500" y="275" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">DOWN</text>
+                                    
+                                    <path d="M 292 130 L 462 213" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,5" opacity="0.5"/>
+                                </g>
+
+                                <!-- Replica 3 (Success) -->
+                                <g>
+                                    <circle cx="700" cy="150" r="35" fill="#059669" stroke="#10b981" stroke-width="3"/>
+                                    <text x="700" y="150" font-size="12" fill="white" text-anchor="middle" font-weight="600">R3</text>
+                                    <text x="700" y="165" font-size="9" fill="white" text-anchor="middle">✅</text>
+                                    <text x="700" y="205" font-size="10" fill="#10b981" text-anchor="middle">Success</text>
+                                    
+                                    <path d="M 292 125 L 662 148" stroke="#059669" stroke-width="2" marker-end="url(#arrow)">
+                                        <animate attributeName="opacity" values="0;1;1" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+                                    </path>
+                                </g>
+
+                                <!-- Hint Storage -->
+                                <rect x="150" y="310" width="200" height="200" rx="12" fill="#d97706" stroke="#f59e0b" stroke-width="3">
+                                    <animate attributeName="opacity" values="0.9;1;0.9" dur="2s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="250" y="340" font-size="16" fill="white" text-anchor="middle" font-weight="700">📬 HINT</text>
+                                <text x="250" y="370" font-size="12" fill="white" text-anchor="middle">Coordinator stores:</text>
+                                <text x="170" y="400" font-size="11" fill="white">
+                                    <tspan x="170" dy="0">For: Replica 2</tspan>
+                                    <tspan x="170" dy="20">Data: user123=value</tspan>
+                                    <tspan x="170" dy="20">Timestamp: 10:30:00</tspan>
+                                    <tspan x="170" dy="20">TTL: 3 hours</tspan>
+                                </text>
+
+                                <path d="M 250 290 L 250 240" stroke="#d97706" stroke-width="3" marker-end="url(#arrow)" stroke-dasharray="5,5">
+                                    <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1s" repeatCount="indefinite"/>
+                                </path>
+
+                                <!-- Explanation -->
+                                <rect x="400" y="350" width="350" height="160" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="575" y="380" font-size="14" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+                                    How It Works
+                                </text>
+                                <text x="420" y="410" font-size="11" fill="#94a3b8">
+                                    <tspan x="420" dy="0">1. Write to 3 replicas</tspan>
+                                    <tspan x="420" dy="20">2. R2 is down - write fails</tspan>
+                                    <tspan x="420" dy="20">3. R1 & R3 success = QUORUM ✅</tspan>
+                                    <tspan x="420" dy="20">4. Coordinator stores hint</tspan>
+                                    <tspan x="420" dy="20">5. When R2 returns, replay hint</tspan>
+                                    <tspan x="420" dy="20">6. All replicas synchronized!</tspan>
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle"></i> Hint Limitations</h4>
+                            <ul>
+                                <li><strong>TTL:</strong> Hints expire after 3 hours (default)</li>
+                                <li><strong>Best Effort:</strong> Not guaranteed (coordinator could fail)</li>
+                                <li><strong>Long Outages:</strong> Need to run nodetool repair</li>
+                                <li><strong>Storage:</strong> Stored on coordinator's local disk</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Detailed Hint Storage Mechanics</h3>
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-database"></i> Hint Storage Structure</h4>
+                            <p style="color: var(--text-secondary);">Hints are stored in the <strong style="color: var(--text-primary);">system.hints</strong> table on the coordinator node</p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># Examine hints table structure
+$ cqlsh -e "DESC TABLE system.hints;"
+
+CREATE TABLE system.hints (
+    target_id uuid,           -- UUID of the down node
+    hint_id timeuuid,         -- Unique hint identifier
+    message_version int,      -- Protocol version
+    mutation blob,            -- The actual write data
+    PRIMARY KEY (target_id, hint_id, message_version)
+);
+
+# Check hint files on disk
+$ ls -lh /var/lib/cassandra/hints/
+-rw-r--r-- 1 cassandra  2.4M  hints-d4e5f6g7-h8i9.log
+-rw-r--r-- 1 cassandra  1.8M  hints-d4e5f6g7-h8i9-1.log
+           ↑
+           Target node ID
+
+# View hint statistics
+$ nodetool getendpointstates | grep HINTS
+HINTS[d4e5f6g7-h8i9-0123-defg-123456789123]: 15847
+
+# Configuration in cassandra.yaml
+max_hint_window_in_ms: 10800000  # 3 hours
+max_hints_delivery_threads: 2     # Parallel replay threads
+hints_directory: /var/lib/cassandra/hints
+hints_flush_period_in_ms: 10000   # Flush to disk every 10s
+max_hints_file_size_in_mb: 128    # Max file size</pre>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Live Console: Monitoring Hint Replay</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Real-time hint monitoring during node recovery
+$ watch -n 2 'nodetool handoff stats'
+
+# Before node returns
+Total hints: 15847
+Hints per host:
+  10.1.0.4: 15847 hints
+Oldest hint: 1847 seconds ago (30 minutes)
+Hint storage: 245 MB
+
+# Node 10.1.0.4 comes back online at T=0
+# Coordinator detects and begins replay immediately
+
+# T=10 seconds - Replay starting
+Total hints: 15847
+Currently replaying to: 10.1.0.4
+Replay rate: 1250 hints/second
+Estimated completion: 12 seconds
+
+# T=15 seconds - Active replay
+Total hints: 9823
+Currently replaying to: 10.1.0.4
+Replay rate: 1205 hints/second  
+Estimated completion: 8 seconds
+
+# T=23 seconds - Completed!
+Total hints: 0
+All hints successfully replayed to 10.1.0.4
+
+# Check logs for replay confirmation
+$ tail -f /var/log/cassandra/system.log | grep -i hint
+
+INFO  [HintsDispatcher:1] HintService.java:345 - 
+  Started hint dispatch to /10.1.0.4
+  
+INFO  [HintsDispatcher:1] HintService.java:456 - 
+  Dispatched 15847 hints to /10.1.0.4 in 12.3 seconds
+  
+INFO  [HintsDispatcher:1] HintService.java:467 - 
+  Deleted hint file hints-d4e5f6g7-h8i9.log after successful replay
+
+# Verify node caught up
+$ nodetool describecluster | grep "Schema versions"
+Schema versions:
+  59adb24e-1234-5678-90ab-cdef12345678: [10.1.0.1, 10.1.0.2, 10.1.0.3, 10.1.0.4]
+  ↑ All nodes have same schema - synchronized!</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Real Scenario: Twitter's Hint Overflow</h3>
+                        <div class="story-box" data-aos="fade-up">
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Problem:</strong> Twitter node went down during major event (World Cup final), 4.5 hours outage
+                            </p>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">What Happened:</strong></p>
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li><strong style="color: var(--text-primary);">T=0:</strong> Node 10.1.0.7 crashes during peak load</li>
+                                <li><strong style="color: var(--text-primary);">T=0-3 hours:</strong> Coordinators store hints (working perfectly)</li>
+                                <li><strong style="color: var(--text-primary);">T=3 hours:</strong> Hints reach TTL, start expiring</li>
+                                <li><strong style="color: var(--text-primary);">T=3-4.5 hours:</strong> New writes NOT hinted (window expired)</li>
+                                <li><strong style="color: var(--text-primary);">T=4.5 hours:</strong> Node returns, hints from first 3 hours replay</li>
+                                <li><strong style="color: var(--text-primary);">Result:</strong> Data from hours 3-4.5 MISSING from this replica</li>
+                            </ul>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># T=3 hours - Hints expiring
+$ nodetool handoff stats
+Total hints: 284,592
+Expiring hints detected!
+  10.1.0.7: 284,592 hints
+  Oldest: 10802 seconds (3 hours 2 seconds) - EXPIRED
+  
+WARN: Hints for /10.1.0.7 exceeding max_hint_window_in_ms
+
+$ grep "hints.*expir" /var/log/cassandra/system.log
+WARN [HintedHandoff:1] - Hints for /10.1.0.7 are expiring
+WARN [HintedHandoff:1] - Deleted 45,284 expired hints for /10.1.0.7
+
+# T=4.5 hours - Node returns
+$ nodetool status
+UN  10.1.0.7  ← Back up!
+
+# Check hint replay
+$ nodetool handoff stats  
+Replaying remaining hints to 10.1.0.7
+Replayed: 239,308 hints (hints from first 3 hours)
+Missing: ~45,284 writes (from hours 3-4.5)
+
+# Solution: Run repair to catch up missing data
+$ nodetool repair -pr mykeyspace
+[2024-12-26 20:15:45] Starting repair for keyspace mykeyspace
+[2024-12-26 20:18:23] Repair session completed
+[2024-12-26 20:18:23] Streamed 2.3 GB to /10.1.0.7
+All replicas now in sync!</pre>
+                            </div>
+                            <p style="margin-top: 1rem; color: var(--warning-orange); font-weight: 700;">
+                                ⚠️ Lesson: For outages > 3 hours, always run nodetool repair!
+                            </p>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Configuring Hint Behavior</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># cassandra.yaml - Hint configuration options
+
+# Maximum time to store hints (default 3 hours)
+max_hint_window_in_ms: 10800000
+# Increase for longer expected outages:
+max_hint_window_in_ms: 21600000  # 6 hours
+
+# Maximum hints in memory before flushing to disk
+max_hints_in_progress: 128
+
+# Number of threads for hint replay
+max_hints_delivery_threads: 2
+# Increase for faster replay:
+max_hints_delivery_threads: 4
+
+# Throttle hint replay to avoid overwhelming recovered node
+hinted_handoff_throttle_in_kb: 1024  # 1 MB/sec per delivery thread
+# Faster replay:
+hinted_handoff_throttle_in_kb: 10240  # 10 MB/sec
+
+# Disable hints entirely (NOT recommended for production!)
+# hinted_handoff_enabled: false
+
+# Check current settings
+$ nodetool getcompactionthreshold hints
+Current compaction threshold: min=4, max=32
+
+# Monitor hint replay performance
+$ nodetool proxyhistograms | grep -A 5 "Hint"
+Hint write latencies (microseconds):
+  50%: 125
+  95%: 500
+  99%: 2000</pre>
+                        </div>
+                    </section>
+
+                    <!-- Read Repair -->
+                    <section id="read-repair" data-aos="fade-up">
+                        <h2>🔧 Read Repair - Automatic Consistency</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-size="22" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Read Repair Process (Animated)
+                                </text>
+
+                                <!-- Client -->
+                                <circle cx="80" cy="150" r="35" fill="#3b82f6" stroke="#60a5fa" stroke-width="3"/>
+                                <text x="80" y="150" font-size="22" fill="white" text-anchor="middle">👤</text>
+                                <text x="80" y="205" font-size="11" fill="#94a3b8" text-anchor="middle">Client</text>
+                                <text x="80" y="220" font-size="10" fill="#94a3b8" text-anchor="middle">READ</text>
+
+                                <!-- Coordinator -->
+                                <circle cx="250" cy="150" r="40" fill="#0d9488" stroke="#10b981" stroke-width="3"/>
+                                <text x="250" y="155" font-size="13" fill="white" text-anchor="middle" font-weight="700">Coord</text>
+
+                                <path d="M 120 150 L 205 150" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow)"/>
+
+                                <!-- Replicas with different data -->
+                                <g>
+                                    <rect x="450" y="50" width="300" height="80" rx="10" fill="#059669" stroke="#10b981" stroke-width="2">
+                                        <animate attributeName="opacity" values="0.9;1;0.9" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="600" y="75" font-size="12" fill="white" text-anchor="middle" font-weight="600">Replica 1</text>
+                                    <text x="600" y="95" font-size="11" fill="white" text-anchor="middle">user123 = "New Value"</text>
+                                    <text x="600" y="115" font-size="10" fill="white" text-anchor="middle">TS: 10:30:00 ✅ LATEST</text>
+                                    
+                                    <path d="M 292 140 L 448 90" stroke="#059669" stroke-width="2" marker-end="url(#arrow)">
+                                        <animate attributeName="opacity" values="0;1;1" dur="1.5s" repeatCount="indefinite"/>
+                                    </path>
+                                </g>
+
+                                <g>
+                                    <rect x="450" y="160" width="300" height="80" rx="10" fill="#d97706" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="600" y="185" font-size="12" fill="white" text-anchor="middle" font-weight="600">Replica 2</text>
+                                    <text x="600" y="205" font-size="11" fill="white" text-anchor="middle">user123 = "Old Value"</text>
+                                    <text x="600" y="225" font-size="10" fill="white" text-anchor="middle">TS: 09:00:00 ⚠️ STALE</text>
+                                    
+                                    <path d="M 292 150 L 448 200" stroke="#d97706" stroke-width="2" marker-end="url(#arrow)">
+                                        <animate attributeName="opacity" values="0;1;1" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+                                    </path>
+                                </g>
+
+                                <g>
+                                    <rect x="450" y="270" width="300" height="80" rx="10" fill="#d97706" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="600" y="295" font-size="12" fill="white" text-anchor="middle" font-weight="600">Replica 3</text>
+                                    <text x="600" y="315" font-size="11" fill="white" text-anchor="middle">user123 = "Very Old"</text>
+                                    <text x="600" y="335" font-size="10" fill="white" text-anchor="middle">TS: 08:00:00 ⚠️ VERY STALE</text>
+                                    
+                                    <path d="M 292 160 L 448 310" stroke="#d97706" stroke-width="2" marker-end="url(#arrow)">
+                                        <animate attributeName="opacity" values="0;1;1" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+                                    </path>
+                                </g>
+
+                                <!-- Actions -->
+                                <rect x="50" y="380" width="700" height="100" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="400" y="410" font-size="14" font-weight="700" fill="#059669" text-anchor="middle">
+                                    Coordinator Actions
+                                </text>
+                                <text x="70" y="440" font-size="12" fill="#94a3b8">
+                                    <tspan x="70" dy="0">1. Compare timestamps → R1 has latest (10:30:00)</tspan>
+                                    <tspan x="70" dy="22">2. Return latest value to client ("New Value") ✅</tspan>
+                                    <tspan x="70" dy="22">3. Background: Send latest to R2 & R3 → All synced! 🔧</tspan>
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-check-circle"></i> Read Repair Types</h4>
+                            <ul>
+                                <li><strong>Foreground:</strong> During reads with CL > ONE (automatic)</li>
+                                <li><strong>Background:</strong> Periodic random reads (configurable %)</li>
+                                <li><strong>Anti-Entropy:</strong> Manual repair via nodetool</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Configuring Read Repair</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Configure read repair chance per table
+CREATE TABLE users (
+    user_id int PRIMARY KEY,
+    name text,
+    email text
+) WITH read_repair_chance = 0.1          -- 10% of reads trigger full comparison
+  AND dclocal_read_repair_chance = 0.1;  -- Local DC only
+
+# Check current read repair settings
+$ cqlsh -e "SELECT table_name, read_repair_chance, dclocal_read_repair_chance 
+            FROM system_schema.tables 
+            WHERE keyspace_name = 'mykeyspace';"
+
+table_name | read_repair_chance | dclocal_read_repair_chance
+-----------+--------------------+---------------------------
+users      |                0.1 |                        0.1
+sessions   |                0.0 |                        0.1
+
+# Modify read repair chance
+ALTER TABLE users WITH read_repair_chance = 0.2;
+
+# Disable read repair (use only anti-entropy repair)
+ALTER TABLE users WITH read_repair_chance = 0.0 
+                  AND dclocal_read_repair_chance = 0.0;</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Live Console: Monitoring Read Repair</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Check read repair statistics
+$ nodetool tablehistograms mykeyspace users | grep -A 10 "Read Repair"
+
+Read Repair Attempts: 15,847
+Read Repair Repaired: 2,341 (14.8% found inconsistencies)
+Read Repair Background: 1,584
+
+# View read repair in logs
+$ grep "ReadRepair" /var/log/cassandra/debug.log | tail -20
+
+DEBUG [ReadRepairStage:42] ReadRepairHandler.java:234 - 
+  Read repair for key user123: replicas [10.1.0.2, 10.1.0.3, 10.1.0.4]
+  
+DEBUG [ReadRepairStage:42] ReadRepairHandler.java:267 - 
+  Digest mismatch detected for user123
+  10.1.0.2: digest=a1b2c3d4 (timestamp: 1703012345678)
+  10.1.0.3: digest=e5f6g7h8 (timestamp: 1703012340000) ← STALE
+  10.1.0.4: digest=a1b2c3d4 (timestamp: 1703012345678)
+  
+DEBUG [ReadRepairStage:42] ReadRepairHandler.java:289 - 
+  Sending repair mutation to 10.1.0.3
+  
+DEBUG [ReadRepairStage:42] ReadRepairHandler.java:312 - 
+  Read repair completed for user123 in 45ms
+
+# Monitor read repair rate
+$ watch -n 5 'nodetool tpstats | grep ReadRepair'
+
+Pool Name                 Active   Pending   Completed
+ReadRepairStage               2        15      847293
+AntiEntropyStage              0         0       12847
+
+# Check if read repair is working effectively
+$ nodetool tablestats mykeyspace.users | grep -i bloom
+
+Bloom filter false positives: 0
+Bloom filter false ratio: 0.00000
+Bloom filter space used: 14523 KB
+Read repair: 2341 repairs, 14.8% of reads
+  ↑ This tells you how often inconsistencies are found</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Real Scenario: Spotify's Eventual Consistency</h3>
+                        <div class="story-box" data-aos="fade-up">
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scenario:</strong> Spotify user updates playlist, read repair catches stale replica
+                            </p>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># T=0: User adds song to playlist
+UPDATE playlists 
+SET songs = songs + ['song_id_789']
+WHERE user_id = 12345 AND playlist_id = 'workout'
+USING CONSISTENCY QUORUM;
+
+Write goes to 3 replicas:
+  10.1.0.2: SUCCESS (ts: 1703012345678) ✅
+  10.1.0.3: SUCCESS (ts: 1703012345678) ✅
+  10.1.0.4: TIMEOUT → Hint stored
+
+# T=30s: User reads playlist from different datacenter
+SELECT songs FROM playlists 
+WHERE user_id = 12345 AND playlist_id = 'workout'
+USING CONSISTENCY QUORUM;
+
+Coordinator queries all replicas:
+  10.1.0.2: [song1, song2, song_id_789] (ts: 1703012345678)
+  10.1.0.3: [song1, song2, song_id_789] (ts: 1703012345678)
+  10.1.0.4: [song1, song2] (ts: 1703012340000) ← STALE!
+
+Read Repair Process:
+1. Coordinator compares digests
+2. Detects 10.1.0.4 is stale (older timestamp)
+3. Returns latest to user immediately: [song1, song2, song_id_789]
+4. Background: Sends full row to 10.1.0.4
+5. 10.1.0.4 updates: [song1, song2, song_id_789] (ts: 1703012345678)
+
+Result: All replicas synchronized within 50ms!</pre>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Anti-Entropy Repair (nodetool repair)</h3>
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-tools"></i> When to Use Anti-Entropy Repair</h4>
+                            <p style="color: var(--text-secondary);">Full repair using Merkle trees - comprehensive but resource-intensive</p>
+                            <ul style="color: var(--text-secondary); margin-top: 1rem;">
+                                <li><strong>Weekly Schedule:</strong> Best practice for production</li>
+                                <li><strong>After Long Outages:</strong> Node down > 3 hours</li>
+                                <li><strong>After Deletes:</strong> Before gc_grace_seconds expires</li>
+                                <li><strong>Data Migrations:</strong> Adding/removing nodes</li>
+                                <li><strong>Suspected Issues:</strong> Seeing stale data</li>
+                            </ul>
+                        </div>
+
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Basic repair - repairs primary ranges only (RECOMMENDED)
+$ nodetool repair -pr mykeyspace
+
+[2024-12-26 20:15:45] Starting repair command
+[2024-12-26 20:15:46] Repair session id: 5e8a7c90-a432-11ef-b123-0242ac130003
+[2024-12-26 20:15:47] Building Merkle trees for mykeyspace.users
+[2024-12-26 20:15:58] Merkle tree build completed in 11.2s
+[2024-12-26 20:15:58] Comparing Merkle trees with replicas
+[2024-12-26 20:16:03] Found 847 inconsistent ranges
+[2024-12-26 20:16:04] Streaming 245 MB to /10.1.0.4
+[2024-12-26 20:18:45] Repair completed for mykeyspace
+
+# Full repair (all replicas, heavy on resources)
+$ nodetool repair mykeyspace users
+
+# Incremental repair (only changed data since last repair)
+$ nodetool repair -inc mykeyspace
+
+# Repair specific token range
+$ nodetool repair -pr -st -9223372036854775808 -et -9223372036854775000 mykeyspace
+
+# Monitor active repairs
+$ nodetool compactionstats
+
+pending tasks: 0
+- 10.1.0.4:
+    Active compaction remaining time :        n/a
+- 10.1.0.2:
+    Active repair remaining time :          42m15s
+
+# Check repair history
+$ nodetool repair_admin list --all
+Repair sessions:
+  id: 5e8a7c90 state: COMPLETED ranges: 847 progress: 100%
+  id: 6f9b8d01 state: IN_PROGRESS ranges: 456 progress: 67%
+
+# Schedule automatic repairs (cron)
+$ crontab -e
+# Run repair every Sunday at 2 AM
+0 2 * * 0 /usr/bin/nodetool repair -pr mykeyspace >> /var/log/cassandra-repair.log 2>&1</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Real-World Repair Example: LinkedIn</h3>
+                        <div class="story-box" data-aos="fade-up">
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Challenge:</strong> LinkedIn runs weekly repairs on 500+ node cluster
+                            </p>
+                            <p style="margin-top: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">Strategy:</strong></p>
+                            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                <li><strong>Staggered Schedule:</strong> 1 node per hour (500 nodes = 21 days cycle)</li>
+                                <li><strong>Off-Peak Hours:</strong> Run during low traffic (2-6 AM local time)</li>
+                                <li><strong>Incremental Mode:</strong> Only repair changed data (-inc flag)</li>
+                                <li><strong>Monitoring:</strong> Track completion, failures, data streamed</li>
+                                <li><strong>Automation:</strong> Cassandra Reaper tool for orchestration</li>
+                            </ul>
+                            <div class="code-block" style="margin-top: 1rem;">
+                                <pre># LinkedIn's automated repair script
+#!/bin/bash
+# repair-node.sh - Run on each node via cron
+
+KEYSPACE="linkedin_prod"
+LOG="/var/log/cassandra/repair-$(date +%Y%m%d).log"
+
+echo "Starting repair at $(date)" >> $LOG
+
+# Check cluster health before starting
+if nodetool status | grep -q "DN"; then
+    echo "ERROR: Cluster has down nodes, skipping repair" >> $LOG
+    exit 1
+fi
+
+# Check disk space
+DISK_FREE=$(df -h /var/lib/cassandra | awk 'NR==2 {print $5}' | sed 's/%//')
+if [ $DISK_FREE -gt 80 ]; then
+    echo "ERROR: Disk usage >80%, skipping repair" >> $LOG
+    exit 1
+fi
+
+# Run incremental repair on primary ranges
+nodetool repair -pr -inc $KEYSPACE >> $LOG 2>&1
+
+if [ $? -eq 0 ]; then
+    echo "Repair completed successfully at $(date)" >> $LOG
+    
+    # Send success metric to monitoring
+    echo "cassandra.repair.success:1|c" | nc -u -w1 localhost 8125
+else
+    echo "ERROR: Repair failed at $(date)" >> $LOG
+    
+    # Alert on-call
+    curl -X POST "https://alerts.linkedin.com/cassandra-repair-failed" \
+         -d "node=$(hostname)&keyspace=$KEYSPACE"
+fi
+
+# Typical output
+[2024-12-26 02:00:15] Starting repair
+[2024-12-26 02:00:18] Incremental repair using saved session
+[2024-12-26 02:00:45] Merkle tree diff: 234 ranges need repair
+[2024-12-26 02:01:12] Streaming 45 MB to replicas
+[2024-12-26 02:03:47] Repair completed in 3m32s
+[2024-12-26 02:03:47] Data streamed: 45 MB
+[2024-12-26 02:03:47] Ranges repaired: 234/8192 (2.9%)</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>🔧 Troubleshooting Node Failures</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Real-world troubleshooting scenarios with console commands and solutions.</p>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 1: Node Won't Rejoin After Restart</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Problem: Node stuck in DN state after restart
+$ nodetool status
+DN  10.1.0.4  247GB  256  8.3%  (10 minutes ago)
+
+# Step 1: Check if Cassandra process is running
+$ systemctl status cassandra
+● cassandra.service - Cassandra
+   Active: active (running) since 2024-12-26 20:15:00
+   
+$ ps aux | grep cassandra
+cassandra  12345  250  15.5  Process is running!
+
+# Step 2: Check logs for errors
+$ tail -100 /var/log/cassandra/system.log
+
+ERROR [main] - Fatal configuration error
+ERROR [main] - seed_provider parameters list is empty
+↑ Problem found: No seeds configured!
+
+# Step 3: Fix cassandra.yaml
+$ vim /etc/cassandra/cassandra.yaml
+
+seed_provider:
+  - class_name: org.apache.cassandra.locator.SimpleSeedProvider
+    parameters:
+      - seeds: "10.1.0.1,10.1.0.2"  ← Added missing seeds
+
+# Step 4: Restart Cassandra
+$ systemctl restart cassandra
+
+# Step 5: Verify node joins
+$ watch -n 2 'nodetool status | grep 10.1.0.4'
+UN  10.1.0.4  247GB  256  8.3%  ← Back UP! ✅
+
+# Step 6: Check gossip
+$ nodetool gossipinfo | grep 10.1.0.4 -A 5
+/10.1.0.4
+  STATUS:NORMAL
+  LOAD:247GB
+  generation:1703012456
+  heartbeat:55 ← Heartbeats flowing!</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 2: Hints Piling Up, Disk Full</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Problem: Hints directory consuming too much disk
+$ df -h /var/lib/cassandra
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sdb1       500G  475G   25G  95% /var/lib/cassandra
+                             ↑ Critical!
+
+$ du -sh /var/lib/cassandra/hints/
+45G  /var/lib/cassandra/hints/
+     ↑ Hints taking 45GB!
+
+$ nodetool handoff stats
+Total hints: 4,847,592
+Hints per host:
+  10.1.0.4: 4,847,592 hints (DOWN for 6 hours!)
+  
+Oldest hint: 21,847 seconds ago (6+ hours)
+⚠️ Exceeding max_hint_window_in_ms!
+
+# Solution 1: Bring the down node back (best option)
+# If node is permanently gone or can't be recovered:
+
+# Solution 2: Remove dead node from cluster
+$ nodetool assassinate 10.1.0.4
+Node 10.1.0.4 assassinated - gossip state removed
+
+# Solution 3: Delete hints manually (last resort!)
+$ nodetool truncatehints 10.1.0.4
+Truncated hints for /10.1.0.4
+
+# Verify disk space recovered
+$ du -sh /var/lib/cassandra/hints/
+128M  /var/lib/cassandra/hints/  ← Much better!
+
+$ df -h /var/lib/cassandra
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sdb1       500G  430G   70G  86% /var/lib/cassandra
+                             ↑ Back to safe levels
+
+# Solution 4: Run repair on the cluster
+# Since hints were deleted, need to resync data
+$ for node in $(nodetool status | grep UN | awk '{print $2}'); do
+    echo "Repairing $node..."
+    nodetool repair -pr mykeyspace -h $node
+  done</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 3: Split Brain - Cluster Partition</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Problem: Network partition splits cluster into 2 groups
+# Datacenter 1 can't reach Datacenter 2
+
+# From DC1 node:
+$ nodetool status
+
+Datacenter: US-East (DC1)
+UN  10.1.0.1  245GB  256  16.7%
+UN  10.1.0.2  238GB  256  16.6%
+UN  10.1.0.3  251GB  256  16.8%
+DN  10.2.0.1    0GB  256  16.6%  ← DC2 appears down
+DN  10.2.0.2    0GB  256  16.6%  ← DC2 appears down
+DN  10.2.0.3    0GB  256  16.7%  ← DC2 appears down
+
+# From DC2 node:
+$ nodetool status
+
+Datacenter: EU-West (DC2)
+DN  10.1.0.1    0GB  256  16.7%  ← DC1 appears down
+DN  10.1.0.2    0GB  256  16.6%  ← DC1 appears down
+DN  10.1.0.3    0GB  256  16.8%  ← DC1 appears down
+UN  10.2.0.1  247GB  256  16.6%
+UN  10.2.0.2  242GB  256  16.6%
+UN  10.2.0.3  249GB  256  16.7%
+
+# Check network connectivity
+$ ping 10.2.0.1
+Request timeout  ← Network is down!
+
+$ traceroute 10.2.0.1
+ 1  gateway (10.1.0.254)  1.2 ms
+ 2  * * *  ← Packets lost at inter-DC router
+
+# Impact on operations:
+# - LOCAL_QUORUM: Works in each DC independently ✅
+# - QUORUM: Fails (can't reach majority of 6 nodes) ❌
+# - LOCAL_ONE: Works in each DC ✅
+
+# Check write failures
+$ tail -f /var/log/cassandra/system.log | grep Unavailable
+UnavailableException: Cannot achieve consistency QUORUM 
+  (4 required but only 3 alive)
+
+# Emergency: Switch to LOCAL_QUORUM
+# In application code:
+session.execute(
+    statement, 
+    consistency_level=ConsistencyLevel.LOCAL_QUORUM  # Use local DC only
+);
+
+# After network restored:
+$ ping 10.2.0.1
+Reply from 10.2.0.1: time=45ms  ← Network back!
+
+$ nodetool status
+All nodes show UN ← Cluster reunited!
+
+# Run repair to fix diverged data
+$ nodetool repair -pr mykeyspace
+Repairing data differences from split-brain period</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 4: Slow Queries During Node Failure</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Problem: Application experiencing slow queries after node failure
+
+# Check current performance
+$ nodetool tablestats mykeyspace.users | grep -i latency
+
+Local read latency: 125.5 ms (up from 15ms normal!)
+                    ↑ 8x increase!
+
+# Investigate
+$ nodetool tpstats
+
+Pool Name                    Active   Pending   Blocked
+MutationStage                    15       458         0  ← High pending!
+ReadStage                         8       234         0  ← Backlog
+RequestResponseStage              2        45         0
+
+Dropped Messages:
+READ          : 847
+MUTATION      : 234
+
+# Check for timeouts in logs
+$ grep "timeout" /var/log/cassandra/system.log | wc -l
+4,592  ← Many timeouts!
+
+$ grep "timeout" /var/log/cassandra/system.log | tail -5
+
+WARN [ReadStage-4] - Read timeout: waited 5000ms for /10.1.0.4
+WARN [ReadStage-7] - Read timeout: waited 5000ms for /10.1.0.4
+↑ Consistently timing out to 10.1.0.4 (dead node)
+
+# Check node status
+$ nodetool status | grep 10.1.0.4
+DN  10.1.0.4  247GB  256  8.3%  ← Node is down
+
+# Problem: Client driver still trying to contact dead node!
+
+# Solution 1: Update driver connection settings (application side)
+# Python driver example:
+cluster = Cluster(
+    ['10.1.0.1', '10.1.0.2', '10.1.0.3'],
+    load_balancing_policy=TokenAwarePolicy(RoundRobinPolicy()),
+    reconnection_policy=ConstantReconnectionPolicy(delay=5.0)
+)
+
+# Driver will automatically:
+# - Mark 10.1.0.4 as down after connection failures
+# - Stop routing requests to it
+# - Try reconnecting every 5 seconds
+
+# Solution 2: Check driver is token-aware
+# Verify in application logs:
+INFO - Cluster topology: {
+    '10.1.0.1': UP (latency: 15ms),
+    '10.1.0.2': UP (latency: 18ms),
+    '10.1.0.3': UP (latency: 16ms),
+    '10.1.0.4': DOWN (marked 300 seconds ago)
+}
+
+# Solution 3: Monitor recovery
+$ watch -n 5 'nodetool tablestats mykeyspace.users | grep "Local read latency"'
+
+T=0:   Local read latency: 125.5 ms  (with timeouts)
+T=10s: Local read latency: 45.2 ms   (driver adapted)
+T=30s: Local read latency: 18.3 ms   (back to normal!) ✅
+
+# Solution 4: If node is permanently gone, remove it
+$ nodetool removenode d4e5f6g7-h8i9-0123-defg-123456789123
+Removing node, streaming ranges to remaining replicas...
+Node removed successfully!
+
+$ nodetool cleanup
+Running cleanup on all nodes to remove old token ranges</pre>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 5: Lost Quorum - Emergency Recovery</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># Disaster: 2 of 3 nodes down, lost QUORUM!
+$ nodetool status
+
+Datacenter: Production
+UN  10.1.0.1  247GB  256  33.3%  ← Only survivor
+DN  10.1.0.2  238GB  256  33.2%  ← Down
+DN  10.1.0.3  251GB  256  33.4%  ← Down
+
+QUORUM = 2, but only 1 node up → OPERATIONS FAILING!
+
+# All queries fail:
+$ cqlsh -e "SELECT * FROM users WHERE user_id=123" \
+        --request-timeout=10
+UnavailableException: Cannot achieve consistency level QUORUM 
+  (2 required but only 1 alive)
+
+# Emergency Option 1: Lower consistency (TEMPORARY!)
+$ cqlsh
+cqlsh> CONSISTENCY ONE;
+Consistency level set to ONE.
+
+cqlsh> SELECT * FROM users WHERE user_id=123;
+ user_id | name  | email
+---------+-------+----------------
+     123 | Alice | alice@test.com
+✅ Works with CL=ONE
+
+⚠️ WARNING: Data may be stale! Only 1 replica responding!
+
+# Emergency Option 2: Quickly restore at least 1 more node
+# Check why nodes are down:
+$ ssh 10.1.0.2
+$ systemctl status cassandra
+● cassandra.service - Cassandra
+   Active: failed (Result: exit-code)
+   
+$ journalctl -u cassandra | tail -50
+OutOfMemoryError: Java heap space
+↑ JVM crashed due to memory!
+
+# Quick fix: Increase heap and restart
+$ vim /etc/cassandra/jvm.options
+-Xms16G  # Increased from 8G
+-Xmx16G  # Increased from 8G
+
+$ systemctl start cassandra
+
+# Monitor recovery
+$ watch -n 2 'nodetool status'
+T=0:   DN  10.1.0.2
+T=30s: UJ  10.1.0.2  ← Joining
+T=60s: UN  10.1.0.2  ← UP! QUORUM restored! ✅
+
+# Now 2 of 3 nodes up = QUORUM works again!
+$ cqlsh
+cqlsh> CONSISTENCY QUORUM;
+Consistency level set to QUORUM.
+
+cqlsh> SELECT * FROM users WHERE user_id=123;
+✅ Works with QUORUM again!
+
+# After Crisis: Root cause analysis
+# Why did 2 nodes fail together?
+# - Same heap configuration (8GB too small)
+# - Large compaction triggered OOM on both
+# - Need better capacity planning
+
+# Preventive measures:
+1. Increase heap size appropriately (16GB)
+2. Configure max_heap_size in cassandra.yaml
+3. Set up memory monitoring alerts
+4. Implement circuit breakers in application
+5. Add more nodes to increase fault tolerance (RF=5)</pre>
+                        </div>
+
+                        <h2 style="margin-top: 4rem;">✅ Best Practices for Failure Handling</h2>
+
+                        <div class="practice-grid">
+                            <div class="practice-card" data-aos="fade-up">
+                                <div class="practice-icon">1️⃣</div>
+                                <h4>Set RF=3 Minimum</h4>
+                                <p style="color: var(--text-secondary);"><strong>Replication Factor 3</strong> allows tolerating 1 node failure while maintaining QUORUM. Production standard!</p>
+                            </div>
+
+                            <div class="practice-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="practice-icon">2️⃣</div>
+                                <h4>Use QUORUM Consistency</h4>
+                                <p style="color: var(--text-secondary);"><strong>CL=QUORUM</strong> ensures reading latest writes while tolerating failures. Best balance!</p>
+                            </div>
+
+                            <div class="practice-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="practice-icon">3️⃣</div>
+                                <h4>Run Weekly Repairs</h4>
+                                <p style="color: var(--text-secondary);"><strong>nodetool repair -pr</strong> weekly per node catches missed hints and ensures full consistency!</p>
+                            </div>
+
+                            <div class="practice-card" data-aos="fade-up" data-aos-delay="300">
+                                <div class="practice-icon">4️⃣</div>
+                                <h4>Monitor Hint Buildup</h4>
+                                <p style="color: var(--text-secondary);">Watch for <strong>hint accumulation</strong> - indicates prolonged failures. Alert on excessive hints!</p>
+                            </div>
+
+                            <div class="practice-card" data-aos="fade-up" data-aos-delay="400">
+                                <div class="practice-icon">5️⃣</div>
+                                <h4>Smart Client Drivers</h4>
+                                <p style="color: var(--text-secondary);"><strong>Token-aware routing</strong> automatically avoids failed nodes and retries on healthy replicas!</p>
+                            </div>
+
+                            <div class="practice-card" data-aos="fade-up" data-aos-delay="500">
+                                <div class="practice-icon">6️⃣</div>
+                                <h4>Multi-DC Deployment</h4>
+                                <p style="color: var(--text-secondary);"><strong>3 datacenters</strong> with RF=3 each allows entire DC failure with zero data loss!</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview" data-aos="fade-up">
+                        <h2>💼 Top 8 Interview Questions</h2>
+
+                        <!-- Q1 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">1</div>
+                                <div class="question-text">How does Cassandra detect node failures?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> Cassandra uses the <strong>Phi Accrual Failure Detector</strong> algorithm:</p>
+                                <ul>
+                                    <li><strong>Heartbeats:</strong> Nodes exchange heartbeats via gossip every 1 second</li>
+                                    <li><strong>Phi (Φ) Calculation:</strong> Statistical suspicion level based on heartbeat intervals</li>
+                                    <li><strong>Threshold:</strong> Φ > 8 (default) = node marked FAILED</li>
+                                    <li><strong>Detection Time:</strong> 2-3 seconds typical</li>
+                                    <li><strong>Propagation:</strong> Failure state spreads via gossip in 3-5 seconds</li>
+                                </ul>
+                                <p><strong>Advantages:</strong> Adaptive, reduces false positives, works across different networks!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q2 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">2</div>
+                                <div class="question-text">What is hinted handoff?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> <strong>Hinted handoff</strong> ensures zero data loss during temporary node failures:</p>
+                                <ul>
+                                    <li><strong>Mechanism:</strong> Coordinator stores missed writes ("hints") for down replicas</li>
+                                    <li><strong>Storage:</strong> Hints saved in system.hints table on coordinator</li>
+                                    <li><strong>TTL:</strong> 3 hours default (max_hint_window_in_ms)</li>
+                                    <li><strong>Replay:</strong> When node returns, coordinator automatically replays hints</li>
+                                    <li><strong>Result:</strong> All replicas synchronized without manual intervention</li>
+                                </ul>
+                                <p><strong>Limitation:</strong> Outages > 3 hours require nodetool repair!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q3 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">3</div>
+                                <div class="question-text">What is read repair?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> <strong>Read repair</strong> automatically fixes inconsistencies during reads:</p>
+                                <ul>
+                                    <li><strong>Process:</strong> Coordinator queries all replicas, compares timestamps</li>
+                                    <li><strong>Detection:</strong> Identifies stale replicas with older timestamps</li>
+                                    <li><strong>Action:</strong> Returns latest to client, sends latest to stale replicas in background</li>
+                                    <li><strong>Types:</strong>
+                                        <ul>
+                                            <li>Foreground: Automatic with CL > ONE</li>
+                                            <li>Background: Periodic random reads (configurable %)</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <p><strong>Benefit:</strong> Transparent consistency maintenance without manual intervention!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q4 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">4</div>
+                                <div class="question-text">What happens to reads/writes when a node fails?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Writes:</strong></p>
+                                <ul>
+                                    <li>Sent to remaining healthy replicas</li>
+                                    <li>If enough replicas respond (QUORUM), write succeeds</li>
+                                    <li>Coordinator stores hint for failed replica</li>
+                                    <li>Client sees no error if CL requirements met</li>
+                                </ul>
+                                <p><strong>Reads:</strong></p>
+                                <ul>
+                                    <li>Client driver automatically reroutes to healthy replicas</li>
+                                    <li>If enough replicas respond (QUORUM), read succeeds</li>
+                                    <li>Read repair fixes any inconsistencies</li>
+                                    <li>Zero impact with RF=3, CL=QUORUM</li>
+                                </ul>
+                                <p><strong>Result:</strong> Zero downtime for properly configured clusters!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q5 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">5</div>
+                                <div class="question-text">When should you run nodetool repair?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> Run <strong>nodetool repair</strong> in these scenarios:</p>
+                                <ul>
+                                    <li><strong>After Long Outages:</strong> Node down > 3 hours (hints expired)</li>
+                                    <li><strong>Regular Maintenance:</strong> Weekly repair per node (best practice)</li>
+                                    <li><strong>After Data Changes:</strong> Node additions, removals, or datacenter changes</li>
+                                    <li><strong>Suspected Inconsistency:</strong> Application seeing stale reads</li>
+                                    <li><strong>Before gc_grace_seconds:</strong> Ensure deletes propagated (default 10 days)</li>
+                                </ul>
+                                <p><strong>Command:</strong> <code>nodetool repair -pr</code> (primary range only)</p>
+                                <p><strong>Duration:</strong> Minutes to hours depending on data size</p>
+                            </div>
+                        </div>
+
+                        <!-- Q6 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">6</div>
+                                <div class="question-text">How does RF affect fault tolerance?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> <strong>Replication Factor (RF)</strong> directly determines failure tolerance:</p>
+                                <ul>
+                                    <li><strong>RF=1:</strong> Zero tolerance (any failure = data loss)</li>
+                                    <li><strong>RF=2:</strong> Minimal (can't tolerate failures with QUORUM)</li>
+                                    <li><strong>RF=3:</strong> Tolerates 1 node failure (QUORUM=2, 2 nodes survive)</li>
+                                    <li><strong>RF=5:</strong> Tolerates 2 node failures (QUORUM=3, 3 nodes survive)</li>
+                                </ul>
+                                <p><strong>Formula:</strong> Max failures = RF - 1 (with QUORUM)</p>
+                                <p><strong>Trade-off:</strong> Higher RF = better availability but more storage cost</p>
+                                <p><strong>Recommendation:</strong> RF=3 minimum for production!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q7 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">7</div>
+                                <div class="question-text">What happens if you lose quorum?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> <strong>Losing quorum</strong> means operations fail:</p>
+                                <p><strong>Example (RF=3, CL=QUORUM):</strong></p>
+                                <ul>
+                                    <li>Normal: 3 nodes → QUORUM=2 ✅ Works</li>
+                                    <li>1 failure: 2 nodes → QUORUM=2 ✅ Still works</li>
+                                    <li>2 failures: 1 node → QUORUM=2 ❌ FAILED!</li>
+                                </ul>
+                                <p><strong>Impact:</strong></p>
+                                <ul>
+                                    <li>UnavailableException thrown</li>
+                                    <li>Reads fail</li>
+                                    <li>Writes rejected</li>
+                                    <li>Application must handle errors</li>
+                                </ul>
+                                <p><strong>Solutions:</strong></p>
+                                <ul>
+                                    <li>Emergency: Temporarily lower CL to ONE</li>
+                                    <li>Proper: Restore failed nodes quickly</li>
+                                    <li>Prevention: Use RF=5 or multi-DC deployment</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Q8 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">8</div>
+                                <div class="question-text">What happens when failed node returns?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong> <strong>Automatic recovery process:</strong></p>
+                                <ul>
+                                    <li><strong>T=0-10s:</strong> Node starts, contacts seeds, rejoins gossip</li>
+                                    <li><strong>T=10-30s:</strong> Gossip propagates "node UP" cluster-wide</li>
+                                    <li><strong>T=30s-10min:</strong> Coordinators detect node, replay stored hints</li>
+                                    <li><strong>T=5-10min:</strong> All hints replayed, node fully operational</li>
+                                </ul>
+                                <p><strong>Hint Replay:</strong></p>
+                                <ul>
+                                    <li>Coordinators send missed writes with original timestamps</li>
+                                    <li>Node applies writes, catches up</li>
+                                    <li>Hints deleted after successful replay</li>
+                                    <li>Completely automatic!</li>
+                                </ul>
+                                <p><strong>Special Cases:</strong> If down > 3 hours, run nodetool repair!</p>
+                            </div>
+                        </div>
+                    </section>
+
+                     <!-- Navigation Buttons -->
+                    <div class="page-navigation">
+                        <a href="seed-nodes.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Seed Nodes</div>
+                            </div>
+                        </a>
+                        <a href="cluster-topology.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Cluster Topology</div>
+                            </div>
+                        </a>
+                    </div>
+                    <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
+        });
+
+        function toggleAnswer(element) {
+            const answer = element.nextElementSibling;
+            const isActive = element.classList.contains('active');
+            
+            document.querySelectorAll('.question-header').forEach(header => {
+                header.classList.remove('active');
+                header.nextElementSibling.classList.remove('active');
+            });
+            
+            if (!isActive) {
+                element.classList.add('active');
+                answer.classList.add('active');
+            }
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= (sectionTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+        window.addEventListener('scroll', highlightTOC);
+        highlightTOC();
+    </script>
+</body>
+</html>

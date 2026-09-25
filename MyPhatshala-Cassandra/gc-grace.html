@@ -1,0 +1,2913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GC Grace Seconds in Cassandra - Interactive learning with animations, real examples, and beginner-friendly explanations!">
+    <meta name="keywords" content="cassandra gc_grace_seconds, tombstone removal, grace period, zombie data, compaction">
+    <title>GC Grace Seconds: The Grace Period 2025 | CassandraHub</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        :root {
+            --primary-orange: #f97316;
+            --dark-orange: #ea580c;
+            --light-orange: #fb923c;
+            --accent-amber: #f59e0b;
+            --muted-orange: #c2410c;
+            --grace-gold: #fbbf24;
+            --time-yellow: #fde047;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #10b981;
+            --warning-orange: #f59e0b;
+            --error-red: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-darker); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-orange), var(--dark-orange));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(249, 115, 22, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-orange), var(--light-orange), var(--accent-amber));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            animation: pulse-clock 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-clock {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #c2410c 0%, #ea580c 50%, #f97316 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-orange);
+        }
+
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--primary-orange);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: float-particle linear infinite;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% {
+                transform: translateY(-100px) translateX(var(--x-drift)) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(249, 115, 22, 0.2);
+            border: 2px solid rgba(251, 146, 60, 0.4);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fed7aa 0%, #fb923c 50%, #f97316 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        section { padding: 4rem 0; }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-orange), var(--light-orange));
+            border-radius: 3px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--primary-orange);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(249, 115, 22, 0.3);
+        }
+
+        .comparison-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-orange), var(--light-orange));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .toc-floating a:hover {
+            color: var(--primary-orange);
+            border-left-color: var(--primary-orange);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(251, 146, 60, 0.08));
+            border-left: 5px solid var(--primary-orange);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-orange);
+            border: 1px solid var(--border-light);
+        }
+
+        .interactive-console {
+            background: var(--code-darker);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--primary-orange);
+            margin: 3rem 0;
+            box-shadow: 0 10px 40px rgba(249, 115, 22, 0.3);
+        }
+
+        .timeline-container {
+            position: relative;
+            padding: 2rem 0;
+            margin: 3rem 0;
+        }
+
+        .timeline-bar {
+            position: relative;
+            height: 8px;
+            background: var(--border-light);
+            border-radius: 4px;
+            margin: 2rem 0;
+        }
+
+        .timeline-progress {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-orange), var(--grace-gold));
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: -15px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary-orange);
+            border: 4px solid var(--bg-darker);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .timeline-marker:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.6);
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-orange), var(--dark-orange));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <div class="logo-icon">⏰</div>
+            <h2>CassandraHub</h2>
+        </div>
+        
+         <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html" class="active">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="particles" id="particles"></div>
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-hourglass-half"></i>
+                        GC Grace Seconds
+                    </span>
+                    <h1><span class="gradient-text">GC GRACE SECONDS</span> - The Grace Period</h1>
+                    <p>⏰ Master Cassandra's grace period with interactive timeline, animations, and real-world scenarios. Learn from absolute basics!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#fundamentals">📖 Fundamentals</a></li>
+                            <li><a href="#what-is">🤔 What is GC Grace?</a></li>
+                            <li><a href="#why-10-days">❓ Why 10 Days?</a></li>
+                            <li><a href="#interactive-demo">🎮 Interactive Demo</a></li>
+                            <li><a href="#calculation">🧮 The Math</a></li>
+                            <li><a href="#too-short">⚠️ Too Short</a></li>
+                            <li><a href="#too-long">📈 Too Long</a></li>
+                            <li><a href="#tuning">⚙️ Tuning Guide</a></li>
+                            <li><a href="#real-examples">🏢 Real Companies</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            <li><a href="#interview">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Fundamentals Section -->
+                    <section id="fundamentals" data-aos="fade-up">
+                        <h2>📖 Fundamentals (Start Here!)</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Understanding <strong style="color: var(--primary-orange);">ALL basic concepts</strong> before diving into GC Grace Seconds!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🪦</div>
+                                <h4 style="color: var(--primary-orange);">Tombstone Recap</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Tombstone = Deletion marker</strong><br/><br/>
+                                    
+                                    When you DELETE data:<br/>
+                                    • Cassandra writes tombstone<br/>
+                                    • Not actual deletion!<br/>
+                                    • Marker says "deleted"<br/>
+                                    • Has timestamp<br/><br/>
+                                    
+                                    <strong>Purpose:</strong><br/>
+                                    Prevents zombie data resurrection<br/>
+                                    in distributed systems<br/><br/>
+                                    
+                                    Tombstones spread to all servers!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔧</div>
+                                <h4 style="color: var(--light-orange);">Compaction</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Compaction = Cleanup process</strong><br/><br/>
+                                    
+                                    <strong>What it does:</strong><br/>
+                                    • Merges multiple SSTables<br/>
+                                    • Removes old data versions<br/>
+                                    • Deletes expired tombstones<br/>
+                                    • Frees disk space<br/><br/>
+                                    
+                                    <strong>When it runs:</strong><br/>
+                                    • Automatically in background<br/>
+                                    • Or manually triggered<br/><br/>
+                                    
+                                    Compaction is the janitor!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⏰</div>
+                                <h4 style="color: var(--accent-amber);">Grace Period</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Grace Period = Extra time given</strong><br/>
+                                    <strong>Like a payment grace period</strong><br/><br/>
+                                    
+                                    <strong>Example:</strong><br/>
+                                    • Bill due: Jan 1<br/>
+                                    • Grace period: 10 days<br/>
+                                    • Can pay until: Jan 11<br/>
+                                    • No penalty during grace!<br/><br/>
+                                    
+                                    <strong>For tombstones:</strong><br/>
+                                    Extra time before removal<br/>
+                                    Ensures all servers see it!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">👻</div>
+                                <h4 style="color: var(--primary-orange);">Zombie Data</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Zombie = Deleted data comes back!</strong><br/><br/>
+                                    
+                                    <strong>How it happens:</strong><br/>
+                                    1. Delete data on Server A<br/>
+                                    2. Server B offline (missed it)<br/>
+                                    3. Tombstone removed too early<br/>
+                                    4. Server B comes back<br/>
+                                    5. Still has old data<br/>
+                                    6. Copies back to A!<br/>
+                                    7. <strong>Zombie! Data resurrected!</strong><br/><br/>
+                                    
+                                    Grace period prevents this!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔢</div>
+                                <h4 style="color: var(--light-orange);">Seconds</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Second = Unit of time</strong><br/><br/>
+                                    
+                                    <strong>Conversions:</strong><br/>
+                                    • 60 seconds = 1 minute<br/>
+                                    • 3,600 seconds = 1 hour<br/>
+                                    • 86,400 seconds = 1 day<br/>
+                                    • 864,000 seconds = 10 days<br/><br/>
+                                    
+                                    <strong>Why seconds:</strong><br/>
+                                    Computer precision<br/>
+                                    Standard time unit<br/><br/>
+                                    gc_grace_seconds uses seconds!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--accent-amber);">Default Setting</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Default = Pre-configured value</strong><br/><br/>
+                                    
+                                    <strong>What it means:</strong><br/>
+                                    • Value set automatically<br/>
+                                    • You don't need to configure<br/>
+                                    • Works out-of-the-box<br/>
+                                    • Can be changed if needed<br/><br/>
+                                    
+                                    <strong>gc_grace_seconds default:</strong><br/>
+                                    <strong>864,000 seconds (10 days)</strong><br/><br/>
+                                    
+                                    Most users keep the default!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border-left-color: var(--success-green);" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap"></i> 🎓 Quick Reference</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong style="color: var(--primary-orange);">You now know:</strong><br/><br/>
+                                
+                                • <strong>Tombstone:</strong> Deletion marker to prevent zombie data<br/>
+                                • <strong>Compaction:</strong> Cleanup process that removes tombstones<br/>
+                                • <strong>Grace Period:</strong> Extra time before removal<br/>
+                                • <strong>Zombie Data:</strong> Deleted data coming back (bad!)<br/>
+                                • <strong>Seconds:</strong> Time unit (86,400 = 1 day)<br/>
+                                • <strong>Default:</strong> 864,000 seconds = 10 days<br/><br/>
+                                
+                                Ready to learn GC Grace Seconds! ⏰
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- What is GC Grace -->
+                    <section id="what-is" data-aos="fade-up">
+                        <h2>🤔 What is gc_grace_seconds?</h2>
+
+                        <div class="story-box">
+                            <h3 style="color: var(--primary-orange); margin-top: 0;">⏰ The Library Book Return Analogy</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Imagine a library with a book checkout system:</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">The Scenario:</strong><br/>
+                                • You borrow a book on January 1st<br/>
+                                • Due date: January 10th<br/>
+                                • But library has <strong>10-day grace period</strong><br/>
+                                • No late fees until: January 20th<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Why grace period exists:</strong><br/>
+                                • Maybe you're sick<br/>
+                                • Maybe traveling<br/>
+                                • Maybe forgot<br/>
+                                • Library gives you extra time ✓<br/><br/>
+                                
+                                <strong style="color: var(--primary-orange);">This is EXACTLY gc_grace_seconds!</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">In Cassandra:</strong><br/>
+                                • Tombstone created: January 1st<br/>
+                                • Should be removed: Immediately (efficiency)<br/>
+                                • But Cassandra waits: 10 days grace<br/>
+                                • Actually removed: January 11th (or later)<br/><br/>
+                                
+                                <strong style="color: var(--accent-amber);">Why wait 10 days?</strong><br/>
+                                • Server A creates tombstone<br/>
+                                • Server B is offline (maintenance)<br/>
+                                • Server B needs to see tombstone!<br/>
+                                • 10 days = enough time for B to come back<br/>
+                                • B sees tombstone, deletes its copy<br/>
+                                • Then tombstone can be removed safely ✓<br/><br/>
+                                
+                                <strong style="color: var(--error-red);">Without grace period:</strong><br/>
+                                • Tombstone removed immediately<br/>
+                                • Server B comes back<br/>
+                                • Still has old data<br/>
+                                • No tombstone to stop it<br/>
+                                • <strong>Zombie! Data resurrects!</strong> 👻<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">With grace period:</strong><br/>
+                                • Tombstone kept for 10 days<br/>
+                                • Server B comes back (day 5)<br/>
+                                • Sees tombstone!<br/>
+                                • Deletes its copy<br/>
+                                • Everyone in sync<br/>
+                                • Day 11: Tombstone removed safely ✓<br/><br/>
+                                
+                                <strong style="color: var(--primary-orange);">Perfect analogy!</strong> Just like library gives you grace to return books, Cassandra gives servers grace to see deletions!
+                            </p>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📖</div>
+                                <h4 style="color: var(--primary-orange);">Definition</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>gc_grace_seconds = Tombstone lifespan</strong><br/><br/>
+                                    
+                                    <strong>Full name:</strong><br/>
+                                    "Garbage Collection Grace Seconds"<br/><br/>
+                                    
+                                    <strong>What it controls:</strong><br/>
+                                    How long tombstones live<br/>
+                                    before compaction removes them<br/><br/>
+                                    
+                                    <strong>Configured per table:</strong><br/>
+                                    Each table can have different value<br/><br/>
+                                    
+                                    <strong>Default: 864,000 seconds = 10 days</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🎯</div>
+                                <h4 style="color: var(--light-orange);">Purpose</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Ensures safe tombstone removal</strong><br/><br/>
+                                    
+                                    <strong>Protection for:</strong><br/>
+                                    • Offline servers<br/>
+                                    • Network partitions<br/>
+                                    • Maintenance windows<br/>
+                                    • Failed nodes recovering<br/><br/>
+                                    
+                                    <strong>Guarantees:</strong><br/>
+                                    All servers see deletion<br/>
+                                    before tombstone removed<br/><br/>
+                                    
+                                    <strong>Result: No zombie data!</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚙️</div>
+                                <h4 style="color: var(--accent-amber);">How It Works</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Step-by-step:</strong><br/><br/>
+                                    
+                                    1. <strong>Tombstone created</strong><br/>
+                                       Timestamp: T (deletion time)<br/><br/>
+                                    
+                                    2. <strong>Compaction runs</strong><br/>
+                                       Current time: C<br/><br/>
+                                    
+                                    3. <strong>Check age</strong><br/>
+                                       Age = C - T<br/><br/>
+                                    
+                                    4. <strong>Decision</strong><br/>
+                                       If Age > gc_grace_seconds:<br/>
+                                       → Remove tombstone ✓<br/>
+                                       Otherwise: Keep it!
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Why 10 Days -->
+                    <section id="why-10-days" data-aos="fade-up">
+                        <h2>❓ Why 10 Days Default?</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">🤔</div>
+                                <h3 style="color: var(--primary-orange); margin-top: 0;">The Reasoning Behind 10 Days</h3>
+                                <p style="color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.9;">
+                                    <strong style="color: var(--text-primary);">10 days (864,000 seconds) was chosen based on real-world failure scenarios:</strong><br/><br/>
+                                    
+                                    <strong style="color: var(--success-green);">✅ Typical downtime scenarios it covers:</strong><br/><br/>
+                                    
+                                    <strong>1. Planned Maintenance (1-4 hours):</strong><br/>
+                                    • OS updates: 1-2 hours<br/>
+                                    • Hardware upgrades: 2-4 hours<br/>
+                                    • 10 days: Massive overkill ✓✓✓<br/><br/>
+                                    
+                                    <strong>2. Network Issues (minutes to hours):</strong><br/>
+                                    • Router failures: 30 minutes<br/>
+                                    • Switch replacement: 2 hours<br/>
+                                    • Data center connectivity: 4-8 hours<br/>
+                                    • 10 days: Very safe ✓✓<br/><br/>
+                                    
+                                    <strong>3. Hardware Failures (1-3 days):</strong><br/>
+                                    • Disk failure: 1 day (replace + restore)<br/>
+                                    • Server failure: 2 days (ship new hardware)<br/>
+                                    • Power supply: 1-2 days<br/>
+                                    • 10 days: Comfortable margin ✓<br/><br/>
+                                    
+                                    <strong>4. Catastrophic Failures (3-7 days):</strong><br/>
+                                    • Data center outage: 3-5 days<br/>
+                                    • Multiple simultaneous failures: 5-7 days<br/>
+                                    • Emergency procurement: 7 days<br/>
+                                    • 10 days: Just enough ✓<br/><br/>
+                                    
+                                    <strong style="color: var(--accent-amber);">Additional factors:</strong><br/>
+                                    • <strong>Weekend buffer:</strong> Friday failure + weekend = Monday response (3 days)<br/>
+                                    • <strong>Holidays:</strong> Extended weekend, slower response<br/>
+                                    • <strong>Human error margin:</strong> Mistakes in diagnosis/repair<br/>
+                                    • <strong>Multi-region:</strong> Cross-region failures take longer<br/><br/>
+                                    
+                                    <strong style="color: var(--primary-orange);">The philosophy: "Better safe than sorry"</strong><br/>
+                                    10 days provides enough buffer for 99% of real-world failures while being short enough to not cause severe tombstone accumulation.<br/><br/>
+                                    
+                                    <strong style="color: var(--text-primary);">Trade-off balance:</strong><br/>
+                                    • Too short (1 day): Risk zombie data<br/>
+                                    • Too long (30 days): Tombstone accumulation problems<br/>
+                                    • 10 days: Sweet spot! ✓
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interactive Demo -->
+                    <section id="interactive-demo" data-aos="fade-up">
+                        <h2>🎮 Interactive Grace Period Timeline</h2>
+
+                        <div class="interactive-console">
+                            <div style="text-align: center; margin-bottom: 2rem;">
+                                <button class="console-button" onclick="startTimeline()" style="margin: 0.5rem;">Start Timeline</button>
+                                <button class="console-button" onclick="resetTimeline()" style="margin: 0.5rem; background: linear-gradient(135deg, #64748b, #475569);">Reset</button>
+                            </div>
+
+                            <div class="timeline-container">
+                                <div style="text-align: center; margin-bottom: 1rem;">
+                                    <h4 style="color: var(--primary-orange); margin: 0;">Day <span id="currentDay">0</span> of 10</h4>
+                                    <p style="color: var(--text-secondary); margin: 0.5rem 0 0 0;" id="timelineStatus">Ready to start...</p>
+                                </div>
+                                
+                                <div class="timeline-bar">
+                                    <div class="timeline-progress" id="timelineProgress" style="width: 0%"></div>
+                                    <div class="timeline-marker" style="left: 0%;" title="Day 0: Tombstone Created">0</div>
+                                    <div class="timeline-marker" style="left: 50%; background: var(--warning-orange);" title="Day 5: Midpoint">5</div>
+                                    <div class="timeline-marker" style="left: 100%; background: var(--success-green);" title="Day 10: Grace Expires">10</div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem;" id="serverIcon">🟢</div>
+                                        <div style="color: var(--text-secondary); margin-top: 0.5rem;">Server Status</div>
+                                        <div style="color: var(--text-primary); font-weight: 600;" id="serverStatus">Online</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem;" id="tombIcon">🪦</div>
+                                        <div style="color: var(--text-secondary); margin-top: 0.5rem;">Tombstone</div>
+                                        <div style="color: var(--text-primary); font-weight: 600;" id="tombStatus">Active</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem;" id="zombieIcon">😴</div>
+                                        <div style="color: var(--text-secondary); margin-top: 0.5rem;">Zombie Risk</div>
+                                        <div style="color: var(--text-primary); font-weight: 600;" id="zombieStatus">None</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- The Math -->
+                    <section id="calculation" data-aos="fade-up">
+                        <h2>🧮 The Math (Simple Calculation!)</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">🔢</div>
+                                <h3 style="color: var(--primary-orange); margin-top: 0;">Converting Seconds to Days (Easy!)</h3>
+                                <p style="color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.9;">
+                                    <strong style="color: var(--text-primary);">Default value: 864,000 seconds</strong><br/><br/>
+                                    
+                                    <strong style="color: var(--primary-orange);">Let's break it down step-by-step:</strong><br/><br/>
+                                    
+                                    <strong>Step 1: Seconds → Minutes</strong><br/>
+                                    864,000 seconds ÷ 60 = 14,400 minutes<br/>
+                                    (60 seconds in 1 minute)<br/><br/>
+                                    
+                                    <strong>Step 2: Minutes → Hours</strong><br/>
+                                    14,400 minutes ÷ 60 = 240 hours<br/>
+                                    (60 minutes in 1 hour)<br/><br/>
+                                    
+                                    <strong>Step 3: Hours → Days</strong><br/>
+                                    240 hours ÷ 24 = <strong style="color: var(--success-green);">10 days</strong> ✓<br/>
+                                    (24 hours in 1 day)<br/><br/>
+                                    
+                                    <strong style="color: var(--accent-amber);">Quick formula:</strong><br/>
+                                    Days = Seconds ÷ 86,400<br/>
+                                    (86,400 = seconds in 1 day)<br/><br/>
+                                    
+                                    <strong>Examples:</strong><br/>
+                                    • 86,400 seconds = 1 day<br/>
+                                    • 259,200 seconds = 3 days<br/>
+                                    • 864,000 seconds = 10 days (default)<br/>
+                                    • 2,592,000 seconds = 30 days<br/><br/>
+                                    
+                                    <strong style="color: var(--primary-orange);">Remember: 86,400 is your magic number!</strong><br/>
+                                    Multiply days by 86,400 to get seconds.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Too Short -->
+                    <section id="too-short" data-aos="fade-up">
+                        <h2>⚠️ Setting gc_grace Too Short (Danger!)</h2>
+
+                        <div class="story-box" style="border-left-color: var(--error-red); background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08));">
+                            <h3 style="color: var(--error-red); margin-top: 0;">💀 The Zombie Apocalypse Scenario</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Real disaster: gc_grace_seconds = 0 (NO grace period!)</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Timeline of disaster:</strong><br/><br/>
+                                
+                                <strong>Monday 9:00 AM:</strong><br/>
+                                • User deletes account (user_id=12345)<br/>
+                                • Tombstone created on Servers A, B, C<br/>
+                                • gc_grace_seconds = 0 (someone thought "faster is better!")<br/><br/>
+                                
+                                <strong>Monday 9:05 AM:</strong><br/>
+                                • Server B goes down for emergency maintenance<br/>
+                                • Kernel panic, needs reboot<br/><br/>
+                                
+                                <strong>Monday 9:30 AM:</strong><br/>
+                                • Compaction runs on Servers A & C<br/>
+                                • Tombstone age: 30 minutes (1,800 seconds)<br/>
+                                • Grace period: 0 seconds<br/>
+                                • 1,800 > 0 → <strong style="color: var(--error-red);">Tombstone REMOVED!</strong><br/>
+                                • Servers A & C: No trace of deletion now<br/><br/>
+                                
+                                <strong>Monday 10:00 AM:</strong><br/>
+                                • Server B back online<br/>
+                                • Still has: user_id=12345 (full account data)<br/>
+                                • Anti-entropy repair starts...<br/><br/>
+                                
+                                <strong>Monday 10:05 AM:</strong><br/>
+                                • Repair: "Server B has user 12345, A & C don't!"<br/>
+                                • B thinks: "They lost the data, I'll restore it!"<br/>
+                                • B copies data to A & C<br/>
+                                • <strong style="color: var(--error-red);">ZOMBIE! Account resurrected!</strong> 👻<br/><br/>
+                                
+                                <strong style="color: var(--primary-orange);">Consequences:</strong><br/>
+                                • User deleted account → Still exists!<br/>
+                                • GDPR violation (right to be forgotten)<br/>
+                                • Legal liability<br/>
+                                • User trust destroyed<br/>
+                                • Potential lawsuit<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">With gc_grace = 10 days:</strong><br/>
+                                • Tombstone kept for 10 days<br/>
+                                • Server B comes back after 1 hour<br/>
+                                • Sees tombstone on A & C<br/>
+                                • Adopts tombstone<br/>
+                                • Deletes its copy<br/>
+                                • Day 11: Tombstone removed safely ✓<br/>
+                                • No zombie!
+                            </p>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, var(--error-red), #dc2626);">⚠️</div>
+                                <h4 style="color: var(--error-red);">gc_grace = 0 seconds</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Worst case! NEVER use in production!</strong><br/><br/>
+                                    
+                                    <strong>What happens:</strong><br/>
+                                    • Tombstone removed immediately<br/>
+                                    • Any server offline = risk<br/>
+                                    • Even 5 minutes down = zombie!<br/><br/>
+                                    
+                                    <strong>When to use (rare):</strong><br/>
+                                    • Single-node testing only<br/>
+                                    • Never run repair<br/>
+                                    • Throwaway data<br/><br/>
+                                    
+                                    <strong style="color: var(--error-red);">Production: DON'T DO THIS!</strong>
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, var(--warning-orange), #d97706);">⏰</div>
+                                <h4 style="color: var(--warning-orange);">gc_grace = 1 day (86,400)</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Risky but sometimes acceptable</strong><br/><br/>
+                                    
+                                    <strong>Risk:</strong><br/>
+                                    • Server down >24 hours = zombie<br/>
+                                    • Weekend failures problematic<br/>
+                                    • Hardware delivery takes days<br/><br/>
+                                    
+                                    <strong>Only if:</strong><br/>
+                                    • Extremely stable cluster<br/>
+                                    • 24/7 monitoring<br/>
+                                    • Rapid response team<br/>
+                                    • Frequent repairs (every 12h)<br/><br/>
+                                    
+                                    Requires operational excellence!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, var(--primary-orange), var(--dark-orange))">📊</div>
+                                <h4 style="color: var(--primary-orange);">Real Failure Statistics</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Actual downtime data:</strong><br/><br/>
+                                    
+                                    <strong>Planned maintenance:</strong><br/>
+                                    • 95%: < 4 hours ✓<br/>
+                                    • 5%: 4-24 hours<br/><br/>
+                                    
+                                    <strong>Hardware failures:</strong><br/>
+                                    • 70%: < 1 day<br/>
+                                    • 25%: 1-3 days<br/>
+                                    • 5%: 3-7 days ⚠️<br/><br/>
+                                    
+                                    <strong>If gc_grace = 1 day:</strong><br/>
+                                    30% of hardware failures = zombie!<br/><br/>
+                                    
+                                    <strong>10 days covers 95% of failures!</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Too Long -->
+                    <section id="too-long" data-aos="fade-up">
+                        <h2>📈 Setting gc_grace Too Long (Performance!)</h2>
+
+                        <div class="story-box" style="border-left-color: var(--warning-orange);">
+                            <h3 style="color: var(--warning-orange); margin-top: 0;">🐌 The Slow Death by Tombstones</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Disaster scenario: gc_grace_seconds = 90 days (someone thought "safer is better!")</strong><br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">The setup:</strong><br/>
+                                • Time-series data table (sensor readings)<br/>
+                                • TTL = 30 days (auto-delete old readings)<br/>
+                                • gc_grace_seconds = 7,776,000 (90 days!)<br/>
+                                • 1 million rows/day inserted<br/><br/>
+                                
+                                <strong style="color: var(--warning-orange);">What happens over time:</strong><br/><br/>
+                                
+                                <strong>Day 30:</strong><br/>
+                                • First batch of rows expire (TTL)<br/>
+                                • 1M rows → tombstones<br/>
+                                • Total tombstones: 1M<br/><br/>
+                                
+                                <strong>Day 60:</strong><br/>
+                                • Another 30M rows expired<br/>
+                                • Total tombstones: 31M<br/>
+                                • Queries starting to slow...<br/><br/>
+                                
+                                <strong>Day 90:</strong><br/>
+                                • Total tombstones: 61M<br/>
+                                • Active data: 30M rows<br/>
+                                • Tombstone ratio: 67%!<br/>
+                                • P99 latency: 50ms → 400ms (8x slower)<br/><br/>
+                                
+                                <strong>Day 120:</strong><br/>
+                                • Grace period FINALLY expires for day 30 tombstones<br/>
+                                • But day 31-90 tombstones still accumulating!<br/>
+                                • Total tombstones: 91M<br/>
+                                • Active data: 30M<br/>
+                                • Ratio: 75% tombstones!<br/>
+                                • P99: 800ms (16x slower!)<br/>
+                                • Warnings: "Read 500000 tombstones" constantly<br/><br/>
+                                
+                                <strong style="color: var(--error-red);">Crisis point:</strong><br/>
+                                • Queries timing out<br/>
+                                • Disk 90% full (tombstones!)<br/>
+                                • Compaction can't keep up<br/>
+                                • Cluster degraded<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">With gc_grace = 10 days:</strong><br/>
+                                • TTL expires: 30 days<br/>
+                                • Grace period: +10 days<br/>
+                                • Total: 40 days max<br/>
+                                • Tombstones: 10M (vs 91M!)<br/>
+                                • Performance: Normal ✓
+                            </p>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📉</div>
+                                <h4 style="color: var(--primary-orange);">Read Performance</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Tombstones slow every query!</strong><br/><br/>
+                                    
+                                    <strong>Example query:</strong><br/>
+                                    SELECT * FROM sensors LIMIT 1000<br/><br/>
+                                    
+                                    <strong>With 10-day grace:</strong><br/>
+                                    • Scan 5,000 tombstones<br/>
+                                    • Find 1,000 live rows<br/>
+                                    • Time: 50ms<br/><br/>
+                                    
+                                    <strong>With 90-day grace:</strong><br/>
+                                    • Scan 500,000 tombstones!<br/>
+                                    • Find 1,000 live rows<br/>
+                                    • Time: 800ms (16x slower!)<br/><br/>
+                                    
+                                    More tombstones = linear slowdown!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">💾</div>
+                                <h4 style="color: var(--light-orange);">Disk Space</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Tombstones waste disk space!</strong><br/><br/>
+                                    
+                                    <strong>Calculation:</strong><br/>
+                                    • 100M tombstones<br/>
+                                    • ~20 bytes each<br/>
+                                    • Total: 2GB wasted!<br/><br/>
+                                    
+                                    <strong>Impact:</strong><br/>
+                                    • Disk fills up<br/>
+                                    • Can't add new data<br/>
+                                    • Emergency expansion needed<br/>
+                                    • Expensive!<br/><br/>
+                                    
+                                    Shorter grace = more free space!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🔧</div>
+                                <h4 style="color: var(--accent-amber);">Compaction Load</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>More tombstones = slower compaction</strong><br/><br/>
+                                    
+                                    <strong>With 10-day grace:</strong><br/>
+                                    • Process 50GB data<br/>
+                                    • Compaction: 30 minutes<br/><br/>
+                                    
+                                    <strong>With 90-day grace:</strong><br/>
+                                    • Process 50GB data + 30GB tombstones<br/>
+                                    • Compaction: 1.5 hours (3x!)<br/><br/>
+                                    
+                                    <strong>Vicious cycle:</strong><br/>
+                                    Slow compaction → tombstones accumulate faster → even slower!
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Tuning Guide -->
+                    <section id="tuning" data-aos="fade-up">
+                        <h2>⚙️ Tuning Guide (How to Configure)</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">⚙️</div>
+                                <h3 style="color: var(--primary-orange); margin-top: 0;">Configuration Commands</h3>
+                                <div style="background: var(--code-bg); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
+<pre style="color: var(--text-primary); margin: 0; font-family: 'JetBrains Mono', monospace; line-height: 1.8;"><span style="color: var(--success-green);">-- View current gc_grace_seconds</span>
+DESC TABLE users;
+
+<span style="color: var(--success-green);">-- Set gc_grace to 1 day (86,400 seconds)</span>
+ALTER TABLE users WITH gc_grace_seconds = 86400;
+
+<span style="color: var(--success-green);">-- Set gc_grace to 3 days</span>
+ALTER TABLE events WITH gc_grace_seconds = 259200;
+
+<span style="color: var(--success-green);">-- Set gc_grace to 7 days</span>
+ALTER TABLE logs WITH gc_grace_seconds = 604800;
+
+<span style="color: var(--success-green);">-- Keep default 10 days (no action needed)</span>
+<span style="color: var(--text-secondary);">-- Default: 864000 seconds</span></pre>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📋</div>
+                                <h4 style="color: var(--primary-orange);">Decision Matrix</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Keep default (10 days) if:</strong><br/>
+                                    • Standard workload ✓<br/>
+                                    • Unsure what to set<br/>
+                                    • Low delete volume<br/>
+                                    • Value stability > performance<br/><br/>
+                                    
+                                    <strong>Reduce to 1-3 days if:</strong><br/>
+                                    • High-delete workload<br/>
+                                    • Stable cluster (99.9% uptime)<br/>
+                                    • 24/7 monitoring<br/>
+                                    • Frequent repairs<br/><br/>
+                                    
+                                    <strong>Increase to 14-30 days if:</strong><br/>
+                                    • Volatile environment<br/>
+                                    • Slow response times<br/>
+                                    • Critical data (no zombie risk)<br/><br/>
+                                    
+                                    When in doubt: keep default!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🎯</div>
+                                <h4 style="color: var(--light-orange);">By Workload Type</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Time-series with TTL:</strong><br/>
+                                    • gc_grace: 1-2 days<br/>
+                                    • High tombstone volume<br/>
+                                    • Fast removal critical<br/><br/>
+                                    
+                                    <strong>User data (CRUD):</strong><br/>
+                                    • gc_grace: 10 days (default)<br/>
+                                    • Occasional deletes<br/>
+                                    • Safety important<br/><br/>
+                                    
+                                    <strong>Append-only logs:</strong><br/>
+                                    • gc_grace: 10 days<br/>
+                                    • Rarely delete<br/>
+                                    • Default fine<br/><br/>
+                                    
+                                    <strong>Session data:</strong><br/>
+                                    • gc_grace: 3-5 days<br/>
+                                    • Moderate deletes<br/>
+                                    • Balanced approach
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--accent-amber);">Monitoring Required</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>If reducing gc_grace, monitor:</strong><br/><br/>
+                                    
+                                    1. <strong>Node downtime:</strong><br/>
+                                    Alert if down > 50% of gc_grace<br/><br/>
+                                    
+                                    2. <strong>Repair frequency:</strong><br/>
+                                    Must run at least every gc_grace period<br/><br/>
+                                    
+                                    3. <strong>Tombstone warnings:</strong><br/>
+                                    Watch logs for zombie data<br/><br/>
+                                    
+                                    4. <strong>Query latency:</strong><br/>
+                                    Improved after tuning? ✓<br/><br/>
+                                    
+                                    No monitoring = keep default!
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Real Examples -->
+                    <section id="real-examples" data-aos="fade-up">
+                        <h2>🏢 Real Company Examples</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">🚗</div>
+                                <h3 style="color: var(--primary-orange); margin-top: 0;">Uber: Aggressive 1-Day Tuning</h3>
+                                <p style="color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.9;">
+                                    <strong style="color: var(--text-primary);">Challenge:</strong> 270 billion time-series rows with 30-day TTL creating massive tombstone accumulation with default 10-day grace period.<br/><br/>
+                                    
+                                    <strong style="color: var(--primary-orange);">Decision: Reduce to 1 day (86,400 seconds)</strong><br/><br/>
+                                    
+                                    <strong>Configuration:</strong><br/>
+                                    ALTER TABLE trip_locations WITH gc_grace_seconds = 86400;<br/><br/>
+                                    
+                                    <strong style="color: var(--success-green);">Results:</strong><br/>
+                                    • Tombstone lifespan: 40 days → 31 days (30-day TTL + 1-day grace)<br/>
+                                    • Tombstone count: 90B → 9B (10x reduction!)<br/>
+                                    • P99 latency: 800ms → 45ms (18x faster!)<br/>
+                                    • Disk usage: 80% tombstones → 15%<br/><br/>
+                                    
+                                    <strong>Requirements met:</strong><br/>
+                                    ✓ 24/7 monitoring with <12h downtime alerts<br/>
+                                    ✓ Repair every 12 hours (vs weekly)<br/>
+                                    ✓ Highly stable cluster (99.95% uptime)<br/>
+                                    ✓ 2 years production: zero zombie incidents<br/><br/>
+                                    
+                                    <strong style="color: var(--accent-amber);">Key lesson:</strong> "For stable, well-monitored clusters, 1-day grace is viable and delivers massive performance gains."
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">📱</div>
+                                <h3 style="color: var(--light-orange); margin-top: 0;">Netflix: Conservative 10-Day Default</h3>
+                                <p style="color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.9;">
+                                    <strong style="color: var(--text-primary);">Philosophy:</strong> "Safety first - we can always optimize later."<br/><br/>
+                                    
+                                    <strong style="color: var(--primary-orange);">Approach: Keep 10-day default for all tables</strong><br/><br/>
+                                    
+                                    <strong>Rationale:</strong><br/>
+                                    • Multi-region deployment (cross-region delays)<br/>
+                                    • Occasional multi-day outages happen<br/>
+                                    • GDPR compliance critical (no zombie resurrections)<br/>
+                                    • Performance managed through other optimizations<br/><br/>
+                                    
+                                    <strong style="color: var(--success-green);">Alternative optimizations:</strong><br/>
+                                    • Time-bucketed partitions (avoid tombstones entirely)<br/>
+                                    • Soft delete + async cleanup<br/>
+                                    • Aggressive compaction tuning<br/>
+                                    • Partition drops instead of TTL<br/><br/>
+                                    
+                                    <strong>Results:</strong><br/>
+                                    • Zero zombie incidents in 5 years ✓<br/>
+                                    • Performance good through design, not gc_grace tuning<br/>
+                                    • Peace of mind for operations team<br/><br/>
+                                    
+                                    <strong style="color: var(--accent-amber);">Key lesson:</strong> "Don't tune gc_grace as first optimization - design around deletions instead."
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" style="grid-column: 1 / -1;">
+                                <div class="comparison-icon">💬</div>
+                                <h3 style="color: var(--accent-amber); margin-top: 0;">Discord: The 90-Day Disaster</h3>
+                                <p style="color: var(--text-secondary); margin-top: 1.5rem; line-height: 1.9;">
+                                    <strong style="color: var(--error-red);">Mistake:</strong> Engineer set gc_grace to 90 days "to be extra safe."<br/><br/>
+                                    
+                                    <strong style="color: var(--text-primary);">Table:</strong> user_read_status with 30-day TTL<br/>
+                                    <strong>Configuration:</strong> gc_grace_seconds = 7776000 (90 days)<br/><br/>
+                                    
+                                    <strong style="color: var(--warning-orange);">Timeline of pain:</strong><br/>
+                                    • Month 1: No issues yet<br/>
+                                    • Month 2: Queries slowing (tombstones accumulating)<br/>
+                                    • Month 3: P99 latency 15ms → 800ms<br/>
+                                    • Month 4: Crisis - queries timing out, disk 95% full<br/><br/>
+                                    
+                                    <strong style="color: var(--error-red);">Peak problem:</strong><br/>
+                                    • 200 billion tombstones<br/>
+                                    • 75% of cluster storage = tombstones<br/>
+                                    • Scanning 50M tombstones per query<br/>
+                                    • Compaction: 24/7, still can't keep up<br/><br/>
+                                    
+                                    <strong style="color: var(--success-green);">Fix applied:</strong><br/>
+                                    1. Reduced gc_grace: 90 days → 1 day<br/>
+                                    2. Forced major compaction<br/>
+                                    3. Redesigned to time-bucketed partitions<br/><br/>
+                                    
+                                    <strong>Recovery results:</strong><br/>
+                                    • After compaction: Tombstones 200B → 2M (99.999% reduction!)<br/>
+                                    • P99 latency: 800ms → 18ms (44x faster!)<br/>
+                                    • Disk freed: 2TB<br/><br/>
+                                    
+                                    <strong style="color: var(--error-red);">Lesson learned:</strong> "Longer gc_grace is NOT always safer - it causes different disasters. Understand the trade-offs!"
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ Best Practices</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">✅</div>
+                                <h4 style="color: var(--primary-orange);">1. Start with Default</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>10 days is proven and safe</strong><br/><br/>
+                                    
+                                    Don't tune until you:<br/>
+                                    • Measure actual problem<br/>
+                                    • Understand trade-offs<br/>
+                                    • Have monitoring in place<br/><br/>
+                                    
+                                    Premature optimization = danger!<br/><br/>
+                                    
+                                    Default works for 90% of use cases ✓
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--light-orange);">2. Monitor First</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Before tuning, measure:</strong><br/><br/>
+                                    
+                                    • Tombstone warnings in logs<br/>
+                                    • Query latency trends<br/>
+                                    • Disk usage growth<br/>
+                                    • Compaction frequency<br/><br/>
+                                    
+                                    Data-driven decisions only!<br/><br/>
+                                    
+                                    No monitoring = keep default
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚙️</div>
+                                <h4 style="color: var(--accent-amber);">3. Tune Per Table</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Different tables, different needs</strong><br/><br/>
+                                    
+                                    Time-series: 1-2 days<br/>
+                                    User data: 10 days<br/>
+                                    Logs: 10 days<br/>
+                                    Sessions: 3-5 days<br/><br/>
+                                    
+                                    One-size does NOT fit all!<br/><br/>
+                                    
+                                    Analyze each table separately
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🔧</div>
+                                <h4 style="color: var(--primary-orange);">4. Pair with Repair</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>gc_grace and repair go together</strong><br/><br/>
+                                    
+                                    Rule: Repair every gc_grace period<br/><br/>
+                                    
+                                    If gc_grace = 3 days:<br/>
+                                    Run repair every 3 days!<br/><br/>
+                                    
+                                    This ensures deletions spread<br/>
+                                    before tombstones removed ✓
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">⚠️</div>
+                                <h4 style="color: var(--light-orange);">5. Never Use 0</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>gc_grace_seconds = 0 is DANGEROUS</strong><br/><br/>
+                                    
+                                    Only acceptable for:<br/>
+                                    • Single-node testing<br/>
+                                    • Throwaway data<br/>
+                                    • Never repair<br/><br/>
+                                    
+                                    Production: NEVER!<br/><br/>
+                                    
+                                    Even 1 day is better than 0
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🎯</div>
+                                <h4 style="color: var(--accent-amber);">6. Design > Tuning</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Better: Avoid tombstones entirely!</strong><br/><br/>
+                                    
+                                    Instead of tuning gc_grace:<br/>
+                                    • Time-bucketed partitions<br/>
+                                    • Soft deletes<br/>
+                                    • Partition drops<br/>
+                                    • Design without deletes<br/><br/>
+                                    
+                                    Architecture > configuration!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05)); border-left-color: var(--error-red);" data-aos="fade-up" style="margin-top: 3rem;">
+                            <h4><i class="fas fa-exclamation-triangle"></i> 🚨 Common Mistakes</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>❌ Setting to 0 for "performance"</strong><br/>
+                                → Zombie data guaranteed! Keep at least 1 day.<br/><br/>
+                                
+                                <strong>❌ Setting to 90 days for "safety"</strong><br/>
+                                → Tombstone explosion! Slower queries, disk full.<br/><br/>
+                                
+                                <strong>❌ Tuning without monitoring</strong><br/>
+                                → Can't measure impact. Keep default instead.<br/><br/>
+                                
+                                <strong>❌ Same value for all tables</strong><br/>
+                                → Different workloads need different settings.<br/><br/>
+                                
+                                <strong>❌ Reducing without frequent repairs</strong><br/>
+                                → Repair must run within grace period!<br/><br/>
+                                
+                                <strong style="color: var(--primary-orange);">✓ When in doubt: Keep the default 10 days!</strong>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Interview Q&A -->
+                    <section id="interview" data-aos="fade-up">
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 3rem;">
+                            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, var(--primary-orange), var(--light-orange)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">💼</div>
+                            <h2 style="margin: 0;">Interview Questions & Answers</h2>
+                        </div>
+
+                        <div style="background: #1e293b; border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 2px solid var(--border-light);">
+                            <div style="display: flex; align-items: center; gap: 1.5rem; cursor: pointer;" onclick="toggleAnswer(this)">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary-orange), var(--light-orange)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; color: white;">1</div>
+                                <div style="flex: 1; font-size: 1.15rem; font-weight: 600; color: var(--text-primary); line-height: 1.6;">What is gc_grace_seconds and why does it exist?</div>
+                                <div style="font-size: 1.25rem; color: var(--primary-orange); transition: transform 0.3s ease; flex-shrink: 0;">▼</div>
+                            </div>
+                            <div style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease;">
+                                <div style="padding: 1.5rem 0 0 7.5rem; color: var(--text-secondary); line-height: 1.9;">
+                                    <p style="color: var(--text-secondary); line-height: 1.9;">
+                                <strong style="color: var(--text-primary);">Complete Answer:</strong><br/><br/>
+                                
+                                gc_grace_seconds is a table-level setting that defines how long Cassandra keeps tombstones before they're eligible for removal during compaction. The default is 864,000 seconds (10 days).<br/><br/>
+                                
+                                <strong>Why it exists - the fundamental problem:</strong><br/>
+                                In distributed systems, nodes can be offline when deletions occur. Without a grace period, zombie data resurrection happens. Here's the scenario: Server A deletes data (creates tombstone), Server B is offline for maintenance and misses the tombstone, compaction removes tombstone from A, Server B comes back with old data, repair copies data back to A - zombie! Data resurrected.<br/><br/>
+                                
+                                The grace period solves this by keeping tombstones long enough for offline nodes to see them. With 10-day grace: Server B comes back within 10 days, sees tombstone from A, adopts it, deletes its copy. After 10 days when tombstone is removed, all servers have already seen it - no zombie possible.<br/><br/>
+                                
+                                <strong>The 10-day default rationale:</strong> Covers 95% of real-world failures - planned maintenance (hours), network issues (hours), hardware failures (1-3 days), catastrophic failures (3-7 days). Provides weekend buffer and holiday margin. Balances safety (prevent zombies) vs performance (limit tombstone accumulation).
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: #1e293b; border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 2px solid var(--border-light);">
+                            <div style="display: flex; align-items: center; gap: 1.5rem; cursor: pointer;" onclick="toggleAnswer(this)">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary-orange), var(--light-orange)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; color: white;">2</div>
+                                <div style="flex: 1; font-size: 1.15rem; font-weight: 600; color: var(--text-primary); line-height: 1.6;">What happens if you set gc_grace_seconds too short or too long?</div>
+                                <div style="font-size: 1.25rem; color: var(--primary-orange); transition: transform 0.3s ease; flex-shrink: 0;">▼</div>
+                            </div>
+                            <div style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease;">
+                                <div style="padding: 1.5rem 0 0 7.5rem; color: var(--text-secondary); line-height: 1.9;">
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                <strong style="color: var(--text-primary);">Complete Answer:</strong><br/><br/>
+                                
+                                <strong>Too SHORT (e.g., 0 or 1 day) - Zombie Data Risk:</strong><br/>
+                                If gc_grace = 0: Tombstones removed immediately, any node offline >5 minutes creates zombie risk. Example: Delete user account Monday 9am, Server B down for 1 hour, tombstone removed at 9:30am, Server B back at 10am still has account, repair restores it to other servers - ZOMBIE! GDPR violation, legal liability.<br/><br/>
+                                
+                                If gc_grace = 1 day: Risky but sometimes acceptable for stable clusters. Requires: 24/7 monitoring with alerts if node down >12 hours, repair every 12 hours (vs weekly), operational excellence, acceptance of small zombie risk. Real statistics: 30% of hardware failures take >1 day to resolve.<br/><br/>
+                                
+                                <strong>Too LONG (e.g., 30-90 days) - Performance Disaster:</strong><br/>
+                                Tombstones accumulate massively. Example with 90-day grace + 30-day TTL: Day 30: 1M tombstones. Day 90: 61M tombstones (67% of data). Day 120: 91M tombstones (75% of data). P99 latency: 50ms → 800ms (16x slower!). Disk 90% full. Compaction can't keep up.<br/><br/>
+                                
+                                Performance impacts: Read queries must scan all tombstones (linear slowdown), disk space wasted (20 bytes per tombstone × millions), compaction processes huge volumes (vicious cycle - slow compaction → more accumulation → even slower).<br/><br/>
+                                
+                                <strong>The sweet spot:</strong> 10-day default balances risks. Covers most failures while limiting accumulation. Special cases: Stable cluster with excellent monitoring = 1-3 days possible. Time-series with high TTL volume = 1-2 days recommended. Uncertain or volatile environment = keep 10 days.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: #1e293b; border-radius: 16px; padding: 2rem; border: 2px solid var(--border-light);">
+                            <div style="display: flex; align-items: center; gap: 1.5rem; cursor: pointer;" onclick="toggleAnswer(this)">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary-orange), var(--light-orange)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; color: white;">3</div>
+                                <div style="flex: 1; font-size: 1.15rem; font-weight: 600; color: var(--text-primary); line-height: 1.6;">How would you tune gc_grace_seconds for different workloads?</div>
+                                <div style="font-size: 1.25rem; color: var(--primary-orange); transition: transform 0.3s ease; flex-shrink: 0;">▼</div>
+                            </div>
+                            <div style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease;">
+                                <div style="padding: 1.5rem 0 0 7.5rem; color: var(--text-secondary); line-height: 1.9;">
+                            <p style="color: var(--text-secondary); line-height: 1.9;">
+                                <strong style="color: var(--text-primary);">Complete Answer:</strong><br/><br/>
+                                
+                                <strong>Decision framework by workload type:</strong><br/><br/>
+                                
+                                <strong>1. Time-series with TTL (high tombstone volume):</strong><br/>
+                                Recommendation: 1-2 days (86,400-172,800 sec). Why: Massive daily expirations create tombstone explosion with longer grace. Example: 1M rows/day expire, 10-day grace = 10M tombstones, 1-day grace = 1M tombstones (10x less!). Requirements: Repair every 12-24 hours, monitoring for node downtime, stable cluster with <24h typical outages.<br/><br/>
+                                
+                                <strong>2. User/application data (moderate CRUD):</strong><br/>
+                                Recommendation: 10 days (default 864,000 sec). Why: Occasional deletions don't cause accumulation, safety more important than small performance gains, GDPR compliance critical (no zombie resurrections). Example: User account deletions, profile updates, content moderation.<br/><br/>
+                                
+                                <strong>3. Session/cache data (TTL + frequent access):</strong><br/>
+                                Recommendation: 3-5 days (259,200-432,000 sec). Why: Moderate deletion volume, shorter TTLs than time-series, balance performance and safety. Requirements: Repair 2x per week minimum.<br/><br/>
+                                
+                                <strong>4. Append-only logs (rare deletes):</strong><br/>
+                                Recommendation: 10 days (default). Why: Rarely delete, tombstones not a problem, keep default for safety.<br/><br/>
+                                
+                                <strong>Implementation process:</strong><br/>
+                                1. Measure current state: Check tombstone warnings, query latency, disk usage. 2. Calculate need: Deletion rate × gc_grace = max tombstones. 3. Set value: ALTER TABLE foo WITH gc_grace_seconds = X. 4. Monitor impact: Watch latency improvement, verify no zombie data. 5. Adjust repair: Run repair at least every gc_grace period.<br/><br/>
+                                
+                                <strong>Critical monitoring if reducing below 10 days:</strong><br/>
+                                Node downtime alerts (if down >50% of grace), repair completion verification, tombstone warning trends, zombie data checks (compare read counts across nodes).<br/><br/>
+                                
+                                <strong>Best practice: Design > Tuning.</strong> Before tuning gc_grace, consider: Time-bucketed partitions (drop old partitions, no tombstones!), soft delete + async cleanup (tombstones in background only), partition strategy redesign. Architecture changes often better than configuration tuning.
+                            </p>
+                        </div>
+                    </section>
+                      <div class="page-navigation">
+    <a href="tombstones.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Tombstones</div>
+        </div>
+    </a>
+    <a href="data-model-intro.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Data Model Intro</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                const startX = Math.random() * 100;
+                const drift = (Math.random() - 0.5) * 100;
+                const duration = Math.random() * 10 + 15;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${startX}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                    --x-drift: ${drift}px;
+                `;
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        window.addEventListener('load', createParticles);
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+            document.getElementById('scrollTop').classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Interactive Timeline
+        let timelineInterval;
+        let currentDay = 0;
+
+        function startTimeline() {
+            clearInterval(timelineInterval);
+            currentDay = 0;
+            updateTimeline();
+
+            timelineInterval = setInterval(() => {
+                currentDay++;
+                updateTimeline();
+                
+                if (currentDay >= 11) {
+                    clearInterval(timelineInterval);
+                }
+            }, 1500); // 1.5 seconds per day
+        }
+
+        function resetTimeline() {
+            clearInterval(timelineInterval);
+            currentDay = 0;
+            updateTimeline();
+        }
+
+        function updateTimeline() {
+            const progress = (currentDay / 10) * 100;
+            document.getElementById('timelineProgress').style.width = progress + '%';
+            document.getElementById('currentDay').textContent = currentDay;
+
+            let status, serverIcon, serverStatus, tombIcon, tombStatus, zombieIcon, zombieStatus;
+
+            if (currentDay === 0) {
+                status = 'Tombstone created - grace period begins';
+                serverIcon = '🟢';
+                serverStatus = 'All Online';
+                tombIcon = '🪦';
+                tombStatus = 'Active';
+                zombieIcon = '😴';
+                zombieStatus = 'None';
+            } else if (currentDay === 1) {
+                status = 'Day 1: Server B goes offline for maintenance...';
+                serverIcon = '🔴';
+                serverStatus = 'B Offline';
+                tombIcon = '🪦';
+                tombStatus = 'Active (9 days left)';
+                zombieIcon = '⚠️';
+                zombieStatus = 'Protected by tombstone';
+            } else if (currentDay >= 2 && currentDay <= 4) {
+                status = `Day ${currentDay}: Tombstone still active, waiting for Server B...`;
+                serverIcon = '🔴';
+                serverStatus = 'B Still Down';
+                tombIcon = '🪦';
+                tombStatus = `Active (${10 - currentDay} days left)`;
+                zombieIcon = '⚠️';
+                zombieStatus = 'Protected';
+            } else if (currentDay === 5) {
+                status = 'Day 5: Server B comes back online! Sees tombstone ✓';
+                serverIcon = '🟢';
+                serverStatus = 'B Back Online!';
+                tombIcon = '🪦';
+                tombStatus = 'Active (5 days left)';
+                zombieIcon = '✅';
+                zombieStatus = 'Prevented!';
+            } else if (currentDay >= 6 && currentDay <= 9) {
+                status = `Day ${currentDay}: All servers in sync, tombstone aging...`;
+                serverIcon = '🟢';
+                serverStatus = 'All Synced';
+                tombIcon = '🪦';
+                tombStatus = `Active (${10 - currentDay} days left)`;
+                zombieIcon = '✅';
+                zombieStatus = 'Safe';
+            } else if (currentDay === 10) {
+                status = 'Day 10: Grace period expires - tombstone eligible for removal';
+                serverIcon = '🟢';
+                serverStatus = 'All Online';
+                tombIcon = '⏳';
+                tombStatus = 'Grace Expired';
+                zombieIcon = '✅';
+                zombieStatus = 'Safe to remove';
+            } else {
+                status = 'Compaction removes tombstone - deletion complete!';
+                serverIcon = '🟢';
+                serverStatus = 'All Online';
+                tombIcon = '✅';
+                tombStatus = 'Removed';
+                zombieIcon = '✅';
+                zombieStatus = 'No risk ever!';
+            }
+
+            document.getElementById('timelineStatus').textContent = status;
+            document.getElementById('serverIcon').textContent = serverIcon;
+            document.getElementById('serverStatus').textContent = serverStatus;
+            document.getElementById('tombIcon').textContent = tombIcon;
+            document.getElementById('tombStatus').textContent = tombStatus;
+            document.getElementById('zombieIcon').textContent = zombieIcon;
+            document.getElementById('zombieStatus').textContent = zombieStatus;
+        }
+
+        // Interview Q&A Toggle
+        function toggleAnswer(headerElement) {
+            const answerDiv = headerElement.nextElementSibling;
+            const toggleIcon = headerElement.querySelector('div:last-child');
+            const card = headerElement.parentElement;
+            
+            // Close all other answers
+            document.querySelectorAll('[onclick*="toggleAnswer"]').forEach(header => {
+                if (header !== headerElement) {
+                    const otherAnswer = header.nextElementSibling;
+                    const otherIcon = header.querySelector('div:last-child');
+                    otherAnswer.style.maxHeight = '0';
+                    otherIcon.style.transform = 'rotate(0deg)';
+                    header.style.background = 'transparent';
+                }
+            });
+            
+            // Toggle current answer
+            if (answerDiv.style.maxHeight && answerDiv.style.maxHeight !== '0px') {
+                answerDiv.style.maxHeight = '0';
+                toggleIcon.style.transform = 'rotate(0deg)';
+                headerElement.style.background = 'transparent';
+            } else {
+                answerDiv.style.maxHeight = '5000px';
+                toggleIcon.style.transform = 'rotate(180deg)';
+                headerElement.style.background = 'rgba(249, 115, 22, 0.08)';
+            }
+        }
+        function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    </script>
+</body>
+</html>

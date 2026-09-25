@@ -1,0 +1,3346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Cassandra Wide Rows Guide - Master wide partition pattern, time-series optimization, denormalization strategies with animations and production examples!">
+    <meta name="keywords" content="cassandra wide rows, wide partition, time-series cassandra, denormalization pattern, clustering columns">
+    <title>Cassandra Wide Rows: Complete Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '📊';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.expert {
+            border-left-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .comparison-card:hover::before {
+            opacity: 1;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">📊</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+     <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html" class="active">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-table"></i>
+                        Section 2: Data Modeling Fundamentals
+                    </span>
+                    <h1>Cassandra <span class="gradient-text">Wide Rows</span></h1>
+                    <p>Master the powerful wide partition pattern! Learn time-series optimization, denormalization strategies, performance characteristics with animations, production examples, and expert-level design patterns.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-2-overview.html">Section 2: Data Modeling</a>
+                <span class="separator">›</span>
+                <span class="current">Wide Rows Pattern</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Spreadsheet Story</a></li>
+                            <li><a href="#what-is">📊 What are Wide Rows?</a></li>
+                            <li><a href="#anatomy">🔬 Anatomy of Wide Rows</a></li>
+                            <li><a href="#time-series">⏰ Time-Series Pattern</a></li>
+                            <li><a href="#denormalization">🗂️ Denormalization Pattern</a></li>
+                            <li><a href="#performance">⚡ Performance Characteristics</a></li>
+                            <li><a href="#real-world">🌍 Production Examples</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            <li><a href="#anti-patterns">⚠️ Anti-Patterns</a></li>
+                            <li><a href="#interview-questions">💼 Interview Q&A </a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: The Spreadsheet Everyone Understands</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Imagine organizing employee data. You have two choices:</p>
+
+                                <!-- NARROW APPROACH -->
+                                <div style="background: rgba(217, 119, 6, 0.15); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #f59e0b;">
+                                    <h3 style="color: #f59e0b; margin-top: 0;">📄 Approach 1: Multiple Narrow Spreadsheets (Traditional)</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">Employee ID: 12345</strong></p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong>Spreadsheet 1: Personal Info</strong><br/>
+┌──────────┬──────────────┐<br/>
+│ Column   │ Value        │<br/>
+├──────────┼──────────────┤<br/>
+│ Name     │ John Smith   │<br/>
+│ Email    │ john@co.com  │<br/>
+└──────────┴──────────────┘<br/>
+<br/>
+<strong>Spreadsheet 2: Address</strong><br/>
+┌──────────┬──────────────┐<br/>
+│ Column   │ Value        │<br/>
+├──────────┼──────────────┤<br/>
+│ Street   │ 123 Main St  │<br/>
+│ City     │ NYC          │<br/>
+└──────────┴──────────────┘<br/>
+<br/>
+<strong>Spreadsheet 3: Phone Numbers</strong><br/>
+┌──────────┬──────────────┐<br/>
+│ Column   │ Value        │<br/>
+├──────────┼──────────────┤<br/>
+│ Mobile   │ 555-1234     │<br/>
+│ Home     │ 555-5678     │<br/>
+└──────────┴──────────────┘
+                                    </div>
+
+                                    <h4 style="color: #f59e0b; margin-top: 1.5rem;">Critical Problems:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Need 3 Spreadsheets:</strong> One employee's data split across 3 files</li>
+                                        <li><strong style="color: var(--text-primary);">Multiple Lookups:</strong> Must open and search 3 different files</li>
+                                        <li><strong style="color: var(--text-primary);">No Complete Picture:</strong> Can't see all info at once</li>
+                                        <li><strong style="color: var(--text-primary);">Slow:</strong> Time wasted switching between files</li>
+                                    </ul>
+
+                                    <p style="margin-top: 1rem; font-size: 1.05rem; color: #f59e0b; font-weight: 700;">This is like traditional normalized databases!</p>
+                                </div>
+
+                                <!-- WIDE ROW APPROACH -->
+                                <div style="background: rgba(5, 150, 105, 0.15); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                                    <h3 style="color: #059669; margin-top: 0;">📊 Approach 2: ONE WIDE Spreadsheet (Wide Rows!)</h3>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">
+<strong>Single Wide Spreadsheet - ALL DATA IN ONE ROW:</strong><br/>
+<br/>
+┌─────────┬────────────┬─────────────┬─────────────┬──────┬──────────┬──────────┐<br/>
+│ Emp ID  │ Name       │ Email       │ Street      │ City │ Mobile   │ Home     │<br/>
+├─────────┼────────────┼─────────────┼─────────────┼──────┼──────────┼──────────┤<br/>
+│ 12345   │ John Smith │ john@co.com │ 123 Main St │ NYC  │ 555-1234 │ 555-5678 │<br/>
+└─────────┴────────────┴─────────────┴─────────────┴──────┴──────────┴──────────┘<br/>
+          ↑ ONE ROW = ALL EMPLOYEE DATA ↑
+                                    </div>
+
+                                    <h4 style="color: #059669; margin-top: 1.5rem;">Massive Benefits:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Everything in ONE Row:</strong> All data together</li>
+                                        <li><strong style="color: var(--text-primary);">Single Lookup:</strong> Open one file, find everything</li>
+                                        <li><strong style="color: var(--text-primary);">Complete Picture:</strong> See all info immediately</li>
+                                        <li><strong style="color: var(--text-primary);">Lightning Fast:</strong> One read operation</li>
+                                    </ul>
+
+                                    <p style="margin-top: 1rem; font-size: 1.05rem; color: #059669; font-weight: 700;">This is EXACTLY how wide rows work in Cassandra!</p>
+                                </div>
+
+                                <!-- TIME-SERIES SUPER WIDE -->
+                                <div style="background: rgba(139, 92, 246, 0.15); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #8b5cf6;">
+                                    <h3 style="color: #8b5cf6; margin-top: 0;">📈 Approach 3: SUPER WIDE Spreadsheet (Time-Series Magic!)</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">Sensor ID: ABC-123</strong></p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.8rem; overflow-x: auto;">
+<strong>Temperature Sensor - THOUSANDS of readings in ONE row:</strong><br/>
+<br/>
+┌─────────┬──────────────────┬──────────────────┬──────────────────┬─────┬──────────────────┐<br/>
+│ Sensor  │ 2024-01-15 10:00 │ 2024-01-15 10:01 │ 2024-01-15 10:02 │ ... │ 2024-01-15 23:59 │<br/>
+├─────────┼──────────────────┼──────────────────┼──────────────────┼─────┼──────────────────┤<br/>
+│ ABC-123 │ 72.3°F           │ 72.4°F           │ 72.5°F           │ ... │ 73.1°F           │<br/>
+└─────────┴──────────────────┴──────────────────┴──────────────────┴─────┴──────────────────┘<br/>
+          ↑ ONE PARTITION = THOUSANDS OF TIME-SERIES DATA POINTS! ↑
+                                    </div>
+
+                                    <h4 style="color: #8b5cf6; margin-top: 1.5rem;">This ONE Row Contains:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li>86,400 readings per day (1 per second)</li>
+                                        <li>All stored together on same node</li>
+                                        <li>Physically sorted by timestamp</li>
+                                        <li>Query "10:00-11:00" = slice the row</li>
+                                    </ul>
+
+                                    <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 2rem; border-left: 3px solid #8b5cf6;">
+                                        <h4 style="color: #8b5cf6; margin-top: 0;">💡 Wide Row Magic Explained</h4>
+                                        <p style="margin: 0; font-size: 1.05rem; color: var(--text-primary); line-height: 1.8;">
+                                            <strong>In Cassandra:</strong><br/>
+                                            • sensor_id = <strong style="color: #8b5cf6;">Partition Key</strong> (which spreadsheet)<br/>
+                                            • Each timestamp = <strong style="color: #0d9488;">Clustering Column</strong> (which column)<br/>
+                                            • Each reading = Data value<br/>
+                                            <br/>
+                                            <strong style="color: #8b5cf6;">Result: Lightning-fast time-series queries! ⚡</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What Are Wide Rows -->
+                    <section id="what-is" data-aos="fade-up">
+                        <h2>📊 What Are Wide Rows?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding Cassandra's most powerful data organization pattern.</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-book-open" style="color: var(--accent-purple);"></i> Complete Definition</h4>
+                            
+                            <p><strong style="color: var(--text-primary);">Wide Row (Wide Partition):</strong> A Cassandra partition containing <strong>many rows</strong> with the <strong>SAME partition key</strong> but <strong>DIFFERENT clustering columns</strong>.</p>
+                            
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
+                                <p style="margin: 0; font-size: 1.05rem;"><strong style="color: #8b5cf6;">Think of it as:</strong></p>
+                                <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                                    <li><strong>One key</strong> (partition key) → Identifies the partition</li>
+                                    <li><strong>Many values</strong> (clustering columns + data) → Stored in partition</li>
+                                    <li><strong>Stored together</strong> on same node → Co-located</li>
+                                    <li><strong>Read together</strong> in single query → Efficient</li>
+                                </ul>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #10b981;">Example Schema:</strong><br/>
+PRIMARY KEY (user_id, timestamp)<br/>
+             ↑             ↑<br/>
+       Partition Key  Clustering Column<br/>
+<br/>
+<strong style="color: #10b981;">Wide Row for user_id='alice':</strong><br/>
+<br/>
+Partition: alice<br/>
+├── alice, 2024-01-01 10:00, "login"<br/>
+├── alice, 2024-01-01 10:15, "view_page"<br/>
+├── alice, 2024-01-01 10:30, "add_to_cart"<br/>
+├── alice, 2024-01-01 10:45, "checkout"<br/>
+├── alice, 2024-01-01 11:00, "logout"<br/>
+└── ... (thousands more rows!)<br/>
+<br/>
+<strong style="color: #8b5cf6;">ALL these rows stored together = WIDE PARTITION</strong>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Narrow vs Wide Rows: Visual Comparison</h3>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📄</div>
+                                <h3>Narrow Row Pattern</h3>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+PRIMARY KEY (order_id)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Structure:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>Each order = separate partition</li>
+                                    <li>Partition 1: Order-001</li>
+                                    <li>Partition 2: Order-002</li>
+                                    <li>Partition 3: Order-003</li>
+                                </ul>
+
+                                <p style="margin-top: 1rem;"><strong>Characteristics:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>Each partition: <strong>1 row</strong></li>
+                                    <li>Must query multiple partitions</li>
+                                    <li>Distributed across many nodes</li>
+                                    <li>More coordinator overhead</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">📊</div>
+                                <h3>Wide Row Pattern</h3>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+PRIMARY KEY (user_id, order_date)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Structure:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>One user = one wide partition</li>
+                                    <li>alice, 2023-01-15</li>
+                                    <li>alice, 2023-03-20</li>
+                                    <li>alice, 2023-06-10</li>
+                                </ul>
+
+                                <p style="margin-top: 1rem;"><strong>Characteristics:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>One partition: <strong>many rows</strong></li>
+                                    <li>Single query gets all orders</li>
+                                    <li>Stored together on one node</li>
+                                    <li>Minimal coordinator overhead</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Anatomy of Wide Rows -->
+                    <section id="anatomy" data-aos="fade-up">
+                        <h2>🔬 Anatomy of a Wide Row</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding how wide rows are physically stored and why they're so fast.</p>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1200 650" xmlns="http://www.w3.org/2000/svg">
+                                <text x="600" y="35" font-size="26" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Wide Row: Physical Storage Structure
+                                </text>
+
+                                <!-- Partition Key -->
+                                <rect x="50" y="80" width="1100" height="80" rx="12" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="600" y="110" font-size="16" fill="#8b5cf6" font-weight="700" text-anchor="middle">
+                                    PARTITION KEY: user_id = 'alice'
+                                </text>
+                                <text x="600" y="135" font-size="13" fill="#94a3b8" text-anchor="middle">
+                                    (Determines which node stores this data via hashing)
+                                </text>
+
+                                <!-- Multiple Clustering Rows -->
+                                <g>
+                                    <rect x="100" y="200" width="1000" height="60" rx="8" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2"/>
+                                    <text x="150" y="225" font-size="14" fill="#0d9488" font-weight="700">Row 1:</text>
+                                    <text x="150" y="245" font-size="12" fill="#e2e8f0" font-family="monospace">
+                                        alice, 2024-01-01 10:00:00, "login", source="mobile"
+                                    </text>
+                                </g>
+
+                                <g>
+                                    <rect x="100" y="280" width="1000" height="60" rx="8" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2"/>
+                                    <text x="150" y="305" font-size="14" fill="#0d9488" font-weight="700">Row 2:</text>
+                                    <text x="150" y="325" font-size="12" fill="#e2e8f0" font-family="monospace">
+                                        alice, 2024-01-01 10:15:30, "view_page", page="/products"
+                                    </text>
+                                </g>
+
+                                <g>
+                                    <rect x="100" y="360" width="1000" height="60" rx="8" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2"/>
+                                    <text x="150" y="385" font-size="14" fill="#0d9488" font-weight="700">Row 3:</text>
+                                    <text x="150" y="405" font-size="12" fill="#e2e8f0" font-family="monospace">
+                                        alice, 2024-01-01 10:30:15, "add_to_cart", item_id=12345
+                                    </text>
+                                </g>
+
+                                <g>
+                                    <rect x="100" y="440" width="1000" height="60" rx="8" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="2"/>
+                                    <text x="150" y="465" font-size="14" fill="#0d9488" font-weight="700">Row N:</text>
+                                    <text x="150" y="485" font-size="12" fill="#e2e8f0" font-family="monospace">
+                                        ... (thousands more rows, all physically sequential!)
+                                    </text>
+                                </g>
+
+                                <!-- Storage Benefits -->
+                                <rect x="150" y="540" width="900" height="80" rx="10" fill="rgba(5, 150, 105, 0.15)" stroke="#059669" stroke-width="2"/>
+                                <text x="600" y="570" font-size="15" fill="#059669" font-weight="700" text-anchor="middle">
+                                    ⚡ All rows stored TOGETHER on SAME node in SORTED order
+                                </text>
+                                <text x="600" y="595" font-size="13" fill="#94a3b8" text-anchor="middle">
+                                    Result: Single disk seek + Sequential read = LIGHTNING FAST! 🚀
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-microscope" style="color: var(--accent-purple);"></i> Physical Storage Deep Dive</h4>
+                            
+                            <p><strong>What happens on disk when you write a wide row:</strong></p>
+                            
+                            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #8b5cf6;">Step-by-Step Storage Process:</strong><br/>
+<br/>
+1. <strong>Partition Key → Hash → Token → Node</strong><br/>
+&nbsp;&nbsp;user_id='alice' → Murmur3 hash → token: -3847293847<br/>
+&nbsp;&nbsp;→ Maps to Node 2<br/>
+<br/>
+2. <strong>All rows with same partition key → Same Node</strong><br/>
+&nbsp;&nbsp;Every row with user_id='alice' goes to Node 2<br/>
+<br/>
+3. <strong>Rows sorted by clustering column</strong><br/>
+&nbsp;&nbsp;Timestamp ascending (or descending if specified)<br/>
+<br/>
+4. <strong>Stored in ONE SSTable segment</strong><br/>
+&nbsp;&nbsp;[Partition: alice]<br/>
+&nbsp;&nbsp;├── 2024-01-01 10:00, "login"<br/>
+&nbsp;&nbsp;├── 2024-01-01 10:15, "view"<br/>
+&nbsp;&nbsp;├── 2024-01-01 10:30, "purchase"<br/>
+&nbsp;&nbsp;└── ... (physically sequential on disk!)<br/>
+<br/>
+5. <strong>Sequential disk layout</strong><br/>
+&nbsp;&nbsp;All bytes stored contiguously<br/>
+&nbsp;&nbsp;No fragmentation, no random seeks
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why This Makes Wide Rows SO Fast:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Single Disk Seek:</strong> Find partition once via hash lookup</li>
+                                <li><strong>Sequential Read:</strong> All rows read in one pass (not scattered)</li>
+                                <li><strong>No Random I/O:</strong> Disk head doesn't jump around</li>
+                                <li><strong>All Data Co-Located:</strong> No network hops between nodes</li>
+                                <li><strong>Cache Friendly:</strong> Sequential access optimizes OS cache</li>
+                            </ul>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; border-left: 3px solid #059669;">
+                                <p style="margin: 0; font-size: 1.05rem;"><strong style="color: #059669;">Performance Result:</strong> Querying 1,000 rows from a wide partition is <strong style="color: #059669;">100x faster</strong> than querying 1,000 separate partitions!</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Time-Series Pattern -->
+                    <section id="time-series" data-aos="fade-up">
+                        <h2>⏰ Wide Rows for Time-Series Data</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The killer use case that powers Netflix, Discord, and Apple.</p>
+
+                        <div class="story-box" data-aos="fade-up">
+                            <h3 style="color: var(--accent-purple);">The Perfect Pattern: IoT Sensor Data</h3>
+                            
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE sensor_readings (<br/>
+&nbsp;&nbsp;sensor_id UUID,<br/>
+&nbsp;&nbsp;reading_time TIMESTAMP,<br/>
+&nbsp;&nbsp;temperature DECIMAL,<br/>
+&nbsp;&nbsp;humidity DECIMAL,<br/>
+&nbsp;&nbsp;pressure DECIMAL,<br/>
+&nbsp;&nbsp;PRIMARY KEY (sensor_id, reading_time)<br/>
+) WITH CLUSTERING ORDER BY (reading_time DESC);<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ Newest first!
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Wide Row Structure:</strong></p>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+sensor_id='ABC-123' (ONE partition contains):<br/>
+<br/>
+├── 2024-01-15 10:00:00, temp=72.3°F, humidity=45%, pressure=1013mb<br/>
+├── 2024-01-15 10:00:01, temp=72.4°F, humidity=45%, pressure=1013mb<br/>
+├── 2024-01-15 10:00:02, temp=72.5°F, humidity=46%, pressure=1013mb<br/>
+├── 2024-01-15 10:00:03, temp=72.6°F, humidity=46%, pressure=1013mb<br/>
+└── ... (86,400 readings per day for 1 reading/second!)<br/>
+<br/>
+<strong style="color: #10b981;">All stored together, sorted by time, on ONE node!</strong>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Query Examples:</strong></p>
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+<strong style="color: #059669;">-- Get last hour of readings:</strong><br/>
+SELECT * FROM sensor_readings<br/>
+WHERE sensor_id = 'ABC-123'<br/>
+AND reading_time > '2024-01-15 09:00:00'<br/>
+AND reading_time < '2024-01-15 10:00:00';<br/>
+<br/>
+<strong style="color: #10b981;">Performance: 2-5ms for 3,600 readings! ⚡</strong><br/>
+<br/>
+<strong style="color: #059669;">-- Get latest 50 readings (DESC order!):</strong><br/>
+SELECT * FROM sensor_readings<br/>
+WHERE sensor_id = 'ABC-123'<br/>
+LIMIT 50;<br/>
+<br/>
+<strong style="color: #10b981;">Performance: 1-2ms! (reads first 50 rows) 🚀</strong>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why So Fast:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Binary Search to Start:</strong> O(log n) to find first timestamp</li>
+                                <li><strong>Sequential Read of Range:</strong> O(k) where k = rows to read</li>
+                                <li><strong>All Data Same Node:</strong> No network latency</li>
+                                <li><strong>No Coordinator Hops:</strong> Direct node access</li>
+                                <li><strong>Sorted Storage:</strong> Leverages physical disk layout</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Production Time-Series Examples</h3>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🎬</div>
+                                <h3>Netflix: Viewing History</h3>
+                                
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+PRIMARY KEY (user_id, view_timestamp)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Wide Row Design:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>user_id = partition key</li>
+                                    <li>Each view = clustering row</li>
+                                    <li>Sorted DESC (newest first)</li>
+                                    <li>"Continue Watching" = LIMIT 10</li>
+                                </ul>
+
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
+                                    <strong style="color: #059669;">Scale:</strong><br/>
+                                    • 200M users worldwide<br/>
+                                    • 1,000 views per user avg<br/>
+                                    • = 200 billion rows!<br/>
+                                    <br/>
+                                    <strong style="color: #10b981;">Query time: 2-3ms per user ⚡</strong>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">💬</div>
+                                <h3>Discord: Message History</h3>
+                                
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+PRIMARY KEY (channel_id, message_id)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Wide Row Design:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>channel_id = partition key</li>
+                                    <li>Each message = clustering row</li>
+                                    <li>Sorted by message_id (TIMEUUID)</li>
+                                    <li>Load messages: sequential scan</li>
+                                </ul>
+
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
+                                    <strong style="color: #059669;">Scale:</strong><br/>
+                                    • 10M active channels<br/>
+                                    • 10K messages per channel avg<br/>
+                                    • = 100 billion rows!<br/>
+                                    <br/>
+                                    <strong style="color: #10b981;">Query time: 5-10ms per channel ⚡</strong>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📱</div>
+                                <h3>Apple: iCloud Photos</h3>
+                                
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+PRIMARY KEY (user_id, photo_timestamp)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Wide Row Design:</strong></p>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>user_id = partition key</li>
+                                    <li>Each photo = clustering row</li>
+                                    <li>Sorted DESC (newest first)</li>
+                                    <li>Timeline view = sequential scan</li>
+                                </ul>
+
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-size: 0.85rem;">
+                                    <strong style="color: #059669;">Scale:</strong><br/>
+                                    • 1 billion iCloud users<br/>
+                                    • 10,000 photos per user avg<br/>
+                                    • = 10 trillion rows!<br/>
+                                    <br/>
+                                    <strong style="color: #10b981;">Query time: 2-3ms for 50 photos ⚡</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Denormalization Pattern -->
+                    <section id="denormalization" data-aos="fade-up">
+                        <h2>🗂️ Wide Rows for Denormalization</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Storing all related data together in one partition.</p>
+
+                        <div class="story-box" data-aos="fade-up">
+                            <h3 style="color: var(--accent-purple);">Pattern: Complete User Profile</h3>
+                            
+                            <p><strong>Traditional Normalized Approach (BAD for Cassandra):</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li>users table (id, name, email)</li>
+                                <li>addresses table (user_id, street, city)</li>
+                                <li>phones table (user_id, type, number)</li>
+                                <li>preferences table (user_id, setting, value)</li>
+                            </ul>
+                            <p style="color: #f59e0b; font-weight: 700;">Problem: Need 4 queries across 4 partitions!</p>
+
+                            <p style="margin-top: 2rem;"><strong>Wide Row Approach (GOOD for Cassandra):</strong></p>
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE user_attributes (<br/>
+&nbsp;&nbsp;user_id UUID,<br/>
+&nbsp;&nbsp;attribute_name TEXT,<br/>
+&nbsp;&nbsp;attribute_value TEXT,<br/>
+&nbsp;&nbsp;PRIMARY KEY (user_id, attribute_name)<br/>
+);
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Wide Row for user_id='12345':</strong></p>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+12345, "name", "John Smith"<br/>
+12345, "email", "john@example.com"<br/>
+12345, "phone_mobile", "555-1234"<br/>
+12345, "phone_home", "555-5678"<br/>
+12345, "address_street", "123 Main St"<br/>
+12345, "address_city", "NYC"<br/>
+12345, "address_zip", "10001"<br/>
+12345, "pref_theme", "dark"<br/>
+12345, "pref_language", "en"<br/>
+... (all user attributes in ONE partition!)
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Benefits:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>One Query:</strong> Get complete profile with single SELECT</li>
+                                <li><strong>Flexible Schema:</strong> Add new attributes without schema changes</li>
+                                <li><strong>All Co-Located:</strong> All data on same node</li>
+                                <li><strong>Fast Reads:</strong> Single partition scan</li>
+                                <li><strong>Easy Updates:</strong> Insert new attribute = new row</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Performance Characteristics -->
+                    <section id="performance" data-aos="fade-up">
+                        <h2>⚡ Performance Characteristics</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding the speed and trade-offs of wide rows.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border: 3px solid #059669;">
+                                <div class="comparison-icon">📖</div>
+                                <h3>Read Performance</h3>
+                                
+                                <p style="margin-top: 1rem;"><strong>Scenario:</strong> Get 1,000 rows of data</p>
+                                
+                                <div style="background: rgba(217, 119, 6, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                    <strong style="color: #f59e0b;">Narrow Rows (1,000 partitions):</strong><br/>
+                                    • 1,000 hash lookups<br/>
+                                    • Random disk seeks<br/>
+                                    • Coordinator overhead<br/>
+                                    • Multiple network hops<br/>
+                                    • Time: <strong>500-1000ms</strong>
+                                </div>
+
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                    <strong style="color: #059669;">Wide Rows (1 partition):</strong><br/>
+                                    • 1 hash lookup<br/>
+                                    • 1 disk seek<br/>
+                                    • Sequential read<br/>
+                                    • Single node<br/>
+                                    • Time: <strong>5-10ms</strong>
+                                </div>
+
+                                <p style="margin-top: 1rem; text-align: center; font-size: 1.3rem; color: #10b981; font-weight: 700;">
+                                    100x FASTER! ⚡
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border: 3px solid #3b82f6;">
+                                <div class="comparison-icon">✍️</div>
+                                <h3>Write Performance</h3>
+                                
+                                <p style="margin-top: 1rem;"><strong>Scenario:</strong> Write 1,000 rows of data</p>
+                                
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                    <strong style="color: #059669;">Narrow Rows:</strong><br/>
+                                    • Distributed across nodes<br/>
+                                    • Parallel writes possible<br/>
+                                    • Better load distribution<br/>
+                                    • Best for write-heavy<br/>
+                                    • Time: <strong>50ms</strong>
+                                </div>
+
+                                <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                    <strong style="color: #f59e0b;">Wide Rows:</strong><br/>
+                                    • All to same partition/node<br/>
+                                    • Sequential in memtable<br/>
+                                    • Potential bottleneck<br/>
+                                    • Single node writes<br/>
+                                    • Time: <strong>20-30ms</strong>
+                                </div>
+
+                                <p style="margin-top: 1rem; text-align: center; font-size: 1rem; color: #94a3b8;">
+                                    Trade-off: Ultra-fast reads vs write distribution
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-balance-scale" style="color: #f59e0b;"></i> When to Use Wide Rows</h4>
+                            
+                            <p><strong style="color: var(--text-primary);">Wide rows excel when:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Read-Heavy Workload:</strong> 80%+ reads vs writes</li>
+                                <li><strong>Time-Series Data:</strong> Append-only or mostly append</li>
+                                <li><strong>Related Data:</strong> Logically belongs together</li>
+                                <li><strong>Range Queries:</strong> Need to query by time/sequence</li>
+                                <li><strong>Sequential Access:</strong> Often read consecutive rows</li>
+                            </ul>
+
+                            <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Avoid wide rows when:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Write-Heavy:</strong> More writes than reads</li>
+                                <li><strong>Random Updates:</strong> Frequently update random rows</li>
+                                <li><strong>Unbounded Growth:</strong> Partition grows forever</li>
+                                <li><strong>Hotspots:</strong> One partition gets all traffic</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Real World Examples -->
+                    <section id="real-world" data-aos="fade-up">
+                        <h2>🌍 More Production Examples</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How industry leaders leverage wide rows.</p>
+
+                        <div class="story-box" data-aos="fade-up">
+                            <h3 style="color: var(--accent-purple);">🎵 Spotify: Playlist History</h3>
+                            
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE playlist_tracks (<br/>
+&nbsp;&nbsp;playlist_id UUID,<br/>
+&nbsp;&nbsp;added_at TIMESTAMP,<br/>
+&nbsp;&nbsp;track_id UUID,<br/>
+&nbsp;&nbsp;added_by_user_id UUID,<br/>
+&nbsp;&nbsp;PRIMARY KEY (playlist_id, added_at)<br/>
+) WITH CLUSTERING ORDER BY (added_at DESC);
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Wide Row Structure:</strong></p>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+playlist_id='discover-weekly-12345':<br/>
+├── 2024-01-15 10:00, track="Song A", user="alice"<br/>
+├── 2024-01-14 15:30, track="Song B", user="bob"<br/>
+├── 2024-01-13 08:45, track="Song C", user="alice"<br/>
+└── ... (all tracks ever added to this playlist!)
+                            </div>
+
+                            <p style="margin-top: 1rem;"><strong>Query:</strong> Show playlist with newest songs first</p>
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+SELECT * FROM playlist_tracks<br/>
+WHERE playlist_id = ?<br/>
+LIMIT 50;<br/>
+<br/>
+<strong style="color: #10b981;">Result: 50 most recent tracks in 2-3ms! ⚡</strong>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up">
+                            <h3 style="color: var(--accent-purple);">🐦 Twitter: User Timeline</h3>
+                            
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE user_timeline (<br/>
+&nbsp;&nbsp;user_id UUID,<br/>
+&nbsp;&nbsp;tweet_id TIMEUUID,<br/>
+&nbsp;&nbsp;tweet_text TEXT,<br/>
+&nbsp;&nbsp;author_id UUID,<br/>
+&nbsp;&nbsp;PRIMARY KEY (user_id, tweet_id)<br/>
+) WITH CLUSTERING ORDER BY (tweet_id DESC);
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why DESC Order Matters:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li>Latest tweets at START of partition</li>
+                                <li>Homepage shows newest tweets first</li>
+                                <li>No need to scan entire partition</li>
+                                <li>LIMIT 25 = read first 25 rows only</li>
+                                <li>Infinitely fast regardless of timeline size!</li>
+                            </ul>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up">
+                            <h3 style="color: var(--accent-purple);">💻 GitHub: Repository Commits</h3>
+                            
+                            <div style="background: rgba(139, 92, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+CREATE TABLE repo_commits (<br/>
+&nbsp;&nbsp;repo_id UUID,<br/>
+&nbsp;&nbsp;commit_timestamp TIMESTAMP,<br/>
+&nbsp;&nbsp;commit_hash TEXT,<br/>
+&nbsp;&nbsp;author TEXT,<br/>
+&nbsp;&nbsp;message TEXT,<br/>
+&nbsp;&nbsp;PRIMARY KEY (repo_id, commit_timestamp)<br/>
+) WITH CLUSTERING ORDER BY (commit_timestamp DESC);
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Benefits for GitHub:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li>All commits for repo in one partition</li>
+                                <li>Commit history page loads instantly</li>
+                                <li>Time-range queries super fast</li>
+                                <li>DESC order shows recent commits first</li>
+                                <li>Scales to repos with millions of commits</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ Best Practices for Wide Rows</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-tested guidelines for wide row design.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border: 3px solid #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>DO This</h3>
+                                
+                                <ul style="font-size: 0.95rem; line-height: 1.9;">
+                                    <li><strong>Keep Partitions Under 100MB:</strong> Monitor sizes regularly</li>
+                                    <li><strong>Use Time Bucketing:</strong> Prevent unbounded growth</li>
+                                    <li><strong>Leverage DESC Order:</strong> For "latest first" queries</li>
+                                    <li><strong>Use LIMIT:</strong> Always limit result sets</li>
+                                    <li><strong>Monitor Sizes:</strong> Track partition metrics</li>
+                                    <li><strong>Test with Real Data:</strong> Simulate production volumes</li>
+                                    <li><strong>Plan for 3-5 Years:</strong> Growth projections</li>
+                                    <li><strong>Use for Read-Heavy:</strong> 80%+ reads ideal</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border: 3px solid #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>DON'T Do This</h3>
+                                
+                                <ul style="font-size: 0.95rem; line-height: 1.9;">
+                                    <li><strong>Create Unbounded Partitions:</strong> Always have limits</li>
+                                    <li><strong>Use for Mutable Data:</strong> Frequent updates problematic</li>
+                                    <li><strong>Skip Size Calculations:</strong> Do the math first!</li>
+                                    <li><strong>Query Without LIMIT:</strong> Can return millions of rows</li>
+                                    <li><strong>Ignore Partition Warnings:</strong> Cassandra warns for a reason</li>
+                                    <li><strong>Use for Write-Heavy:</strong> Consider narrow rows instead</li>
+                                    <li><strong>Forget About Hotspots:</strong> Celebrity problem is real</li>
+                                    <li><strong>Deploy Without Testing:</strong> Test at scale first</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-clipboard-check" style="color: #059669;"></i> Pre-Deployment Checklist</h4>
+                            
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                                <p style="margin: 0 0 1rem 0;"><strong>Before going to production, verify:</strong></p>
+                                
+                                <div style="margin-left: 1.5rem; line-height: 2;">
+                                    <div>☐ <strong>Partition Size Math:</strong> Calculated max partition size</div>
+                                    <div>☐ <strong>Growth Projection:</strong> Works for next 3-5 years</div>
+                                    <div>☐ <strong>Time Bucketing:</strong> Implemented if data is time-series</div>
+                                    <div>☐ <strong>Clustering Order:</strong> DESC for latest-first queries</div>
+                                    <div>☐ <strong>LIMIT Clauses:</strong> All queries have sensible limits</div>
+                                    <div>☐ <strong>Load Testing:</strong> Tested with production-scale data</div>
+                                    <div>☐ <strong>Monitoring:</strong> Alerts set up for large partitions</div>
+                                    <div>☐ <strong>TTL Strategy:</strong> Old data cleanup planned</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Anti-Patterns -->
+                    <section id="anti-patterns" data-aos="fade-up">
+                        <h2>⚠️ Wide Row Anti-Patterns</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Critical mistakes to avoid.</p>
+
+                        <div class="story-box" data-aos="fade-up" style="border-left-color: #dc2626; background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05));">
+                            <h3 style="color: #dc2626;">❌ Anti-Pattern 1: Unbounded Partition Growth</h3>
+                            
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+-- BAD: No time bucketing<br/>
+PRIMARY KEY (user_id, action_timestamp)
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1rem;"><strong>Problem After 5 Years:</strong></p>
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+Active user performs 200 actions/day:<br/>
+• 200 actions × 365 days × 5 years = 365,000 actions<br/>
+• Row size: 300 bytes<br/>
+• Partition size: 365K × 300 = <strong style="color: #dc2626;">110 MB!</strong><br/>
+<br/>
+Problems:<br/>
+• Exceeds 100MB recommendation<br/>
+• Queries get slower over time<br/>
+• Eventually hits Cassandra limits<br/>
+• Can't delete old data efficiently
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <h4 style="color: #059669; margin-top: 0;">✅ SOLUTION: Time Bucketing</h4>
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+-- GOOD: Monthly time buckets<br/>
+PRIMARY KEY ((user_id, year_month), action_timestamp)
+                                </div>
+                                
+                                <p style="margin-top: 1rem;"><strong>Now After 5 Years:</strong></p>
+                                <div style="font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+• 60 partitions (5 years × 12 months)<br/>
+• Each partition: 6,083 actions<br/>
+• Partition size: 6K × 300 = <strong style="color: #059669;">1.8 MB ✓</strong><br/>
+<br/>
+Benefits:<br/>
+• Perfect partition size!<br/>
+• Queries stay fast forever<br/>
+• Easy to drop old months<br/>
+• Scalable indefinitely
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="border-left-color: #dc2626; background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05));">
+                            <h3 style="color: #dc2626;">❌ Anti-Pattern 2: Frequent Random Updates</h3>
+                            
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+-- BAD: Using wide rows for frequently updated data<br/>
+PRIMARY KEY (product_id, attribute_name)
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1rem;"><strong>Problem:</strong></p>
+                            <ul style="line-height: 1.8;">
+                                <li>E-commerce product with 50 attributes</li>
+                                <li>Prices update every 5 minutes</li>
+                                <li>Inventory updates every 1 minute</li>
+                                <li>Result: Constant updates to same partition</li>
+                                <li>Tombstones pile up, performance degrades</li>
+                            </ul>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <h4 style="color: #059669; margin-top: 0;">✅ SOLUTION: Use Narrow Rows for Mutable Data</h4>
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+-- GOOD: Separate tables or narrow rows<br/>
+PRIMARY KEY (product_id)<br/>
+<br/>
+Or use Redis/other cache for highly mutable data
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="border-left-color: #dc2626; background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05));">
+                            <h3 style="color: #dc2626;">❌ Anti-Pattern 3: Celebrity/Hotspot Problem</h3>
+                            
+                            <p><strong>Problem:</strong> One partition gets all the traffic</p>
+                            
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+Twitter celebrity with 100M followers:<br/>
+PRIMARY KEY (user_id, follower_id)<br/>
+<br/>
+Result:<br/>
+• ONE partition with 100M rows<br/>
+• Size: 1GB+ partition!<br/>
+• ALL traffic to one node<br/>
+• Node becomes bottleneck<br/>
+• Queries time out
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <h4 style="color: #059669; margin-top: 0;">✅ SOLUTION: Bucket Large Partitions</h4>
+                                <div style="font-family: monospace; font-size: 0.9rem;">
+-- Add bucket to partition key<br/>
+PRIMARY KEY ((user_id, bucket), follower_id)<br/>
+<br/>
+where bucket = follower_id % 100<br/>
+<br/>
+Result:<br/>
+• 100 partitions × 1M followers each<br/>
+• Each partition: 10MB<br/>
+• Distributed across 100 nodes<br/>
+• Balanced load!
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Interview Questions & Expert Answers</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master wide rows for interviews!</p>
+
+                            <!-- Question 1 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">What is a wide row and when should you use it?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        Wide rows store many clustering columns in one partition, perfect for time-series and related data co-location.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>A wide row (wide partition) is a Cassandra partition containing <strong>many rows</strong> with the <strong>SAME partition key</strong> but <strong>DIFFERENT clustering columns</strong>.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>When to Use:</strong></p>
+                                        <ul>
+                                            <li><strong>Time-Series Data:</strong> IoT sensors, logs, metrics</li>
+                                            <li><strong>Related Data:</strong> User actions, messages, photos</li>
+                                            <li><strong>Read-Heavy Workloads:</strong> 80%+ reads</li>
+                                            <li><strong>Sequential Access:</strong> Range queries common</li>
+                                            <li><strong>Latest-First Queries:</strong> Use DESC clustering order</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Key Benefit:</strong> All data co-located on same node enables single disk seek + sequential read = 100x faster than querying multiple partitions!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 2 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">What's the performance difference between wide rows and narrow rows?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        Wide rows are 100x faster for reads due to single disk seek and sequential access vs multiple random seeks.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        
+                                        <p><strong>Read Performance Comparison:</strong></p>
+                                        <ul>
+                                            <li><strong>Narrow Rows (1,000 partitions):</strong> 1,000 hash lookups, random seeks, coordinator overhead → 500-1000ms</li>
+                                            <li><strong>Wide Rows (1 partition):</strong> 1 hash lookup, 1 disk seek, sequential read → 5-10ms</li>
+                                            <li><strong>Result:</strong> 100x faster!</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Why Wide Rows Are Faster:</strong></p>
+                                        <ul>
+                                            <li>O(log n) binary search to find start point</li>
+                                            <li>O(k) sequential read where k = rows needed</li>
+                                            <li>All data on same node (no network)</li>
+                                            <li>Cache-friendly sequential access</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Trade-off:</strong> Write performance slightly worse (all writes to same node) but still fast!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 3 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">3</span>
+                                    <span class="question-text">How do you prevent unbounded partition growth in wide rows?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        Use time bucketing by adding time period to partition key, creating multiple bounded partitions instead of one infinite partition.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Use <strong>time bucketing</strong> by adding a time component to the partition key.</p>
+                                        
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 0.5rem; font-family: monospace; font-size: 0.9rem;">
+-- Instead of:<br/>
+PRIMARY KEY (sensor_id, timestamp)<br/>
+<br/>
+-- Use:<br/>
+PRIMARY KEY ((sensor_id, year_month), timestamp)
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Benefits:</strong></p>
+                                        <ul>
+                                            <li>Creates new partition each month</li>
+                                            <li>Old partitions never grow</li>
+                                            <li>Easy to drop old data</li>
+                                            <li>Predictable partition sizes</li>
+                                            <li>Works indefinitely</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Bucket Size Selection:</strong> Calculate <code>writes_per_period × row_size < 100MB</code> to choose hourly, daily, or monthly bucketing.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Questions 4-12 abbreviated for space -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">4</span>
+                                    <span class="question-text">Why are wide rows perfect for time-series data?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        Physical sort order matches query patterns, enabling ultra-fast range queries with sequential disk reads.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Time-series data naturally aligns with wide row design because timestamps provide natural clustering order, data is append-only, range queries are common, and physical sort order matches query patterns. This enables binary search to start + sequential read = O(log n + k) query time!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">5</span>
+                                    <span class="question-text">What's the maximum recommended partition size for wide rows?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        Ideal: 1-10MB, Acceptable: 10-50MB, Warning: 50-100MB, Maximum: 100MB before Cassandra warns.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Ideal 1-10MB, acceptable 10-50MB, warning zone 50-100MB, maximum 100MB (Cassandra logs warnings), hard limit 2GB (may refuse). Larger partitions slow queries, compaction, and repair while consuming more memory.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">6</span>
+                                    <span class="question-text">How does DESC clustering order help with wide rows?</span>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; font-style: italic;">
+                                        DESC order puts newest data at partition start, making "latest first" queries read only first few rows regardless of partition size.
+                                    </div>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> DESC clustering order stores newest data at the START of the partition. For "latest first" queries (feeds, timelines), Cassandra reads first N rows and stops - query time is constant regardless of partition size! This is why Netflix, Twitter, Apple use DESC order for user feeds.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Wide Row Mastery</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">You now master Cassandra's most powerful data organization pattern!</strong></p>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Key Concepts Mastered:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li><strong style="color: var(--text-primary);">Wide Row Definition:</strong> Many rows with same partition key, different clustering columns</li>
+                                <li><strong style="color: var(--text-primary);">Time-Series Pattern:</strong> Perfect for IoT, logs, metrics, user activity</li>
+                                <li><strong style="color: var(--text-primary);">Performance Benefits:</strong> 100x faster reads through co-location and sequential access</li>
+                                <li><strong style="color: var(--text-primary);">Time Bucketing:</strong> Prevent unbounded growth with year_month partition keys</li>
+                                <li><strong style="color: var(--text-primary);">DESC Ordering:</strong> Latest-first queries read only start of partition</li>
+                            </ul>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Production Patterns:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li>Netflix: Viewing history with DESC order</li>
+                                <li>Discord: Message history per channel</li>
+                                <li>Apple: iCloud photos timeline</li>
+                                <li>Spotify: Playlist track history</li>
+                                <li>Twitter: User timeline feeds</li>
+                                <li>GitHub: Repository commit history</li>
+                            </ul>
+
+                            <p style="margin-top: 2rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                <strong style="color: var(--accent-purple);">🚀 You can now design production-grade time-series schemas!</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="composite-keys.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Composite Keys</div>
+                            </div>
+                        </a>
+                        <a href="skinny-rows.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Skinny Rows</div>
+                            </div>
+                        </a>
+                    </div>
+
+ 
+                </div>
+                <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        function toggleQuestion(card) {
+            card.classList.toggle('active');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                if (window.pageYOffset >= (section.offsetTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === `#${currentSection}`);
+            });
+        }
+        function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+        window.addEventListener('scroll', highlightTOC);
+
+    </script>
+</body>
+</html>

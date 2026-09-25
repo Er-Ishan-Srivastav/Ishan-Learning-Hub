@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Practice Cassandra Debugging - Real-world Error Scenarios and Solutions!">
+    <title>Practice Debugging | CassandraHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<style>
+              html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+        :root{--accent-teal:#0d9488;--accent-purple:#8b5cf6;--accent-debug:#ef4444;--code-bg:#1e293b;--code-darker:#0f172a;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--border-light:#334155;--success-green:#059669;--warning-orange:#d97706;--error-red:#dc2626}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;font-size:16px;line-height:1.7;color:var(--text-primary);background:#020617;overflow-x:hidden}html{scroll-behavior:smooth}::-webkit-scrollbar{width:12px}::-webkit-scrollbar-track{background:#020617}::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#475569,var(--accent-teal));border-radius:6px}.progress-indicator{position:fixed;top:0;left:0;width:100%;height:4px;background:rgba(37,99,235,.1);z-index:9999}.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent-purple),var(--accent-teal));width:0;transition:width .2s ease;box-shadow:0 0 10px rgba(139,92,246,.4)}.mobile-menu-toggle{display:none;position:fixed;top:1rem;left:1rem;z-index:10000;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;width:50px;height:50px;border-radius:12px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 10px 30px rgba(139,92,246,.3)}.mobile-menu-toggle span{width:25px;height:3px;background:#fff;border-radius:2px;transition:all .3s}.sidebar{position:fixed;left:0;top:0;width:320px;height:100vh;background:linear-gradient(180deg,var(--code-bg),var(--code-darker));border-right:1px solid var(--border-light);overflow-y:auto;padding:2rem 0;z-index:1000;transition:transform .3s ease;box-shadow:5px 0 20px rgba(0,0,0,.3)}.sidebar.hidden{transform:translateX(-100%)}.logo{padding:0 1.5rem;margin-bottom:2rem;text-align:center}.logo-icon{font-size:3rem;margin-bottom:.5rem;animation:float 3s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}.logo h2{font-size:1.75rem;font-weight:800;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.25rem}.logo-subtitle{font-size:.85rem;color:var(--text-secondary);font-weight:500}.search-box{position:relative;padding:0 1.5rem;margin-bottom:2rem}.search-box input{width:100%;padding:.85rem 1rem .85rem 2.75rem;background:var(--code-darker);border:2px solid var(--border-light);border-radius:12px;color:var(--text-primary);font-size:.9rem;transition:all .3s ease}.search-box input:focus{outline:0;border-color:var(--accent-teal);box-shadow:0 0 0 3px rgba(13,148,136,.1)}.search-icon{position:absolute;left:2.25rem;top:50%;transform:translateY(-50%);font-size:1.1rem;color:var(--text-secondary)}.learning-path-section{padding:0 1rem}.path-section{margin-bottom:1rem}.path-section-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem;background:var(--code-darker);border-radius:10px;cursor:pointer;transition:all .3s ease;border:1px solid transparent}.path-section-header:hover{background:rgba(139,92,246,.15);border-color:var(--accent-purple);transform:translateX(5px)}.path-section-title{display:flex;align-items:center;gap:.75rem;flex:1}.path-section-icon{font-size:1.3rem}.path-section-info{flex:1}.path-section-name{font-size:.95rem;font-weight:600;color:var(--text-primary)}.path-section-progress{font-size:.75rem;color:var(--text-secondary);margin-top:.2rem}.path-section-toggle{color:var(--text-secondary);transition:transform .3s ease;font-size:1.2rem}.path-section.expanded .path-section-toggle{transform:rotate(180deg)}.path-section-content{max-height:0;overflow:hidden;transition:max-height .4s ease}.path-section.expanded .path-section-content{max-height:2000px}.path-section-links{list-style:none;padding:.5rem 0 0 2.5rem;margin:0}.path-section-links li{margin-bottom:.5rem}.path-section-links a{color:var(--text-secondary);text-decoration:none;font-size:.875rem;transition:all .3s ease;display:block;padding:.6rem .8rem;border-radius:8px;position:relative}.path-section-links a.active,.path-section-links a:hover{color:var(--accent-teal);background:rgba(13,148,136,.1);transform:translateX(5px)}.main-content{margin-left:320px;min-height:100vh;transition:margin-left .3s ease}.page-hero{background:linear-gradient(135deg,#ef4444 0,#dc2626 25%,#b91c1c 50%,#991b1b 100%);padding:6rem 0 5rem;position:relative;overflow:hidden;border-bottom:3px solid var(--accent-debug)}.page-hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 20% 50%,rgba(239,68,68,.2) 0,transparent 50%),radial-gradient(circle at 80% 80%,rgba(220,38,38,.2) 0,transparent 50%)}.page-hero-content{position:relative;z-index:2;color:#fff;text-align:center}.hero-badge{display:inline-flex;align-items:center;gap:.75rem;padding:.65rem 1.5rem;background:rgba(239,68,68,.3);border:2px solid rgba(239,68,68,.5);border-radius:50px;color:#fff;font-size:.875rem;font-weight:700;letter-spacing:.5px;margin-bottom:2rem;backdrop-filter:blur(10px)}.page-hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;line-height:1.1;margin-bottom:1.5rem;text-shadow:0 5px 20px rgba(0,0,0,.3)}.gradient-text{background:linear-gradient(135deg,#fff 0,#e2e8f0 50%,#fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.page-hero p{font-size:clamp(1.1rem,2.5vw,1.5rem);color:rgba(255,255,255,.9);max-width:900px;margin:0 auto 2.5rem;line-height:1.6;text-shadow:0 2px 10px rgba(0,0,0,.2)}.breadcrumb-modern{background:var(--code-darker);padding:1.25rem 0;font-size:.9rem;border-bottom:1px solid var(--border-light);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}.breadcrumb-modern a{color:var(--text-secondary);text-decoration:none;transition:color .3s;font-weight:500}.breadcrumb-modern a:hover{color:var(--accent-teal)}.breadcrumb-modern .separator{margin:0 .75rem;color:#64748b}.breadcrumb-modern .current{color:var(--text-primary);font-weight:600}.debug-container{max-width:1200px;margin:0 auto;padding:3rem 0}.bug-card{background:linear-gradient(135deg,rgba(71,85,105,.1),rgba(71,85,105,.05));border:2px solid var(--border-light);border-radius:16px;padding:2.5rem;margin-bottom:3rem;transition:all .3s ease}.bug-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;flex-wrap:wrap;gap:1rem}.bug-number{background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;padding:.5rem 1.5rem;border-radius:8px;font-weight:700;font-size:1.1rem}.severity-tag{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:.9rem}.severity-tag.critical{background:rgba(239,68,68,.2);color:#ef4444;border:2px solid #ef4444}.severity-tag.high{background:rgba(245,158,11,.2);color:#f59e0b;border:2px solid #f59e0b}.severity-tag.medium{background:rgba(59,130,246,.2);color:#3b82f6;border:2px solid #3b82f6}.bug-title{font-size:1.8rem;font-weight:700;color:var(--text-primary);margin-bottom:1.5rem}.bug-description{color:var(--text-secondary);line-height:1.8;margin-bottom:2rem;font-size:1.05rem}.error-box{background:rgba(239,68,68,.1);border:2px solid var(--error-red);border-radius:12px;padding:1.5rem;margin-bottom:2rem}.error-title{color:var(--error-red);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;font-size:1.1rem}.error-message{font-family:'JetBrains Mono',monospace;color:#ef4444;font-size:.9rem;background:var(--code-darker);padding:1rem;border-radius:8px;white-space:pre-wrap;line-height:1.6}.code-block{background:var(--code-darker);border:2px solid var(--border-light);border-radius:12px;padding:1.5rem;margin-bottom:2rem;overflow-x:auto}.code-title{color:var(--accent-teal);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}.code-content{font-family:'JetBrains Mono',monospace;color:var(--text-secondary);font-size:.9rem;line-height:1.8}.keyword{color:#ff6b9d;font-weight:600}.type{color:#a78bfa}.string{color:#ffd93d}.comment{color:#7f8c8d;font-style:italic}.number{color:#6bcf7f}.symptoms-box{background:rgba(245,158,11,.1);border-left:4px solid var(--warning-orange);border-radius:8px;padding:1.5rem;margin-bottom:2rem}.symptoms-title{color:var(--warning-orange);font-weight:700;margin-bottom:.75rem}.symptoms-list{color:var(--text-secondary);margin-left:1.5rem;line-height:1.8}.action-buttons{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}.btn-hint{background:var(--code-darker);color:var(--warning-orange);border:2px solid var(--warning-orange);padding:.85rem 2rem;border-radius:10px;font-weight:700;cursor:pointer;transition:all .3s ease}.btn-hint:hover{background:rgba(245,158,11,.1)}.btn-solution{background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;padding:.85rem 2rem;border-radius:10px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 5px 15px rgba(139,92,246,.4)}.btn-solution:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(139,92,246,.5)}.hint-box{background:rgba(245,158,11,.1);border-left:4px solid var(--warning-orange);border-radius:8px;padding:1.5rem;margin-bottom:2rem;display:none;animation:slideDown .3s ease}@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}.hint-box.show{display:block}.hint-title{color:var(--warning-orange);font-weight:700;margin-bottom:.75rem}.solution-box{background:rgba(5,150,105,.1);border-left:4px solid var(--success-green);border-radius:12px;padding:2rem;display:none;animation:slideDown .3s ease}.solution-box.show{display:block}.solution-title{color:var(--success-green);font-weight:700;margin-bottom:1rem;font-size:1.2rem}.solution-section{margin-bottom:1.5rem}.solution-section h4{color:var(--text-primary);margin-bottom:.75rem;font-size:1.05rem}.explanation-text{color:var(--text-secondary);line-height:1.8;margin-bottom:1rem}.fixed-code{background:var(--code-darker);padding:1rem;border-radius:8px;font-family:'JetBrains Mono',monospace;color:var(--success-green);margin-top:.5rem;overflow-x:auto;font-size:.9rem;line-height:1.8}.prevention-tips{background:rgba(13,148,136,.1);border-left:4px solid var(--accent-teal);border-radius:8px;padding:1.5rem;margin-top:1.5rem}.prevention-title{color:var(--accent-teal);font-weight:700;margin-bottom:.75rem}.prevention-list{color:var(--text-secondary);margin-left:1.5rem;line-height:1.8}.scroll-top{position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.75rem;cursor:pointer;opacity:0;visibility:hidden;transition:all .4s ease;box-shadow:0 10px 30px rgba(139,92,246,.3);z-index:1000}.scroll-top.visible{opacity:1;visibility:visible}.scroll-top:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(139,92,246,.4)}@media (max-width:992px){.mobile-menu-toggle{display:flex}.sidebar{transform:translateX(-100%)}.sidebar.active{transform:translateX(0)}.main-content{margin-left:0}.debug-container{padding:2rem 1rem}.bug-card{padding:1.5rem}.action-buttons{flex-direction:column}.action-buttons button{width:100%}}@media (max-width:768px){.page-hero{padding:4rem 0 3rem}.bug-title{font-size:1.5rem}.bug-header{flex-direction:column;align-items:flex-start}}</style>
+</head>
+<body>
+<div class="progress-indicator"><div class="progress-fill" id="progressBar"></div></div>
+<button class="mobile-menu-toggle" id="mobileMenuToggle"><span></span><span></span><span></span></button>
+<nav class="sidebar" id="sidebar">
+<div class="logo"><span class="logo-icon">🐛</span><h2>CassandraHub</h2><p class="logo-subtitle">Practice Debugging</p></div>
+<div class="search-box"><input type="text" placeholder="Search topics..."><span class="search-icon">🔍</span></div>
+<!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html" class="active">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+<main class="main-content">
+<section class="page-hero">
+<div class="container">
+<div class="page-hero-content" data-aos="fade-up">
+<span class="hero-badge"><i class="fas fa-bug"></i> Troubleshooting</span>
+<h1><span class="gradient-text">Practice Debugging</span></h1>
+<p>Fix real-world Cassandra errors and performance issues!</p>
+</div>
+</div>
+</section>
+<div class="breadcrumb-modern">
+<div class="container">
+<a href="index.html"><i class="fas fa-home"></i> Home</a>
+<span class="separator">›</span>
+<span class="current">Practice Debugging</span>
+</div>
+</div>
+
+<div class="container debug-container">
+
+<!-- Bug 1: ALLOW FILTERING -->
+<div class="bug-card" data-aos="fade-up">
+<div class="bug-header">
+<div class="bug-number">Bug #1</div>
+<div class="severity-tag critical">Critical Performance</div>
+</div>
+<div class="bug-title">🐌 Query Takes 30+ Seconds to Complete</div>
+<div class="bug-description">
+Your application's search feature is timing out. Users complain that searching for products by price range takes forever. The query works but performance is unacceptable.
+</div>
+
+<div class="error-box">
+<div class="error-title"><i class="fas fa-exclamation-triangle"></i> Error Message</div>
+<div class="error-message">Cannot execute this query as it might involve data filtering and thus may have unpredictable performance.
+If you want to execute this query despite the performance unpredictability, use ALLOW FILTERING</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Problematic Query</div>
+<div class="code-content"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products
+<span class="keyword">WHERE</span> price >= <span class="number">50</span> <span class="keyword">AND</span> price <= <span class="number">100</span>
+<span class="keyword">ALLOW FILTERING</span>;</div>
+</div>
+
+<div class="symptoms-box">
+<div class="symptoms-title">🔍 Symptoms</div>
+<ul class="symptoms-list">
+<li>Query works but takes 30+ seconds</li>
+<li>CPU usage spikes to 100% during query</li>
+<li>Affects all nodes in cluster</li>
+<li>Query scans entire products table</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-hint" onclick="toggleHint(1)">
+<i class="fas fa-lightbulb"></i> Show Hint
+</button>
+<button class="btn-solution" onclick="toggleSolution(1)">
+<i class="fas fa-wrench"></i> Show Solution
+</button>
+</div>
+
+<div class="hint-box" id="hint-1">
+<div class="hint-title">💡 Debugging Hint</div>
+<p>ALLOW FILTERING scans ALL partitions, causing full table scan. The problem is that 'price' is not part of the PRIMARY KEY, so Cassandra can't efficiently filter. Think about how to redesign the data model to support this query pattern.</p>
+</div>
+
+<div class="solution-box" id="solution-1">
+<div class="solution-title">✅ Solution & Explanation</div>
+
+<div class="solution-section">
+<h4>🔍 Root Cause</h4>
+<p class="explanation-text">ALLOW FILTERING forces a full table scan across all partitions. With a large products table, this means reading millions of rows and filtering them in memory. This is why the query is slow.</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix: Create Price Range Table</h4>
+<div class="fixed-code"><span class="keyword">CREATE TABLE</span> products_by_price_range (
+    price_bucket <span class="type">text</span>,      <span class="comment">-- '0-50', '50-100', '100-200', etc.</span>
+    product_id <span class="type">uuid</span>,
+    name <span class="type">text</span>,
+    price <span class="type">decimal</span>,
+    <span class="keyword">PRIMARY KEY</span> (price_bucket, price, product_id)
+) <span class="keyword">WITH CLUSTERING ORDER BY</span> (price <span class="keyword">ASC</span>);
+
+<span class="comment">-- Now query is fast:</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> products_by_price_range
+<span class="keyword">WHERE</span> price_bucket = <span class="string">'50-100'</span>;</div>
+</div>
+
+<div class="solution-section">
+<h4>💡 Alternative: Secondary Index (with caution)</h4>
+<div class="fixed-code"><span class="comment">-- Only if low cardinality + small dataset</span>
+<span class="keyword">CREATE INDEX</span> ON products (price);</div>
+<p class="explanation-text"><strong>Warning:</strong> Secondary indexes have limitations. Better to design proper tables.</p>
+</div>
+
+<div class="prevention-tips">
+<div class="prevention-title">🛡️ Prevention Tips</div>
+<ul class="prevention-list">
+<li>Never use ALLOW FILTERING in production queries</li>
+<li>Design tables based on query patterns (query-first design)</li>
+<li>Use bucketing for range queries</li>
+<li>Avoid secondary indexes on high-cardinality columns</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Bug 2: Partition Too Large -->
+<div class="bug-card" data-aos="fade-up">
+<div class="bug-header">
+<div class="bug-number">Bug #2</div>
+<div class="severity-tag critical">Critical Storage</div>
+</div>
+<div class="bug-title">💾 Massive Partition Warning in Logs</div>
+<div class="bug-description">
+Your IoT sensor application is generating warnings about large partitions. Some queries are timing out, and you're seeing node crashes during compaction.
+</div>
+
+<div class="error-box">
+<div class="error-title"><i class="fas fa-exclamation-triangle"></i> Log Warning</div>
+<div class="error-message">WARN  [CompactionExecutor:1] 2024-01-09 - Compacting large partition sensor_readings:sensor_123 (2.5GB)
+Partitions larger than 100MB are not recommended</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Current Schema</div>
+<div class="code-content"><span class="keyword">CREATE TABLE</span> sensor_readings (
+    sensor_id <span class="type">text</span> <span class="keyword">PRIMARY KEY</span>,
+    reading_time <span class="type">timestamp</span>,
+    temperature <span class="type">decimal</span>,
+    humidity <span class="type">decimal</span>
+);
+
+<span class="comment">-- Sensor collects data every second for years!</span>
+<span class="comment">-- Single partition grows unbounded ❌</span></div>
+</div>
+
+<div class="symptoms-box">
+<div class="symptoms-title">🔍 Symptoms</div>
+<ul class="symptoms-list">
+<li>Compaction warnings for large partitions</li>
+<li>Read queries timing out</li>
+<li>Node crashes during compaction</li>
+<li>Excessive disk usage on some nodes</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-hint" onclick="toggleHint(2)">
+<i class="fas fa-lightbulb"></i> Show Hint
+</button>
+<button class="btn-solution" onclick="toggleSolution(2)">
+<i class="fas fa-wrench"></i> Show Solution
+</button>
+</div>
+
+<div class="hint-box" id="hint-2">
+<div class="hint-title">💡 Debugging Hint</div>
+<p>The problem is that sensor_id is the only partition key. All readings for a sensor go to one partition forever. For time-series data, you need to "bucket" data by time to keep partitions bounded. Think: how can you split data by time periods?</p>
+</div>
+
+<div class="solution-box" id="solution-2">
+<div class="solution-title">✅ Solution & Explanation</div>
+
+<div class="solution-section">
+<h4>🔍 Root Cause</h4>
+<p class="explanation-text">Using only sensor_id as partition key creates unbounded partitions. One sensor collecting data every second creates ~31 million rows per year in a single partition, far exceeding the 100MB recommendation.</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix: Time Bucketing</h4>
+<div class="fixed-code"><span class="keyword">CREATE TABLE</span> sensor_readings (
+    sensor_id <span class="type">text</span>,
+    bucket <span class="type">text</span>,           <span class="comment">-- 'YYYY-MM-DD' or 'YYYY-MM-DD-HH'</span>
+    reading_time <span class="type">timestamp</span>,
+    temperature <span class="type">decimal</span>,
+    humidity <span class="type">decimal</span>,
+    <span class="keyword">PRIMARY KEY</span> ((sensor_id, bucket), reading_time)
+) <span class="keyword">WITH CLUSTERING ORDER BY</span> (reading_time <span class="keyword">DESC</span>);
+
+<span class="comment">-- Partition key: (sensor_id, bucket)</span>
+<span class="comment">-- Each partition = 1 day/hour of data ✅</span>
+<span class="comment">-- Bounded partition size!</span></div>
+</div>
+
+<div class="solution-section">
+<h4>📝 Insert Example</h4>
+<div class="fixed-code"><span class="keyword">INSERT INTO</span> sensor_readings (
+    sensor_id, bucket, reading_time, temperature
+) <span class="keyword">VALUES</span> (
+    <span class="string">'sensor_123'</span>,
+    <span class="string">'2024-01-09'</span>,          <span class="comment">-- Bucket = today</span>
+    toTimestamp(now()),
+    <span class="number">23.5</span>
+);</div>
+</div>
+
+<div class="solution-section">
+<h4>🔍 Query Pattern</h4>
+<div class="fixed-code"><span class="comment">-- Get readings from specific day</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sensor_readings
+<span class="keyword">WHERE</span> sensor_id = <span class="string">'sensor_123'</span>
+  <span class="keyword">AND</span> bucket = <span class="string">'2024-01-09'</span>;
+
+<span class="comment">-- Get last 24 hours (query 2 buckets)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> sensor_readings
+<span class="keyword">WHERE</span> sensor_id = <span class="string">'sensor_123'</span>
+  <span class="keyword">AND</span> bucket <span class="keyword">IN</span> (<span class="string">'2024-01-09'</span>, <span class="string">'2024-01-08'</span>)
+  <span class="keyword">AND</span> reading_time >= ?;</div>
+</div>
+
+<div class="prevention-tips">
+<div class="prevention-title">🛡️ Prevention Tips</div>
+<ul class="prevention-list">
+<li>Always use time bucketing for time-series data</li>
+<li>Keep partitions under 100MB (ideally under 10MB)</li>
+<li>Choose bucket size based on write rate</li>
+<li>Use TimeWindowCompactionStrategy (TWCS) for time-series</li>
+<li>Monitor partition sizes with nodetool tablestats</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Bug 3: Tombstones -->
+<div class="bug-card" data-aos="fade-up">
+<div class="bug-header">
+<div class="bug-number">Bug #3</div>
+<div class="severity-tag high">High Performance</div>
+</div>
+<div class="bug-title">⚰️ Read Queries Degrading Over Time</div>
+<div class="bug-description">
+Your shopping cart feature was fast initially, but read performance has degraded significantly over 3 months. Queries that took 10ms now take 500ms+.
+</div>
+
+<div class="error-box">
+<div class="error-title"><i class="fas fa-exclamation-triangle"></i> Log Warning</div>
+<div class="error-message">Read 15000 live rows and 120000 tombstone cells for query SELECT * FROM shopping_carts WHERE user_id = ?
+(see tombstone_warn_threshold and tombstone_failure_threshold)</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Application Code Pattern</div>
+<div class="code-content"><span class="comment">// User adds item to cart</span>
+<span class="keyword">INSERT INTO</span> shopping_carts (...) <span class="keyword">VALUES</span> (...);
+
+<span class="comment">// User removes item (creates tombstone!)</span>
+<span class="keyword">DELETE FROM</span> shopping_carts 
+<span class="keyword">WHERE</span> user_id = ? <span class="keyword">AND</span> item_id = ?;
+
+<span class="comment">// Users add/remove items frequently → many tombstones</span>
+<span class="comment">// gc_grace_seconds = 10 days (default)</span>
+<span class="comment">// Tombstones not removed for 10 days!</span></div>
+</div>
+
+<div class="symptoms-box">
+<div class="symptoms-title">🔍 Symptoms</div>
+<ul class="symptoms-list">
+<li>Read performance degrades over time</li>
+<li>Tombstone warnings in logs</li>
+<li>High disk I/O during reads</li>
+<li>Query latency increases linearly with time</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-hint" onclick="toggleHint(3)">
+<i class="fas fa-lightbulb"></i> Show Hint
+</button>
+<button class="btn-solution" onclick="toggleSolution(3)">
+<i class="fas fa-wrench"></i> Show Solution
+</button>
+</div>
+
+<div class="hint-box" id="hint-3">
+<div class="hint-title">💡 Debugging Hint</div>
+<p>Every DELETE creates a tombstone marker. Cassandra must read and skip all tombstones during queries. High delete rates + long gc_grace_seconds = tombstone buildup. Consider: do you really need to DELETE, or can you use TTL or a different pattern?</p>
+</div>
+
+<div class="solution-box" id="solution-3">
+<div class="solution-title">✅ Solution & Explanation</div>
+
+<div class="solution-section">
+<h4>🔍 Root Cause</h4>
+<p class="explanation-text">Frequent DELETEs create tombstones. During reads, Cassandra must scan through all tombstones (120,000!) to find live data (15,000 rows). Tombstones aren't removed until gc_grace_seconds expires AND compaction runs.</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 1: Use TTL Instead of DELETE</h4>
+<div class="fixed-code"><span class="comment">-- Set TTL on cart items (auto-expire in 30 days)</span>
+<span class="keyword">INSERT INTO</span> shopping_carts (
+    user_id, item_id, quantity
+) <span class="keyword">VALUES</span> (?, ?, ?)
+<span class="keyword">USING TTL</span> <span class="number">2592000</span>;  <span class="comment">-- 30 days</span>
+
+<span class="comment">-- No explicit DELETE needed!</span>
+<span class="comment">-- Items expire automatically</span></div>
+<p class="explanation-text"><strong>Why it works:</strong> TTL still creates tombstones, but they're more predictable and manageable.</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 2: Reduce gc_grace_seconds</h4>
+<div class="fixed-code"><span class="keyword">ALTER TABLE</span> shopping_carts 
+<span class="keyword">WITH</span> gc_grace_seconds = <span class="number">86400</span>;  <span class="comment">-- 1 day instead of 10</span>
+
+<span class="comment">-- Run repair more frequently</span>
+nodetool repair shopping_carts</div>
+<p class="explanation-text"><strong>Trade-off:</strong> Must run repairs more frequently to prevent zombie data.</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 3: Redesign Without Deletes</h4>
+<div class="fixed-code"><span class="comment">-- Add 'active' flag instead of deleting</span>
+<span class="keyword">CREATE TABLE</span> shopping_carts (
+    user_id <span class="type">uuid</span>,
+    item_id <span class="type">uuid</span>,
+    quantity <span class="type">int</span>,
+    active <span class="type">boolean</span>,
+    <span class="keyword">PRIMARY KEY</span> (user_id, item_id)
+);
+
+<span class="comment">-- Mark as inactive instead of deleting</span>
+<span class="keyword">UPDATE</span> shopping_carts 
+<span class="keyword">SET</span> active = <span class="keyword">false</span>
+<span class="keyword">WHERE</span> user_id = ? <span class="keyword">AND</span> item_id = ?;</div>
+</div>
+
+<div class="solution-section">
+<h4>🔧 Immediate Fix: Manual Compaction</h4>
+<div class="fixed-code">nodetool compact keyspace_name shopping_carts</div>
+<p class="explanation-text">Forces compaction to remove eligible tombstones now.</p>
+</div>
+
+<div class="prevention-tips">
+<div class="prevention-title">🛡️ Prevention Tips</div>
+<ul class="prevention-list">
+<li>Minimize DELETEs; use TTL when possible</li>
+<li>Lower gc_grace_seconds for high-churn tables</li>
+<li>Monitor tombstone warnings</li>
+<li>Consider redesigning to avoid deletes</li>
+<li>Run regular compactions on high-delete tables</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Bug 4: Write Timeout -->
+<div class="bug-card" data-aos="fade-up">
+<div class="bug-header">
+<div class="bug-number">Bug #4</div>
+<div class="severity-tag high">High Availability</div>
+</div>
+<div class="bug-title">⏰ Write Timeouts During High Load</div>
+<div class="bug-description">
+During peak traffic, your application experiences write timeouts. Operations that usually succeed start failing with timeout errors.
+</div>
+
+<div class="error-box">
+<div class="error-title"><i class="fas fa-exclamation-triangle"></i> Error Message</div>
+<div class="error-message">com.datastax.driver.core.exceptions.WriteTimeoutException: 
+Cassandra timeout during write query at consistency QUORUM (2 replica nodes required but only 1 responded)</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Client Configuration</div>
+<div class="code-content"><span class="comment">// Application settings</span>
+consistency_level = QUORUM
+replication_factor = 3
+timeout = 2000ms  <span class="comment">// 2 seconds</span>
+
+<span class="comment">// During peak: 1000 writes/sec</span>
+<span class="comment">// Some nodes struggling to keep up</span></div>
+</div>
+
+<div class="symptoms-box">
+<div class="symptoms-title">🔍 Symptoms</div>
+<ul class="symptoms-list">
+<li>Write timeouts during high traffic</li>
+<li>Works fine during low traffic</li>
+<li>Some nodes have high write latency</li>
+<li>Client sees "2 nodes required but only 1 responded"</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-hint" onclick="toggleHint(4)">
+<i class="fas fa-lightbulb"></i> Show Hint
+</button>
+<button class="btn-solution" onclick="toggleSolution(4)">
+<i class="fas fa-wrench"></i> Show Solution
+</button>
+</div>
+
+<div class="hint-box" id="hint-4">
+<div class="hint-title">💡 Debugging Hint</div>
+<p>QUORUM requires 2 out of 3 nodes to respond within timeout. If nodes are overloaded or have high GC pauses, they can't respond in time. Check node performance metrics and consider either fixing slow nodes or adjusting consistency level.</p>
+</div>
+
+<div class="solution-box" id="solution-4">
+<div class="solution-title">✅ Solution & Explanation</div>
+
+<div class="solution-section">
+<h4>🔍 Root Cause</h4>
+<p class="explanation-text">QUORUM (2/3 nodes) must respond within 2 seconds. During high load, one or more nodes can't respond fast enough. Common causes: high GC pauses, overloaded nodes, network issues, or hardware problems.</p>
+</div>
+
+<div class="solution-section">
+<h4>🔍 Step 1: Diagnose Node Performance</h4>
+<div class="fixed-code"><span class="comment"># Check node stats</span>
+nodetool tablestats
+nodetool tpstats
+nodetool gcstats
+
+<span class="comment"># Look for:</span>
+<span class="comment"># - High pending writes in tpstats</span>
+<span class="comment"># - Long GC pauses in gcstats</span>
+<span class="comment"># - Uneven load distribution</span></div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 1: Increase Timeout</h4>
+<div class="fixed-code"><span class="comment">// If nodes are just slightly slow</span>
+timeout = <span class="number">5000</span>;  <span class="comment">// Increase to 5 seconds</span></div>
+<p class="explanation-text"><strong>Note:</strong> This is a temporary fix. Find root cause!</p>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 2: Lower Consistency Level</h4>
+<div class="fixed-code"><span class="comment">// For writes that can tolerate eventual consistency</span>
+consistency_level = ONE;  <span class="comment">// Only 1 replica needs to respond</span>
+
+<span class="comment">// Trade-off: faster writes, slightly less consistency</span>
+<span class="comment">// Still durable (written to commit log + memtable)</span></div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 3: Tune JVM Heap</h4>
+<div class="fixed-code"><span class="comment"># If GC pauses are the issue</span>
+<span class="comment"># In cassandra-env.sh:</span>
+MAX_HEAP_SIZE=<span class="string">"8G"</span>
+HEAP_NEWSIZE=<span class="string">"2G"</span>
+
+<span class="comment"># Enable G1GC for better pause times</span>
+-XX:+UseG1GC</div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 4: Add More Nodes</h4>
+<p class="explanation-text">If nodes are genuinely overloaded, scale horizontally by adding more nodes to distribute load.</p>
+</div>
+
+<div class="prevention-tips">
+<div class="prevention-title">🛡️ Prevention Tips</div>
+<ul class="prevention-list">
+<li>Monitor node performance metrics continuously</li>
+<li>Set appropriate timeouts based on P99 latency</li>
+<li>Use appropriate consistency levels per use case</li>
+<li>Tune JVM for consistent GC pauses</li>
+<li>Scale cluster before hitting resource limits</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Bug 5: Unbalanced Cluster -->
+<div class="bug-card" data-aos="fade-up">
+<div class="bug-header">
+<div class="bug-number">Bug #5</div>
+<div class="severity-tag medium">Medium Operations</div>
+</div>
+<div class="bug-title">⚖️ Unbalanced Data Distribution</div>
+<div class="bug-description">
+Your 6-node cluster has uneven data distribution. One node has 500GB while others have 100GB. The overloaded node is slow and causing issues.
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-terminal"></i> nodetool status Output</div>
+<div class="code-content">Datacenter: datacenter1
+========================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address        Load       Owns    Host ID
+UN  10.0.0.1       102 GB     16.2%   abc123...
+UN  10.0.0.2       495 GB     18.8%   def456...  <span class="comment">← Problem!</span>
+UN  10.0.0.3       98 GB      16.5%   ghi789...
+UN  10.0.0.4       105 GB     16.1%   jkl012...
+UN  10.0.0.5       101 GB     16.2%   mno345...
+UN  10.0.0.6       99 GB      16.2%   pqr678...</div>
+</div>
+
+<div class="symptoms-box">
+<div class="symptoms-title">🔍 Symptoms</div>
+<ul class="symptoms-list">
+<li>One node has 5x more data than others</li>
+<li>That node is slower for reads/writes</li>
+<li>Uneven "Owns" percentages</li>
+<li>Cluster is not utilizing resources evenly</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-hint" onclick="toggleHint(5)">
+<i class="fas fa-lightbulb"></i> Show Hint
+</button>
+<button class="btn-solution" onclick="toggleSolution(5)">
+<i class="fas fa-wrench"></i> Show Solution
+</button>
+</div>
+
+<div class="hint-box" id="hint-5">
+<div class="hint-title">💡 Debugging Hint</div>
+<p>Unbalanced clusters usually indicate either: (1) poor partition key choice creating "hot" partitions, or (2) incorrect token assignment. Check if certain partition keys are storing way more data than others, or if initial_token was manually misconfigured.</p>
+</div>
+
+<div class="solution-box" id="solution-5">
+<div class="solution-title">✅ Solution & Explanation</div>
+
+<div class="solution-section">
+<h4>🔍 Root Cause Analysis</h4>
+<p class="explanation-text">Two main causes: (1) <strong>Hot partitions</strong> - one or more partition keys have massively more data, or (2) <strong>Bad token distribution</strong> - tokens weren't properly assigned when nodes joined.</p>
+</div>
+
+<div class="solution-section">
+<h4>🔍 Diagnose: Check for Hot Partitions</h4>
+<div class="fixed-code">nodetool cfstats keyspace.table_name
+
+<span class="comment"># Look at:</span>
+<span class="comment"># - Compacted partition maximum bytes</span>
+<span class="comment"># - Partition size percentiles</span>
+<span class="comment"># If max >> average, you have hot partitions</span></div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 1: If Hot Partitions (Data Model Issue)</h4>
+<div class="fixed-code"><span class="comment">-- BAD: One partition gets all data</span>
+<span class="keyword">CREATE TABLE</span> global_events (
+    event_type <span class="type">text</span> <span class="keyword">PRIMARY KEY</span>,  <span class="comment">-- Only 1 value: 'click' ❌</span>
+    event_id <span class="type">timeuuid</span>,
+    data <span class="type">text</span>
+);
+
+<span class="comment">-- GOOD: Distribute with better partition key</span>
+<span class="keyword">CREATE TABLE</span> events (
+    event_date <span class="type">text</span>,          <span class="comment">-- 'YYYY-MM-DD'</span>
+    event_type <span class="type">text</span>,
+    event_id <span class="type">timeuuid</span>,
+    data <span class="type">text</span>,
+    <span class="keyword">PRIMARY KEY</span> ((event_date, event_type), event_id)
+);</div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 2: If Bad Token Distribution</h4>
+<div class="fixed-code"><span class="comment"># Rebalance cluster with vnodes (if not already enabled)</span>
+<span class="comment"># In cassandra.yaml:</span>
+num_tokens: 256  <span class="comment"># Default for vnodes</span>
+
+<span class="comment"># Decommission and rejoin problematic node</span>
+nodetool decommission
+<span class="comment"># Wait for completion, then restart node</span>
+<span class="comment"># It will rejoin with proper token distribution</span></div>
+</div>
+
+<div class="solution-section">
+<h4>🛠️ Fix 3: Run Cleanup After Decommission</h4>
+<div class="fixed-code"><span class="comment"># After rebalancing, clean up old data</span>
+nodetool cleanup</div>
+</div>
+
+<div class="prevention-tips">
+<div class="prevention-title">🛡️ Prevention Tips</div>
+<ul class="prevention-list">
+<li>Use vnodes (num_tokens: 256) for automatic balancing</li>
+<li>Choose partition keys with high cardinality</li>
+<li>Monitor "nodetool status" regularly</li>
+<li>Avoid manual token assignment unless necessary</li>
+<li>Test data distribution in staging first</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="practice-modeling.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Practice Modeling</div>
+        </div>
+    </a>
+    <a href="practice-performance.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Practice Performance</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+</div>
+
+<button class="scroll-top" id="scrollTop"><i class="fas fa-arrow-up"></i></button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+function toggleHint(bugId) {
+    const hintBox = document.getElementById(`hint-${bugId}`);
+    hintBox.classList.toggle('show');
+}
+
+function toggleSolution(bugId) {
+    const solutionBox = document.getElementById(`solution-${bugId}`);
+    solutionBox.classList.toggle('show');
+    
+    if (solutionBox.classList.contains('show')) {
+        solutionBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+AOS.init({duration:800,easing:'ease-in-out',once:true});
+window.addEventListener('scroll',()=>{
+const winScroll=document.body.scrollTop||document.documentElement.scrollTop;
+const height=document.documentElement.scrollHeight-document.documentElement.clientHeight;
+document.getElementById('progressBar').style.width=(winScroll/height)*100+'%';
+});
+const mobileMenuToggle=document.getElementById('mobileMenuToggle');
+const sidebar=document.getElementById('sidebar');
+mobileMenuToggle.addEventListener('click',()=>{sidebar.classList.toggle('active');});
+document.addEventListener('click',(e)=>{
+if(window.innerWidth<=992){
+if(!sidebar.contains(e.target)&&!mobileMenuToggle.contains(e.target)){
+sidebar.classList.remove('active');
+}}
+});
+function toggleSection(element){element.closest('.path-section').classList.toggle('expanded');}
+const scrollTopBtn=document.getElementById('scrollTop');
+window.addEventListener('scroll',()=>{scrollTopBtn.classList.toggle('visible',window.pageYOffset>300);});
+scrollTopBtn.addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});});
+</script>
+</body>
+</html>

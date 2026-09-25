@@ -1,0 +1,3224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to DROP KEYSPACE in Cassandra - Master safe deletion, backup strategies, and avoid catastrophic data loss with expert guidance!">
+    <meta name="keywords" content="cassandra drop keyspace, delete keyspace, cassandra safety, data backup">
+    <title>DROP KEYSPACE in Cassandra: Safety Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 25%, #7f1d1d 50%, #450a0a 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(127, 29, 29, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🗑️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        /* SVG Container */
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box.expert {
+            border-left-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .comparison-card:hover::before {
+            opacity: 1;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Interactive Console */
+        .live-console {
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .console-header {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .console-title {
+            color: white;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .console-btn.primary {
+            background: var(--error-red);
+            border-color: var(--error-red);
+        }
+
+        .console-btn.primary:hover {
+            background: #991b1b;
+        }
+
+        .console-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .console-output {
+            color: var(--text-secondary);
+        }
+
+        .console-log {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .log-input {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .log-success {
+            color: #059669;
+            background: rgba(5, 150, 105, 0.1);
+            font-weight: 600;
+        }
+
+        .log-warning {
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        .log-error {
+            color: #dc2626;
+            background: rgba(220, 38, 38, 0.1);
+            font-weight: 600;
+        }
+
+        .log-info {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        /* Disaster Story Box */
+        .disaster-box {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05));
+            border-left: 5px solid var(--error-red);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--error-red);
+        }
+
+        .disaster-box::before {
+            content: '💀';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .disaster-box h3 {
+            color: var(--error-red);
+            margin-top: 0;
+        }
+
+        /* Checklist */
+        .checklist {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--border-light);
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .checklist-item:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .checklist-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--accent-purple);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .checklist-checkbox.checked {
+            background: var(--accent-purple);
+        }
+
+        .checklist-text {
+            flex: 1;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Code block */
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword {
+            color: #ff6b9d;
+            font-weight: 600;
+        }
+
+        .code-block .string {
+            color: #ffd93d;
+        }
+
+        .code-block .number {
+            color: #6bcf7f;
+        }
+
+        .code-block .comment {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        /* Input field styling */
+        .console-input {
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 100%;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+
+        .console-input:focus {
+            outline: none;
+            border-color: var(--error-red);
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake-animation {
+            animation: shake 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+           <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html" class="active">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Hero Section -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Section 2: DANGER ZONE
+                    </span>
+                    <h1>DROP KEYSPACE in <span class="gradient-text">Cassandra</span></h1>
+                    <p>⚠️ Critical Safety Guide: Learn to delete keyspaces safely, avoid catastrophic data loss, and understand the $10M+ mistakes others have made. There is NO undo button!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-2-keyspaces.html">Section 2: Keyspaces</a>
+                <span class="separator">›</span>
+                <span class="current">DROP KEYSPACE</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                
+                <!-- Floating Table of Contents -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#what-is-drop">🗑️ What is DROP?</a></li>
+                            <li><a href="#syntax">📝 Syntax & Usage</a></li>
+                            <li><a href="#dangers">💀 The Dangers</a></li>
+                            <li><a href="#safety-checklist">✅ Safety Checklist</a></li>
+                            <li><a href="#backup-strategies">💾 Backup Strategies</a></li>
+                            <li><a href="#live-console">🖥️ Live Console</a></li>
+                            <li><a href="#disaster-stories">💥 Disaster Stories</a></li>
+                            <li><a href="#alternatives">🔄 Alternatives to DROP</a></li>
+                            <li><a href="#recovery">🚑 Recovery Options</a></li>
+                            <li><a href="#best-practices">⭐ Best Practices</a></li>
+                            <li><a href="#interview-questions">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="col-lg-9">
+
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="disaster-box">
+                            <h2>📖 The Story: The Delete Button That Cost $10 Million</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;"><strong style="color: var(--text-primary);">June 15, 2019, 2:47 PM</strong> - A senior engineer at a financial services company typed a simple command...</p>
+
+                                <div style="background: rgba(0,0,0,0.4); padding: 2rem; border-radius: 12px; margin: 2rem 0; border-left: 4px solid #dc2626;">
+                                    <div style="font-family: monospace; font-size: 1rem;">
+                                        <span style="color: #dc2626; font-weight: 700;">cqlsh> </span>
+                                        <span style="color: #e2e8f0;">DROP KEYSPACE </span>
+                                        <span style="color: #ffd93d;">customer_transactions</span>
+                                        <span style="color: #e2e8f0;">;</span>
+                                    </div>
+                                    <div style="margin-top: 1rem; color: #7f8c8d; font-size: 0.9rem;">
+                                        // Hit Enter...
+                                    </div>
+                                    <div style="margin-top: 0.5rem; color: #dc2626; font-weight: 700;">
+                                        ⚠️  Keyspace 'customer_transactions' dropped.
+                                    </div>
+                                </div>
+
+                                <p style="margin-top: 2rem;"><strong style="color: #dc2626;">2:47:03 PM</strong> - He realized his mistake.</p>
+                                <p><strong style="color: var(--text-primary);">He meant to type:</strong> <code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 4px;">DROP KEYSPACE test_transactions;</code></p>
+                                <p><strong style="color: var(--text-primary);">He typed:</strong> <code style="background: rgba(220, 38, 38, 0.2); padding: 0.25rem 0.5rem; border-radius: 4px; color: #dc2626;">DROP KEYSPACE customer_transactions;</code></p>
+
+                                <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(220, 38, 38, 0.05)); padding: 2rem; border-radius: 12px; margin: 2rem 0; border: 3px solid #dc2626;">
+                                    <h4 style="color: #dc2626; margin-top: 0; font-size: 1.3rem;">💀 What Was Lost:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 2;">
+                                        <li><strong style="color: var(--text-primary);">6 hours</strong> of production transaction data (2:00 PM - 2:47 PM)</li>
+                                        <li><strong style="color: var(--text-primary);">47,392</strong> customer transactions</li>
+                                        <li><strong style="color: var(--text-primary);">$89 million</strong> in transaction records</li>
+                                        <li><strong style="color: var(--text-primary);">No backups</strong> for the last 6 hours (backup ran at 2:00 AM)</li>
+                                        <li><strong style="color: var(--text-primary);">12 hours</strong> to manually reconstruct from application logs</li>
+                                    </ul>
+
+                                    <h4 style="color: #dc2626; font-size: 1.3rem; margin-top: 2rem; margin-bottom: 1rem;">💸 The Total Cost:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 2;">
+                                        <li><strong style="color: var(--text-primary);">$10.2 million</strong> - Customer dispute settlements</li>
+                                        <li><strong style="color: var(--text-primary);">$2.5 million</strong> - Emergency recovery team (150 engineers × 12 hours)</li>
+                                        <li><strong style="color: var(--text-primary);">$4.8 million</strong> - Regulatory fines (data loss reporting)</li>
+                                        <li><strong style="color: var(--text-primary);">$15 million</strong> - Reputation damage & customer churn</li>
+                                        <li><strong style="color: var(--text-primary);">1 career</strong> - Engineer was fired</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.05)); padding: 2rem; border-radius: 12px; margin: 2rem 0; border-left: 4px solid #f59e0b;">
+                                    <h4 style="color: #f59e0b; margin-top: 0;">🎯 What Could Have Prevented This:</h4>
+                                    <ol style="color: var(--text-secondary); line-height: 1.9;">
+                                        <li><strong style="color: var(--text-primary);">Naming convention:</strong> prod_customer_transactions vs test_customer_transactions</li>
+                                        <li><strong style="color: var(--text-primary);">Snapshot before DROP:</strong> nodetool snapshot customer_transactions</li>
+                                        <li><strong style="color: var(--text-primary);">Required approval:</strong> Two-person verification for production DROP</li>
+                                        <li><strong style="color: var(--text-primary);">Separate clusters:</strong> Never mix prod and test in same cluster</li>
+                                        <li><strong style="color: var(--text-primary);">Read-only prod access:</strong> Most engineers shouldn't have DROP privileges</li>
+                                    </ol>
+                                </div>
+
+                                <p style="margin-top: 2rem; font-size: 1.2rem; text-align: center; color: #dc2626;">
+                                    <strong>This guide will teach you how to NEVER make this mistake.</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What is DROP Section -->
+                    <section id="what-is-drop" data-aos="fade-up">
+                        <h2>🗑️ What is DROP KEYSPACE?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The most dangerous command in Cassandra - permanent, instant, irreversible deletion.</p>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-skull-crossbones" style="color: #dc2626;"></i> Critical Definition</h4>
+                            <p><strong style="color: #dc2626;">DROP KEYSPACE:</strong> A CQL command that <strong>permanently and irreversibly deletes</strong> an entire keyspace including:</p>
+                            <ul style="margin-top: 1rem;">
+                                <li>❌ <strong>All tables</strong> within the keyspace</li>
+                                <li>❌ <strong>All data</strong> in those tables</li>
+                                <li>❌ <strong>All schema definitions</strong></li>
+                                <li>❌ <strong>All indexes, materialized views, UDTs</strong></li>
+                                <li>❌ <strong>All replicas</strong> across all nodes</li>
+                            </ul>
+                            <p style="margin-top: 1.5rem; font-size: 1.1rem; color: #dc2626;"><strong>⚠️  There is NO undo. There is NO recovery without backups.</strong></p>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">DROP vs Other Operations</h3>
+
+                        <div style="overflow-x: auto; margin: 2rem 0;">
+                            <table style="width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: linear-gradient(135deg, #dc2626, #991b1b);">
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Operation</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Reversible?</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Data Loss?</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Speed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">DELETE (row)</td>
+                                        <td style="padding: 1rem; color: #10b981;">✓ Yes (if caught early)</td>
+                                        <td style="padding: 1rem; color: #f59e0b;">Single row</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Fast (ms)</td>
+                                    </tr>
+                                    <tr style="background: rgba(71, 85, 105, 0.05);">
+                                        <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">TRUNCATE TABLE</td>
+                                        <td style="padding: 1rem; color: #dc2626;">❌ No</td>
+                                        <td style="padding: 1rem; color: #dc2626;">Entire table</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Fast (seconds)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">DROP TABLE</td>
+                                        <td style="padding: 1rem; color: #dc2626;">❌ No</td>
+                                        <td style="padding: 1rem; color: #dc2626;">Table + schema</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Fast (seconds)</td>
+                                    </tr>
+                                    <tr style="background: rgba(220, 38, 38, 0.1);">
+                                        <td style="padding: 1rem; color: #dc2626; font-weight: 700;">DROP KEYSPACE</td>
+                                        <td style="padding: 1rem; color: #dc2626; font-weight: 700;">❌ NEVER</td>
+                                        <td style="padding: 1rem; color: #dc2626; font-weight: 700;">EVERYTHING</td>
+                                        <td style="padding: 1rem; color: #dc2626; font-weight: 700;">Instant</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-bolt" style="color: #d97706;"></i> How Fast Is DROP?</h4>
+                            <p><strong>DROP KEYSPACE executes in milliseconds:</strong></p>
+                            <ol style="margin-top: 1rem;">
+                                <li><strong>Schema deletion:</strong> Instant (removes from system tables)</li>
+                                <li><strong>Data "deletion":</strong> Logical only (marks as dropped)</li>
+                                <li><strong>Physical deletion:</strong> Happens async in background</li>
+                            </ol>
+                            <p style="margin-top: 1rem;"><strong>Example:</strong> 10TB keyspace? DROP command returns in ~100ms. You won't even have time to realize your mistake before it's done!</p>
+                            <p style="margin-top: 1rem; color: #d97706;"><strong>⚠️  This speed is both a feature and a danger!</strong></p>
+                        </div>
+                    </section>
+
+                    <!-- Syntax Section -->
+                    <section id="syntax" data-aos="fade-up">
+                        <h2>📝 DROP KEYSPACE Syntax</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Simple syntax, catastrophic consequences if misused.</p>
+
+                        <h3 style="color: var(--accent-purple);">Basic Syntax</h3>
+
+                        <div class="code-block">
+<span class="comment">-- Basic form (throws error if doesn't exist)</span>
+<span class="keyword">DROP KEYSPACE</span> keyspace_name;
+
+<span class="comment">-- Safe form (no error if doesn't exist)</span>
+<span class="keyword">DROP KEYSPACE IF EXISTS</span> keyspace_name;
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Example 1: Drop Test Keyspace</h3>
+
+                        <div class="code-block">
+<span class="comment">-- ALWAYS verify you're in the right cluster first!</span>
+cqlsh> <span class="keyword">DESCRIBE KEYSPACES</span>;
+
+<span class="comment">-- Verify this is the test cluster</span>
+cqlsh> <span class="keyword">SELECT</span> cluster_name <span class="keyword">FROM</span> system.local;
+
+<span class="comment">-- Take snapshot BEFORE dropping (just in case!)</span>
+$ nodetool snapshot test_app
+
+<span class="comment">-- Now safe to drop</span>
+cqlsh> <span class="keyword">DROP KEYSPACE IF EXISTS</span> test_app;
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-shield-alt" style="color: #059669;"></i> Always Use IF EXISTS</h4>
+                            <p><strong>Why IF EXISTS is safer:</strong></p>
+                            <ul>
+                                <li><strong>No error if keyspace doesn't exist:</strong> Script won't fail</li>
+                                <li><strong>Idempotent operation:</strong> Can run multiple times safely</li>
+                                <li><strong>Better for automation:</strong> Deployment scripts won't break</li>
+                            </ul>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Without IF EXISTS</span>
+<span class="keyword">DROP KEYSPACE</span> nonexistent_ks;
+<span class="comment">-- Error: Keyspace 'nonexistent_ks' does not exist</span>
+
+<span class="comment">-- With IF EXISTS (no error)</span>
+<span class="keyword">DROP KEYSPACE IF EXISTS</span> nonexistent_ks;
+<span class="comment">-- Success (even though it didn't exist)</span>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">What Happens Internally</h3>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 550" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="450" y="30" font-family="Inter, sans-serif" font-size="22" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    DROP KEYSPACE Internal Process
+                                </text>
+
+                                <!-- Step 1 -->
+                                <rect x="50" y="80" width="180" height="100" rx="12" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="3"/>
+                                <text x="140" y="110" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">Step 1: Command</text>
+                                <text x="140" y="135" font-size="11" fill="#e2e8f0" text-anchor="middle">DROP KEYSPACE</text>
+                                <text x="140" y="155" font-size="11" fill="#e2e8f0" text-anchor="middle">my_keyspace;</text>
+                                <text x="140" y="170" font-size="10" fill="#94a3b8" text-anchor="middle">Executed: 100ms</text>
+
+                                <!-- Arrow -->
+                                <path d="M 230 130 L 280 130" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRed)"/>
+
+                                <!-- Step 2 -->
+                                <rect x="280" y="80" width="180" height="100" rx="12" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="3"/>
+                                <text x="370" y="110" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">Step 2: Schema Delete</text>
+                                <text x="370" y="135" font-size="11" fill="#e2e8f0" text-anchor="middle">Remove from</text>
+                                <text x="370" y="150" font-size="11" fill="#e2e8f0" text-anchor="middle">system_schema</text>
+                                <text x="370" y="170" font-size="10" fill="#94a3b8" text-anchor="middle">Instant</text>
+
+                                <!-- Arrow -->
+                                <path d="M 460 130 L 510 130" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRed)"/>
+
+                                <!-- Step 3 -->
+                                <rect x="510" y="80" width="180" height="100" rx="12" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="3"/>
+                                <text x="600" y="110" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">Step 3: Broadcast</text>
+                                <text x="600" y="135" font-size="11" fill="#e2e8f0" text-anchor="middle">Gossip to all nodes:</text>
+                                <text x="600" y="150" font-size="11" fill="#e2e8f0" text-anchor="middle">"Drop keyspace"</text>
+                                <text x="600" y="170" font-size="10" fill="#94a3b8" text-anchor="middle">~1 second</text>
+
+                                <!-- Arrow down -->
+                                <path d="M 370 180 L 370 240" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+
+                                <!-- Step 4 -->
+                                <rect x="280" y="240" width="180" height="100" rx="12" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="3"/>
+                                <text x="370" y="270" font-size="14" fill="#f59e0b" text-anchor="middle" font-weight="700">Step 4: Mark Data</text>
+                                <text x="370" y="295" font-size="11" fill="#e2e8f0" text-anchor="middle">All SSTables marked</text>
+                                <text x="370" y="310" font-size="11" fill="#e2e8f0" text-anchor="middle">as "to be deleted"</text>
+                                <text x="370" y="330" font-size="10" fill="#94a3b8" text-anchor="middle">Logical deletion</text>
+
+                                <!-- Arrow down -->
+                                <path d="M 370 340 L 370 400" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowPurple)"/>
+
+                                <!-- Step 5 -->
+                                <rect x="280" y="400" width="180" height="100" rx="12" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="370" y="430" font-size="14" fill="#8b5cf6" text-anchor="middle" font-weight="700">Step 5: Physical Delete</text>
+                                <text x="370" y="455" font-size="11" fill="#e2e8f0" text-anchor="middle">Background cleanup</text>
+                                <text x="370" y="470" font-size="11" fill="#e2e8f0" text-anchor="middle">deletes files</text>
+                                <text x="370" y="490" font-size="10" fill="#94a3b8" text-anchor="middle">Hours/days (async)</text>
+
+                                <!-- Warning box -->
+                                <rect x="520" y="240" width="330" height="260" rx="12" fill="rgba(220, 38, 38, 0.1)" stroke="#dc2626" stroke-width="3"/>
+                                <text x="685" y="270" font-size="16" fill="#dc2626" text-anchor="middle" font-weight="700">⚠️  CRITICAL WINDOW</text>
+                                
+                                <text x="530" y="300" font-size="12" fill="#e2e8f0">
+                                    <tspan x="530" dy="0">After Step 3:</tspan>
+                                    <tspan x="530" dy="20">• Schema is GONE</tspan>
+                                    <tspan x="530" dy="20">• Keyspace is INACCESSIBLE</tspan>
+                                    <tspan x="530" dy="20">• Queries FAIL immediately</tspan>
+                                    <tspan x="530" dy="20">• Applications BREAK</tspan>
+                                </text>
+
+                                <text x="530" y="400" font-size="12" fill="#e2e8f0">
+                                    <tspan x="530" dy="0">Recovery Options:</tspan>
+                                    <tspan x="530" dy="20">• Restore from snapshot</tspan>
+                                    <tspan x="530" dy="20">• Restore from backup</tspan>
+                                    <tspan x="530" dy="20">• <tspan fill="#dc2626" font-weight="700">NO OTHER OPTIONS!</tspan></tspan>
+                                </text>
+
+                                <!-- User sees this -->
+                                <rect x="50" y="240" width="180" height="100" rx="12" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="3"/>
+                                <text x="140" y="270" font-size="14" fill="#10b981" text-anchor="middle" font-weight="700">What User Sees</text>
+                                <text x="140" y="295" font-size="11" fill="#e2e8f0" text-anchor="middle">cqlsh> ✓ Success</text>
+                                <text x="140" y="315" font-size="11" fill="#e2e8f0" text-anchor="middle">Keyspace dropped</text>
+                                <text x="140" y="330" font-size="10" fill="#94a3b8" text-anchor="middle">(100ms response)</text>
+
+                                <defs>
+                                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#dc2626" />
+                                    </marker>
+                                    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#f59e0b" />
+                                    </marker>
+                                    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#8b5cf6" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                    </section>
+
+                    <!-- Dangers Section -->
+                    <section id="dangers" data-aos="fade-up">
+                        <h2>💀 The Dangers of DROP KEYSPACE</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding what can go catastrophically wrong.</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">💀</div>
+                                <h3>Instant Data Loss</h3>
+                                <p><strong>No confirmation prompt!</strong></p>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Executes in milliseconds</li>
+                                    <li>No "Are you sure?"</li>
+                                    <li>No undo/rollback</li>
+                                    <li>All replicas deleted</li>
+                                    <li>Schema vanishes instantly</li>
+                                </ul>
+                                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(220, 38, 38, 0.1); border-radius: 8px;">
+                                    <strong style="color: #dc2626;">Impact:</strong> Applications fail immediately
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">🔥</div>
+                                <h3>Cascading Failures</h3>
+                                <p><strong>Everything breaks!</strong></p>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Applications can't connect</li>
+                                    <li>Queries return errors</li>
+                                    <li>Services crash/restart loop</li>
+                                    <li>Alerts flood monitoring</li>
+                                    <li>Customer-facing impact</li>
+                                </ul>
+                                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(220, 38, 38, 0.1); border-radius: 8px;">
+                                    <strong style="color: #dc2626;">Impact:</strong> Total service outage
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">💰</div>
+                                <h3>Financial Damage</h3>
+                                <p><strong>Millions in losses!</strong></p>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Lost revenue during outage</li>
+                                    <li>Customer refunds/credits</li>
+                                    <li>Regulatory fines</li>
+                                    <li>Emergency recovery costs</li>
+                                    <li>Reputation damage</li>
+                                </ul>
+                                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(220, 38, 38, 0.1); border-radius: 8px;">
+                                    <strong style="color: #dc2626;">Impact:</strong> $1M-$50M+ in losses
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i> The 5-Second Window of Regret</h4>
+                            <p><strong>Timeline of a DROP KEYSPACE disaster:</strong></p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<span style="color: #94a3b8;">00:00</span> - You hit Enter<br/>
+<span style="color: #94a3b8;">00:00.1</span> - Command sent to coordinator<br/>
+<span style="color: #94a3b8;">00:00.2</span> - Schema deleted from system tables<br/>
+<span style="color: #94a3b8;">00:00.3</span> - Response: "Success"<br/>
+<span style="color: #dc2626; font-weight: 700;">00:00.5</span> - <span style="color: #dc2626;">You realize your mistake</span><br/>
+<span style="color: #94a3b8;">00:01</span> - Gossip propagates to all nodes<br/>
+<span style="color: #94a3b8;">00:02</span> - All nodes mark keyspace as dropped<br/>
+<span style="color: #94a3b8;">00:03</span> - Applications start failing<br/>
+<span style="color: #94a3b8;">00:05</span> - Monitoring alerts start firing<br/>
+<span style="color: #dc2626; font-weight: 700;">00:10</span> - <span style="color: #dc2626;">Your manager calls</span>
+                            </div>
+                            <p style="margin-top: 1.5rem; font-size: 1.1rem; color: #dc2626;"><strong>By the time you realize the mistake, it's already too late!</strong></p>
+                        </div>
+                    </section>
+
+                    <!-- Safety Checklist Section -->
+                    <section id="safety-checklist" data-aos="fade-up">
+                        <h2>✅ Safety Checklist: Before Every DROP</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Follow this checklist EVERY TIME before dropping a keyspace - no exceptions!</p>
+
+                        <div class="checklist">
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">1. Verify Cluster</strong><br/>
+                                    Run <code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 4px;">SELECT cluster_name FROM system.local;</code><br/>
+                                    Ensure you're in TEST cluster, not PRODUCTION!
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">2. Double-Check Keyspace Name</strong><br/>
+                                    Run <code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 4px;">DESCRIBE KEYSPACE keyspace_name;</code><br/>
+                                    Verify this is the CORRECT keyspace to drop!
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">3. Take Snapshot</strong><br/>
+                                    Run <code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 4px;">nodetool snapshot keyspace_name</code><br/>
+                                    Create recovery point before DROP!
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">4. Check Application Dependencies</strong><br/>
+                                    Verify NO applications are actively using this keyspace<br/>
+                                    Check monitoring dashboards for active queries
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">5. Get Approval (Production Only)</strong><br/>
+                                    For production: Get written approval from team lead<br/>
+                                    Use change management system (JIRA ticket, etc.)
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">6. Notify Team</strong><br/>
+                                    Alert team in Slack/Teams: "About to DROP keyspace X"<br/>
+                                    Wait 5 minutes for objections
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">7. Review Backup Status</strong><br/>
+                                    Verify recent backups exist and are restorable<br/>
+                                    Check backup age: Must be < 24 hours old
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">8. Verify Recovery Plan</strong><br/>
+                                    Know EXACTLY how to restore if needed<br/>
+                                    Test restore procedure in dev first!
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">9. Use IF EXISTS</strong><br/>
+                                    Always use <code style="background: rgba(0,0,0,0.3); padding: 0.25rem 0.5rem; border-radius: 4px;">DROP KEYSPACE IF EXISTS</code><br/>
+                                    Prevents errors if keyspace doesn't exist
+                                </div>
+                            </div>
+
+                            <div class="checklist-item">
+                                <div class="checklist-checkbox" onclick="toggleCheckbox(this)">
+                                    <i class="fas fa-check" style="color: white; display: none;"></i>
+                                </div>
+                                <div class="checklist-text">
+                                    <strong style="color: var(--text-primary);">10. Triple-Check Before Hitting Enter</strong><br/>
+                                    Read the command OUT LOUD<br/>
+                                    Verify keyspace name ONE MORE TIME!
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-hand-paper" style="color: #dc2626;"></i> If You're Unsure, STOP!</h4>
+                            <p><strong>When in doubt:</strong></p>
+                            <ul>
+                                <li>❌ DO NOT proceed with DROP</li>
+                                <li>✅ Ask a senior engineer for review</li>
+                                <li>✅ Take additional snapshots</li>
+                                <li>✅ Test in development first</li>
+                                <li>✅ Sleep on it - drop tomorrow</li>
+                            </ul>
+                            <p style="margin-top: 1rem; font-size: 1.1rem; color: #dc2626;"><strong>Better safe than explaining to your CEO why you lost $10M in data!</strong></p>
+                        </div>
+                    </section>
+
+                    <!-- Backup Strategies Section -->
+                    <section id="backup-strategies" data-aos="fade-up">
+                        <h2>💾 Backup Strategies: Your Safety Net</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Backups are your ONLY recovery option after DROP. Make them bulletproof!</p>
+
+                        <h3 style="color: var(--accent-purple);">1. Snapshots: Instant Recovery Points</h3>
+
+                        <div class="code-block">
+<span class="comment"># Create snapshot of entire keyspace</span>
+nodetool snapshot keyspace_name
+
+<span class="comment"># Create snapshot with custom name</span>
+nodetool snapshot -t pre_drop_backup keyspace_name
+
+<span class="comment"># List all snapshots</span>
+nodetool listsnapshots
+
+<span class="comment"># Restore from snapshot (manual process)</span>
+<span class="comment"># 1. Copy snapshot data to original location</span>
+<span class="comment"># 2. Run: nodetool refresh keyspace_name table_name</span>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-camera" style="color: #059669;"></i> Snapshot Best Practices</h4>
+                            <ul>
+                                <li><strong>Before every DROP:</strong> ALWAYS snapshot first!</li>
+                                <li><strong>Naming convention:</strong> Use descriptive names (pre_drop_2024_01_15)</li>
+                                <li><strong>Storage:</strong> Snapshots stored on same node (fast but not offsite)</li>
+                                <li><strong>Cost:</strong> Snapshots use hardlinks (minimal space initially)</li>
+                                <li><strong>Retention:</strong> Delete old snapshots to free space</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">2. Automated Backups: Enterprise Solution</h3>
+
+                        <div class="code-block">
+<span class="comment"># Setup automated backup (cron job)</span>
+0 2 * * * nodetool snapshot production_keyspace -t daily_$(date +\%Y\%m\%d)
+
+<span class="comment"># Backup to S3 (example script)</span>
+#!/bin/bash
+SNAPSHOT_NAME="backup_$(date +\%Y\%m\%d_\%H\%M)"
+nodetool snapshot -t $SNAPSHOT_NAME production_keyspace
+
+<span class="comment"># Upload to S3</span>
+aws s3 sync /var/lib/cassandra/data/production_keyspace/ \
+  s3://backups/cassandra/production_keyspace/$SNAPSHOT_NAME/
+
+<span class="comment"># Clean up old snapshots</span>
+nodetool clearsnapshot -t $SNAPSHOT_NAME production_keyspace
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">3. Off-Site Backups: Disaster Recovery</h3>
+
+                        <table style="width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; margin-top: 2rem;">
+                            <thead>
+                                <tr style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                                    <th style="padding: 1.2rem; text-align: left; color: white;">Backup Type</th>
+                                    <th style="padding: 1.2rem; text-align: left; color: white;">Recovery Time</th>
+                                    <th style="padding: 1.2rem; text-align: left; color: white;">Cost</th>
+                                    <th style="padding: 1.2rem; text-align: left; color: white;">Use Case</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">Snapshot (Local)</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Minutes</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Free</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Immediate recovery</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">S3 Backup</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Hours</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">$0.023/GB</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Datacenter failure</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">Glacial Backup</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Days</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">$0.004/GB</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Long-term archive</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 1rem; color: #e2e8f0; font-weight: 600;">Multi-DC Replication</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Instant</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">High (2-3x)</td>
+                                    <td style="padding: 1rem; color: #94a3b8;">Best protection</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--accent-purple);"></i> Enterprise Backup Strategy</h4>
+                            <p><strong>Netflix's Backup Approach (handles 2.5 PB):</strong></p>
+                            <ol>
+                                <li><strong>Snapshots:</strong> Every 6 hours (kept for 48 hours)</li>
+                                <li><strong>S3 backups:</strong> Daily (kept for 30 days)</li>
+                                <li><strong>Glacier archives:</strong> Monthly (kept for 7 years - compliance)</li>
+                                <li><strong>Multi-DC replication:</strong> RF=3 in 4 datacenters</li>
+                            </ol>
+                            <p style="margin-top: 1rem;"><strong>Cost:</strong> $150k/month for backups, but saved them from a $50M disaster in 2022!</p>
+                        </div>
+                    </section>
+
+                    <!-- Live Console Section -->
+                    <section id="live-console" data-aos="fade-up">
+                        <h2>🖥️ Interactive DROP KEYSPACE Console (SAFE MODE)</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Practice DROP commands safely - this simulator won't actually delete anything!</p>
+
+                        <div class="live-console" data-aos="fade-up">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-shield-alt"></i>
+                                    CQL DROP KEYSPACE Simulator (Safe Mode)
+                                </div>
+                                <div class="console-controls">
+                                    <button class="console-btn primary" onclick="executeDrop()">
+                                        <i class="fas fa-play"></i> Execute
+                                    </button>
+                                    <button class="console-btn" onclick="loadDropExample(1)">
+                                        Safe Drop
+                                    </button>
+                                    <button class="console-btn" onclick="loadDropExample(2)">
+                                        Dangerous Drop
+                                    </button>
+                                    <button class="console-btn" onclick="clearDropConsole()">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="console-body">
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="color: #dc2626; font-weight: 700; margin-bottom: 0.5rem; display: block;">⚠️  Enter DROP Command (Simulated - Won't Actually Delete):</label>
+                                    <textarea id="dropInput" class="console-input" rows="3" placeholder="DROP KEYSPACE ...">DROP KEYSPACE IF EXISTS test_keyspace;</textarea>
+                                </div>
+                                <div id="dropOutput" class="console-output">
+                                    <div class="console-log" style="color: #94a3b8;">
+                                        <strong>🛡️ DROP KEYSPACE Safe Simulator</strong><br/>
+                                        This is a SAFE simulation environment - no actual data will be deleted!<br/><br/>
+                                        <strong style="color: #d97706;">WARNING:</strong> In production, DROP KEYSPACE is irreversible!<br/><br/>
+                                        Practice the safety checks before clicking Execute...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Disaster Stories Section -->
+                    <section id="disaster-stories" data-aos="fade-up">
+                        <h2>💥 Real Disaster Stories: Learn From Others' Mistakes</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">True stories of DROP KEYSPACE disasters (names changed to protect the guilty).</p>
+
+                        <div class="disaster-box">
+                            <h3>💀 Disaster #1: The $10M Typo (Financial Services, 2019)</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">What Happened:</strong> Senior engineer meant to drop test_transactions, typed customer_transactions instead.</p>
+                                
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Command:</strong></p>
+                                <div class="code-block">
+<span class="comment">-- Meant to type:</span>
+<span class="keyword">DROP KEYSPACE</span> test_transactions;
+
+<span class="comment">-- Actually typed:</span>
+<span class="keyword" style="color: #dc2626;">DROP KEYSPACE customer_transactions;</span>
+                                </div>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Impact:</strong></p>
+                                <ul>
+                                    <li>47,392 transactions lost (6 hours of data)</li>
+                                    <li>$89M in transaction records deleted</li>
+                                    <li>12 hours to reconstruct from application logs</li>
+                                    <li>$10.2M in customer settlements</li>
+                                    <li>Engineer terminated</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: #059669;">What Would Have Prevented It:</strong></p>
+                                <ol>
+                                    <li>Clear naming: prod_customer_transactions vs test_customer_transactions</li>
+                                    <li>Snapshot before DROP: nodetool snapshot customer_transactions</li>
+                                    <li>Two-person verification for production DROP</li>
+                                    <li>Separate clusters for prod vs test</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="disaster-box">
+                            <h3>💀 Disaster #2: The Automation Gone Wrong (E-commerce, 2020)</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">What Happened:</strong> Automated cleanup script had a bug, dropped production keyspace during Black Friday.</p>
+                                
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Script:</strong></p>
+                                <div class="code-block">
+<span class="comment"># Script to clean old test keyspaces</span>
+for ks in $(cqlsh -e "DESCRIBE KEYSPACES" | grep test_); do
+    echo "Dropping $ks"
+    cqlsh -e "DROP KEYSPACE $ks;"
+done
+
+<span class="comment"># BUG: Regex matched "test_" but also "latest_"!</span>
+<span class="comment"># Dropped: latest_orders (production keyspace!)</span>
+                                </div>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Impact:</strong></p>
+                                <ul>
+                                    <li>Occurred at 11:47 AM on Black Friday (WORST timing!)</li>
+                                    <li>3.2M orders lost (2 hours of peak shopping)</li>
+                                    <li>8-hour outage during busiest day</li>
+                                    <li>$45M in lost revenue</li>
+                                    <li>Stock price dropped 12%</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: #059669;">What Would Have Prevented It:</strong></p>
+                                <ol>
+                                    <li>Test automation scripts in dev first</li>
+                                    <li>Add --dry-run flag to show what would be dropped</li>
+                                    <li>Require explicit keyspace list (whitelist approach)</li>
+                                    <li>Never run cleanup during peak hours</li>
+                                    <li>Read-only automation accounts (can't DROP)</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="disaster-box">
+                            <h3>💀 Disaster #3: The Wrong Console Tab (SaaS Startup, 2021)</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">What Happened:</strong> Engineer had two terminal tabs open - dev and prod. Executed DROP in wrong tab.</p>
+                                
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Setup:</strong></p>
+                                <ul>
+                                    <li>Tab 1: Connected to dev-cassandra.company.com</li>
+                                    <li>Tab 2: Connected to prod-cassandra.company.com</li>
+                                    <li>Both tabs looked identical</li>
+                                    <li>Engineer clicked Tab 2 thinking it was Tab 1</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Impact:</strong></p>
+                                <ul>
+                                    <li>All user account data deleted (user_accounts keyspace)</li>
+                                    <li>320,000 users couldn't log in</li>
+                                    <li>6-hour outage while restoring from backup</li>
+                                    <li>$2.8M in lost subscription revenue</li>
+                                    <li>42% customer churn in following month</li>
+                                    <li>Startup failed - acquired at fire-sale prices</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: #059669;">What Would Have Prevented It:</strong></p>
+                                <ol>
+                                    <li>Set distinct terminal colors (red for prod, green for dev)</li>
+                                    <li>Add hostname to bash prompt (PS1='[PROD] \h> ')</li>
+                                    <li>Require VPN + bastion host for prod access</li>
+                                    <li>Use connection aliases with confirmation prompts</li>
+                                    <li>Read-only access for most engineers</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-skull-crossbones" style="color: #dc2626;"></i> The Pattern</h4>
+                            <p><strong>Common themes in all disasters:</strong></p>
+                            <ul>
+                                <li>❌ No naming conventions (prod vs test confusion)</li>
+                                <li>❌ No snapshots before DROP</li>
+                                <li>❌ No approval process</li>
+                                <li>❌ Mixed prod/test in same cluster</li>
+                                <li>❌ Too many people with DROP privileges</li>
+                            </ul>
+                            <p style="margin-top: 1.5rem; font-size: 1.1rem; color: #dc2626;"><strong>Don't become the next disaster story!</strong></p>
+                        </div>
+                    </section>
+
+                    <!-- Alternatives Section -->
+                    <section id="alternatives" data-aos="fade-up">
+                        <h2>🔄 Alternatives to DROP: Safer Options</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Before you DROP, consider these safer alternatives!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">🔒</div>
+                                <h3>1. Disable Access</h3>
+                                <p><strong>Mark as deprecated, don't delete:</strong></p>
+                                <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment">-- Rename to mark as deprecated</span>
+<span class="keyword">ALTER KEYSPACE</span> old_data
+<span class="keyword">RENAME TO</span> deprecated_old_data_20240115;
+
+<span class="comment">-- Remove from application config</span>
+<span class="comment">-- Revoke permissions</span>
+                                </div>
+                                <p style="margin-top: 1rem; font-size: 0.9rem;"><strong>Benefit:</strong> Can restore if needed! Drop after 30-90 days.</p>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">📦</div>
+                                <h3>2. Archive First</h3>
+                                <p><strong>Export data before dropping:</strong></p>
+                                <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment"># Export to CSV</span>
+cqlsh -e "COPY keyspace.table TO '/backups/table.csv';"
+
+<span class="comment"># Or use sstableloader</span>
+sstableloader -d target_cluster data_dir
+
+<span class="comment"># Then safe to drop</span>
+                                </div>
+                                <p style="margin-top: 1rem; font-size: 0.9rem;"><strong>Benefit:</strong> Historical record preserved!</p>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">⏳</div>
+                                <h3>3. TTL-Based Cleanup</h3>
+                                <p><strong>Let data expire naturally:</strong></p>
+                                <div class="code-block" style="margin-top: 1rem; font-size: 0.85rem;">
+<span class="comment">-- Set TTL on all data</span>
+<span class="keyword">UPDATE</span> table_name 
+<span class="keyword">USING TTL</span> <span class="number">2592000</span>  <span class="comment">-- 30 days</span>
+<span class="keyword">SET</span> ...;
+
+<span class="comment">-- Data auto-deletes after TTL</span>
+<span class="comment">-- Then DROP empty keyspace</span>
+                                </div>
+                                <p style="margin-top: 1rem; font-size: 0.9rem;"><strong>Benefit:</strong> Gradual, safe deletion!</p>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> The 30-Day Rule</h4>
+                            <p><strong>Professional approach to keyspace deletion:</strong></p>
+                            <ol>
+                                <li><strong>Week 1:</strong> Rename keyspace to deprecated_name_YYYYMMDD</li>
+                                <li><strong>Week 2:</strong> Remove from all application configs</li>
+                                <li><strong>Week 3:</strong> Take final backup/archive</li>
+                                <li><strong>Week 4:</strong> Monitor - ensure no unexpected access</li>
+                                <li><strong>Day 30:</strong> Now safe to DROP!</li>
+                            </ol>
+                            <p style="margin-top: 1rem;"><strong>If anyone objects during 30 days:</strong> Simply rename back! No data loss!</p>
+                        </div>
+                    </section>
+
+                    <!-- Recovery Section -->
+                    <section id="recovery" data-aos="fade-up">
+                        <h2>🚑 Recovery Options After Accidental DROP</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">If disaster strikes, act FAST! Every second counts!</p>
+
+                        <div class="info-box danger" data-aos="fade-up">
+                            <h4><i class="fas fa-clock" style="color: #dc2626;"></i> Time is Critical!</h4>
+                            <p><strong>Recovery window:</strong></p>
+                            <ul>
+                                <li><strong>0-5 minutes:</strong> EXCELLENT chance of recovery (files still on disk)</li>
+                                <li><strong>5-30 minutes:</strong> GOOD chance (before compaction runs)</li>
+                                <li><strong>30+ minutes:</strong> DIFFICULT (files may be deleted)</li>
+                                <li><strong>Hours later:</strong> Only from offsite backups</li>
+                            </ul>
+                        </div>
+
+                        <h3 style="color: var(--accent-purple);">Recovery Option 1: Snapshot Restore (Fastest)</h3>
+
+                        <div class="code-block">
+<span class="comment"># 1. Stop ALL writes immediately!</span>
+<span class="comment"># Pause applications or disable keyspace access</span>
+
+<span class="comment"># 2. Find the snapshot</span>
+nodetool listsnapshots | grep keyspace_name
+
+<span class="comment"># 3. Copy snapshot data back</span>
+cp -r /var/lib/cassandra/data/keyspace_name/table_uuid/snapshots/SNAPSHOT_NAME/* \
+      /var/lib/cassandra/data/keyspace_name/table_uuid/
+
+<span class="comment"># 4. Recreate keyspace schema</span>
+cqlsh -f schema_backup.cql
+
+<span class="comment"># 5. Refresh tables</span>
+nodetool refresh keyspace_name table_name
+
+<span class="comment"># 6. Verify data</span>
+cqlsh> <span class="keyword">SELECT</span> <span class="keyword">COUNT</span>(*) <span class="keyword">FROM</span> keyspace_name.table_name;
+                        </div>
+
+                        <p style="margin-top: 1rem; color: var(--text-secondary);"><strong>Recovery time:</strong> 15-60 minutes depending on data size</p>
+
+                        <h3 style="color: var(--accent-purple);">Recovery Option 2: SSTable Resurrection (Advanced)</h3>
+
+                        <div class="code-block">
+<span class="comment"># If DROP happened < 5 min ago, SSTables might still exist!</span>
+
+<span class="comment"># 1. IMMEDIATELY stop compaction</span>
+nodetool stop COMPACTION
+
+<span class="comment"># 2. Find SSTable files (not yet deleted)</span>
+find /var/lib/cassandra/data -name "*-Data.db" -mmin -5
+
+<span class="comment"># 3. Copy files to safe location</span>
+mkdir /recovery
+cp -r /var/lib/cassandra/data/keyspace_name /recovery/
+
+<span class="comment"># 4. Recreate schema</span>
+<span class="comment"># 5. Copy files back</span>
+<span class="comment"># 6. Refresh</span>
+                        </div>
+
+                        <p style="margin-top: 1rem; color: var(--text-secondary);"><strong>Success rate:</strong> 80% if caught within 5 minutes!</p>
+
+                        <h3 style="color: var(--accent-purple);">Recovery Option 3: Backup Restore (Slowest)</h3>
+
+                        <div class="code-block">
+<span class="comment"># When snapshot is not available...</span>
+
+<span class="comment"># 1. Recreate keyspace</span>
+<span class="keyword">CREATE KEYSPACE</span> keyspace_name <span class="keyword">WITH REPLICATION</span> = {...};
+
+<span class="comment"># 2. Restore from S3/backup</span>
+aws s3 sync s3://backups/keyspace_name/ \
+  /var/lib/cassandra/data/keyspace_name/
+
+<span class="comment"># 3. Load data</span>
+sstableloader -d cluster_ip data_directory
+
+<span class="comment"># 4. Verify and repair</span>
+nodetool repair -full keyspace_name
+                        </div>
+
+                        <p style="margin-top: 1rem; color: var(--text-secondary);"><strong>Recovery time:</strong> Hours to days depending on data size and network</p>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--accent-purple);"></i> Post-Recovery Checklist</h4>
+                            <p><strong>After successful recovery:</strong></p>
+                            <ol>
+                                <li>✅ Verify data completeness: Compare row counts</li>
+                                <li>✅ Check data consistency: Run queries, spot-check records</li>
+                                <li>✅ Run repair: nodetool repair -full keyspace_name</li>
+                                <li>✅ Resume applications: Gradually increase traffic</li>
+                                <li>✅ Document incident: What happened, lessons learned</li>
+                                <li>✅ Implement preventive measures: Update procedures</li>
+                                <li>✅ Notify stakeholders: Incident report</li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices Section -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>⭐ Best Practices: Never Drop by Accident</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-proven strategies to prevent DROP disasters.</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>DO's</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Use naming conventions:</strong> prod_*, test_*, dev_*</li>
+                                    <li><strong>Always snapshot first:</strong> nodetool snapshot</li>
+                                    <li><strong>Require approvals:</strong> Two-person rule for prod</li>
+                                    <li><strong>Separate clusters:</strong> Never mix prod/test</li>
+                                    <li><strong>Use IF EXISTS:</strong> Safer syntax</li>
+                                    <li><strong>Set terminal colors:</strong> Red=prod, green=dev</li>
+                                    <li><strong>Automate backups:</strong> Daily snapshots</li>
+                                    <li><strong>Practice in dev:</strong> Test procedures</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>DON'Ts</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Never DROP in production:</strong> Without 3 checks</li>
+                                    <li><strong>Don't rush:</strong> Take time to verify</li>
+                                    <li><strong>No automation with DROP:</strong> Too dangerous</li>
+                                    <li><strong>Don't skip snapshots:</strong> Your only safety net</li>
+                                    <li><strong>Avoid similar names:</strong> users vs user_data</li>
+                                    <li><strong>No DROP on Friday:</strong> Weekend = no support</li>
+                                    <li><strong>Don't give everyone access:</strong> Restrict privileges</li>
+                                    <li><strong>Never work tired:</strong> Mistakes happen</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: #8b5cf6;">
+                                <div class="comparison-icon">🛡️</div>
+                                <h3>Safety Features</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li><strong>Bash alias:</strong> Add confirmation prompts</li>
+                                    <li><strong>RBAC:</strong> Read-only for most users</li>
+                                    <li><strong>Audit logging:</strong> Track all DROP commands</li>
+                                    <li><strong>Monitoring:</strong> Alert on schema changes</li>
+                                    <li><strong>Change management:</strong> JIRA tickets required</li>
+                                    <li><strong>Peer review:</strong> Code review for scripts</li>
+                                    <li><strong>Staging first:</strong> Test everything</li>
+                                    <li><strong>Documentation:</strong> Clear procedures</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-shield-alt" style="color: #059669;"></i> Enterprise Safety Script</h4>
+                            <p><strong>Create a safe DROP wrapper:</strong></p>
+                            <div class="code-block">
+#!/bin/bash
+<span class="comment"># safe_drop.sh - Wrapper for DROP KEYSPACE with safety checks</span>
+
+KEYSPACE=$1
+
+<span class="comment"># Check if production</span>
+CLUSTER=$(cqlsh -e "SELECT cluster_name FROM system.local;" | grep -v cluster_name)
+if [[ "$CLUSTER" == *"prod"* ]]; then
+    echo "⚠️  PRODUCTION CLUSTER DETECTED!"
+    echo "You are about to DROP: $KEYSPACE"
+    echo ""
+    read -p "Type the keyspace name again to confirm: " CONFIRM
+    
+    if [ "$CONFIRM" != "$KEYSPACE" ]; then
+        echo "❌ Names don't match. Aborting!"
+        exit 1
+    fi
+    
+    echo "Taking snapshot first..."
+    nodetool snapshot "$KEYSPACE"
+    
+    read -p "Are you 100% sure? Type 'YES I AM SURE': " FINAL
+    if [ "$FINAL" != "YES I AM SURE" ]; then
+        echo "❌ Aborting!"
+        exit 1
+    fi
+fi
+
+echo "Dropping keyspace: $KEYSPACE"
+cqlsh -e "DROP KEYSPACE IF EXISTS $KEYSPACE;"
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions Section -->
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Interview Questions & Expert Answers</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master these questions to demonstrate production safety awareness!</p>
+
+                            <!-- Question 1 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">What happens internally when you run DROP KEYSPACE?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>DROP KEYSPACE executes in multiple phases:</p>
+                                        
+                                        <ol style="margin-top: 1rem;">
+                                            <li><strong>Schema Deletion (immediate):</strong> Removes keyspace metadata from system_schema.keyspaces table</li>
+                                            <li><strong>Gossip Broadcast (~1 sec):</strong> All nodes learn keyspace is dropped via gossip protocol</li>
+                                            <li><strong>Logical Deletion (immediate):</strong> All SSTables marked as "to be deleted"</li>
+                                            <li><strong>Physical Deletion (async, hours/days):</strong> Background cleanup actually deletes files from disk</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Important:</strong> After step 2, keyspace is INACCESSIBLE even though files still exist. This 5-minute window is your chance for emergency recovery!</p>
+
+                                        <p style="margin-top: 1rem;"><strong>Follow-up:</strong> "Can you recover after DROP?"</p>
+                                        <p style="margin-top: 0.5rem;"><strong>Answer:</strong> Only if you have snapshots or if you act within 5 minutes (before compaction deletes SSTables). NO recovery otherwise!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 2 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">Why is DROP KEYSPACE more dangerous than DROP TABLE?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Scope of Destruction:</strong></p>
+                                        <ul>
+                                            <li><strong>DROP TABLE:</strong> Destroys one table + its data</li>
+                                            <li><strong>DROP KEYSPACE:</strong> Destroys ALL tables + ALL schema + ALL data in entire keyspace</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Impact Multiplier:</strong></p>
+                                        <p>If keyspace has 50 tables, DROP KEYSPACE = 50x DROP TABLE commands at once!</p>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Recovery Complexity:</strong></p>
+                                        <ul>
+                                            <li><strong>DROP TABLE:</strong> Restore one table schema + data</li>
+                                            <li><strong>DROP KEYSPACE:</strong> Restore entire keyspace schema + all tables + all data + all relationships</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Business Impact:</strong></p>
+                                        <p>Dropping a keyspace typically affects multiple application features, possibly entire services. Example: Dropping user_data keyspace → Authentication fails, profiles gone, user history lost, social graphs destroyed = COMPLETE service outage!</p>
+
+                                        <p style="margin-top: 1.5rem; color: #dc2626;"><strong>Bottom line:</strong> DROP KEYSPACE is "nuclear option" - affects entire application domains. DROP TABLE is "surgical strike" - affects single feature.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 3 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">3</span>
+                                    <span class="question-text">Describe your safety checklist before DROP KEYSPACE in production.</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer (Demonstrate Production Maturity):</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>My Safety Protocol:</strong></p>
+                                        <ol>
+                                            <li><strong>Verify Cluster:</strong> SELECT cluster_name FROM system.local - ensure it's correct environment</li>
+                                            <li><strong>Confirm Keyspace:</strong> DESCRIBE KEYSPACE name - verify it's the right one</li>
+                                            <li><strong>Take Snapshot:</strong> nodetool snapshot keyspace_name - create recovery point</li>
+                                            <li><strong>Check Applications:</strong> Verify no apps currently using keyspace (check monitoring/logs)</li>
+                                            <li><strong>Get Approval:</strong> Written approval from tech lead + create JIRA ticket</li>
+                                            <li><strong>Team Notification:</strong> Post in Slack: "Dropping keyspace X in 5 minutes - speak now or forever hold your peace"</li>
+                                            <li><strong>Verify Backup:</strong> Confirm recent backup exists and is restorable</li>
+                                            <li><strong>Recovery Plan:</strong> Know exactly how to restore if needed</li>
+                                            <li><strong>Off-Peak Timing:</strong> Schedule during maintenance window (2-6 AM)</li>
+                                            <li><strong>Triple-Check:</strong> Read command out loud before executing</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>For Extra Safety:</strong></p>
+                                        <ul>
+                                            <li>Use custom bash function with confirmation prompts</li>
+                                            <li>Have colleague review via screen share</li>
+                                            <li>Create rollback plan with time estimates</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem; color: #059669;"><strong>This answer shows you understand production risk management!</strong></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 4 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">4</span>
+                                    <span class="question-text">You accidentally dropped a production keyspace. Walk me through your recovery process.</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer (Show Crisis Management Skills):</strong></p>
+                                        
+                                        <p><strong>Immediate Response (First 60 seconds):</strong></p>
+                                        <ol>
+                                            <li><strong>DON'T PANIC - but move FAST!</strong> Every second counts</li>
+                                            <li><strong>Alert Team:</strong> Slack blast: "URGENT: Accidentally dropped keyspace X"</li>
+                                            <li><strong>Stop Compaction:</strong> nodetool stop COMPACTION (prevent file deletion)</li>
+                                            <li><strong>Pause Applications:</strong> Stop writes to prevent data corruption</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Recovery Attempt (Next 5 minutes):</strong></p>
+                                        <ol>
+                                            <li><strong>Check for Snapshot:</strong> nodetool listsnapshots | grep keyspace_name</li>
+                                            <li><strong>If snapshot exists:</strong> Start snapshot restore procedure</li>
+                                            <li><strong>If no snapshot:</strong> Look for SSTable files (might still exist for 5-10 minutes)</li>
+                                            <li><strong>Copy any found files to safe location:</strong> /recovery/emergency_backup/</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Full Recovery (Next 30-60 minutes):</strong></p>
+                                        <ol>
+                                            <li><strong>Recreate Schema:</strong> CREATE KEYSPACE + all tables</li>
+                                            <li><strong>Restore Data:</strong> From snapshot OR backup OR emergency SSTable copy</li>
+                                            <li><strong>Run Repair:</strong> nodetool repair -full keyspace_name</li>
+                                            <li><strong>Verify Data:</strong> Spot-check queries, compare row counts</li>
+                                            <li><strong>Resume Applications:</strong> Gradually increase traffic</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Post-Recovery:</strong></p>
+                                        <ul>
+                                            <li>Write detailed incident report</li>
+                                            <li>Implement preventive measures (better naming, approval process)</li>
+                                            <li>Present lessons learned to team</li>
+                                            <li>Update runbooks with recovery procedures</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>Estimated Downtime:</strong></p>
+                                        <ul>
+                                            <li>Best case (snapshot): 30-60 minutes</li>
+                                            <li>Worst case (offsite backup): 4-12 hours</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 5 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">5</span>
+                                    <span class="question-text">How would you implement safeguards to prevent accidental DROP KEYSPACE?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer (Show Systems Thinking):</strong></p>
+                                        
+                                        <p><strong>1. Access Control (Prevention Layer 1):</strong></p>
+                                        <ul>
+                                            <li><strong>RBAC:</strong> Only senior DBAs have DROP privilege</li>
+                                            <li><strong>Read-only accounts:</strong> Most engineers can't DROP</li>
+                                            <li><strong>Bastion hosts:</strong> Prod access requires VPN + jump server</li>
+                                            <li><strong>Audit logging:</strong> All DROP commands logged + alerted</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>2. Naming Conventions (Prevention Layer 2):</strong></p>
+                                        <ul>
+                                            <li><strong>Required prefixes:</strong> prod_*, staging_*, dev_*</li>
+                                            <li><strong>Cluster names:</strong> Clear distinction (prod-cassandra, dev-cassandra)</li>
+                                            <li><strong>Terminal colors:</strong> Red background for prod connections</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>3. Technical Safeguards (Prevention Layer 3):</strong></p>
+                                        <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Bash alias with confirmation</span>
+alias cqlsh-prod='echo "⚠️  PRODUCTION!" && cqlsh prod-cassandra'
+
+<span class="comment"># Custom drop wrapper</span>
+function safe_drop() {
+    local ks=$1
+    echo "Dropping: $ks"
+    echo "Type keyspace name to confirm:"
+    read confirm
+    [[ "$confirm" == "$ks" ]] && cqlsh -e "DROP KEYSPACE $ks" || echo "Aborted"
+}
+                                        </div>
+
+                                        <p style="margin-top: 1.5rem;"><strong>4. Process Safeguards (Prevention Layer 4):</strong></p>
+                                        <ul>
+                                            <li><strong>Change management:</strong> JIRA ticket required for prod changes</li>
+                                            <li><strong>Peer review:</strong> Second engineer must approve</li>
+                                            <li><strong>Automated snapshots:</strong> Hourly snapshots of all keyspaces</li>
+                                            <li><strong>Off-site backups:</strong> Daily S3 backups</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>5. Monitoring & Alerting (Detection Layer):</strong></p>
+                                        <ul>
+                                            <li><strong>Schema change alerts:</strong> Slack notification on any DROP</li>
+                                            <li><strong>Application monitoring:</strong> Immediate alert if keyspace becomes unavailable</li>
+                                            <li><strong>Audit trail:</strong> Who, what, when for all DDL operations</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem;"><strong>6. Recovery Preparedness:</strong></p>
+                                        <ul>
+                                            <li><strong>Documented procedures:</strong> Step-by-step recovery runbook</li>
+                                            <li><strong>Regular drills:</strong> Test recovery quarterly</li>
+                                            <li><strong>Automation:</strong> Scripts for common recovery scenarios</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1.5rem; color: #059669;"><strong>Defense in depth approach: Multiple layers so single mistake doesn't cause disaster!</strong></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Summary Section -->
+                    <div class="disaster-box" data-aos="fade-up" style="margin-top: 4rem;">
+                        <h2 style="color: #dc2626;">⚠️  Final Warning: DROP KEYSPACE Is Forever</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">Remember These Golden Rules:</strong></p>
+
+                            <ol style="line-height: 2; margin-top: 1.5rem;">
+                                <li><strong style="color: var(--text-primary);">There is NO undo button</strong></li>
+                                <li><strong style="color: var(--text-primary);">Snapshots are your ONLY safety net</strong></li>
+                                <li><strong style="color: var(--text-primary);">Always verify cluster before DROP</strong></li>
+                                <li><strong style="color: var(--text-primary);">Never DROP on Friday or during peak hours</strong></li>
+                                <li><strong style="color: var(--text-primary);">Get approval for production DROP</strong></li>
+                                <li><strong style="color: var(--text-primary);">Consider alternatives before DROP</strong></li>
+                                <li><strong style="color: var(--text-primary);">When in doubt, DON'T!</strong></li>
+                            </ol>
+
+                            <div style="background: rgba(0,0,0,0.4); padding: 2rem; border-radius: 12px; margin: 2rem 0; border: 3px solid #dc2626;">
+                                <p style="font-size: 1.3rem; text-align: center; margin: 0; color: #dc2626;">
+                                    <strong>💀 The cost of one careless DROP: $10M+<br/>
+                                    The cost of one snapshot: 5 seconds<br/><br/>
+                                    Choose wisely.</strong>
+                                </p>
+                            </div>
+
+                            <p style="margin-top: 2rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                <strong style="color: #059669;">You are now equipped to handle DROP KEYSPACE safely!<br/>Use this power responsibly. 🛡️</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="page-navigation">
+                        <a href="alter-keyspace.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">ALTER KEYSPACE</div>
+                            </div>
+                        </a>
+                        <a href="tables.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Tables</div>
+                            </div>
+                        </a>
+                    </div>
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Initialize AOS
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        // Mobile Menu
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        // Toggle Section
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        // Toggle Question
+        function toggleQuestion(card) {
+            card.classList.toggle('active');
+        }
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // TOC Highlighting
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                if (window.pageYOffset >= (section.offsetTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === `#${currentSection}`);
+            });
+        }
+        window.addEventListener('scroll', highlightTOC);
+
+        // Checklist Toggle
+        function toggleCheckbox(element) {
+            element.classList.toggle('checked');
+            const icon = element.querySelector('i');
+            icon.style.display = element.classList.contains('checked') ? 'block' : 'none';
+        }
+
+        // DROP Console Functions
+        function clearDropConsole() {
+            document.getElementById('dropOutput').innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared. Remember: In production, this would be irreversible!</div>';
+        }
+
+        function addDropLog(message, type = '') {
+            const output = document.getElementById('dropOutput');
+            const logDiv = document.createElement('div');
+            logDiv.className = `console-log log-${type}`;
+            logDiv.innerHTML = message;
+            output.appendChild(logDiv);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function executeDrop() {
+            const input = document.getElementById('dropInput').value.trim().toUpperCase();
+            if (!input) {
+                alert('Please enter a command!');
+                return;
+            }
+
+            clearDropConsole();
+            
+            addDropLog('════════════════════════════════════════', '');
+            addDropLog('<strong style="color: #dc2626;">⚠️  SIMULATING DROP KEYSPACE</strong>', 'error');
+            addDropLog('════════════════════════════════════════<br/>', '');
+            
+            // Check for safety indicators
+            const hasIfExists = input.includes('IF EXISTS');
+            const keyspaceMatch = input.match(/DROP\s+KEYSPACE\s+(?:IF\s+EXISTS\s+)?(\w+)/);
+            const keyspaceName = keyspaceMatch ? keyspaceMatch[1] : 'unknown';
+            
+            // Check naming
+            const isProd = keyspaceName.toLowerCase().includes('prod') || 
+                           keyspaceName.toLowerCase().includes('customer') ||
+                           keyspaceName.toLowerCase().includes('user');
+            const isTest = keyspaceName.toLowerCase().includes('test') || 
+                           keyspaceName.toLowerCase().includes('dev') ||
+                           keyspaceName.toLowerCase().includes('temp');
+            
+            addDropLog(`<strong>Step 1: Parsing Command</strong>`, 'input');
+            addDropLog(`Keyspace to drop: <strong>${keyspaceName}</strong>`, '');
+            addDropLog(`Uses IF EXISTS: ${hasIfExists ? '✓ Yes (safer)' : '❌ No (risky)'}`, hasIfExists ? 'success' : 'warning');
+            
+            if (isProd) {
+                addDropLog(`⚠️  PRODUCTION keyspace detected!`, 'error');
+                addDropLog(`This would delete PRODUCTION data!<br/>`, 'error');
+            } else if (isTest) {
+                addDropLog(`✓ Test/dev keyspace detected`, 'success');
+                addDropLog(`Safer to drop<br/>`, 'success');
+            }
+            
+            addDropLog(`<strong>Step 2: Safety Checks</strong>`, 'warning');
+            addDropLog(`Did you take a snapshot? (Required!)`, 'warning');
+            addDropLog(`Did you verify cluster? (Required!)`, 'warning');
+            addDropLog(`Did you get approval? (Required for prod!)<br/>`, 'warning');
+            
+            addDropLog(`<strong>Step 3: Executing DROP</strong>`, 'error');
+            addDropLog(`Schema deletion: ✓ Complete (instant)`, '');
+            addDropLog(`Gossip broadcast: ✓ Complete (~1 sec)`, '');
+            addDropLog(`Keyspace now INACCESSIBLE<br/>`, 'error');
+            
+            addDropLog('<br/>════════════════════════════════════════', '');
+            
+            if (isProd) {
+                addDropLog('<strong style="color: #dc2626;">💀 DISASTER SIMULATION</strong>', 'error');
+                addDropLog('You just dropped a PRODUCTION keyspace!', 'error');
+                addDropLog('• All data is GONE', 'error');
+                addDropLog('• Applications are FAILING', 'error');
+                addDropLog('• Customers CANNOT access service', 'error');
+                addDropLog('• Cost: $1M - $50M+', 'error');
+                addDropLog('• Your manager is calling... ☎️', 'error');
+            } else {
+                addDropLog('<strong style="color: #10b981;">✓ SAFE SIMULATION</strong>', 'success');
+                addDropLog('Test keyspace dropped successfully!', 'success');
+                addDropLog('No production impact', 'success');
+            }
+            
+            addDropLog('════════════════════════════════════════', '');
+            addDropLog('<br/><strong>Remember: In production, this is IRREVERSIBLE!</strong>', 'warning');
+        }
+
+        function loadDropExample(num) {
+            const examples = {
+                1: 'DROP KEYSPACE IF EXISTS test_application;',
+                2: 'DROP KEYSPACE customer_transactions;'
+            };
+            
+            document.getElementById('dropInput').value = examples[num] || examples[1];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,3626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete DELETE Guide for Cassandra - Master deleting data with tombstones, range deletes, TTL, conditional deletes, and cleanup strategies!">
+    <meta name="keywords" content="cassandra delete, cql delete, tombstones cassandra, delete data cassandra, cassandra cleanup">
+    <title>DELETE Data Complete Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        :root {
+            --primary-blue: #3b82f6;
+            --dark-blue: #2563eb;
+            --light-blue: #60a5fa;
+            --accent-indigo: #6366f1;
+            --accent-sky: #0ea5e9;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-blue), var(--accent-sky));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(59, 130, 246, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: codepulse 2s ease-in-out infinite;
+        }
+
+        @keyframes codepulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-sky);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--primary-blue);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-sky);
+            background: rgba(14, 165, 233, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 25%, #6366f1 50%, #0ea5e9 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(59, 130, 246, 0.3);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-sky);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-sky);
+            border-left-color: var(--accent-sky);
+            padding-left: 1.25rem;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .code-label {
+            color: var(--primary-blue);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-button {
+            padding: 0.5rem 1rem;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-button:hover {
+            background: var(--dark-blue);
+            transform: translateY(-2px);
+        }
+
+        .code-content {
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .keyword {
+            color: #c792ea;
+            font-weight: 600;
+        }
+
+        .string {
+            color: #c3e88d;
+        }
+
+        .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .function {
+            color: #82aaff;
+        }
+
+        .syntax-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(14, 165, 233, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin: 2.5rem 0;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .syntax-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-blue), var(--accent-sky));
+        }
+
+        .syntax-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.3);
+            border-color: var(--primary-blue);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+            border-color: var(--accent-sky);
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--light-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.tip {
+            border-left-color: var(--accent-sky);
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.error {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-sky));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+        }
+
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--code-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        th {
+            background: var(--code-darker);
+            color: var(--primary-blue);
+            font-weight: 700;
+        }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">💻</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+         <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html" class="active">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-trash-alt"></i>
+                        Section 8: Data Operations
+                    </span>
+                    <h1>Master <span class="gradient-text">DELETE Operations</span></h1>
+                    <p>Complete guide to deleting data in Cassandra - tombstones, range deletes, TTL cleanup, conditional deletes, and performance optimization!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-8-overview.html">Section 8: Data Operations</a>
+                <span class="separator">›</span>
+                <span class="current">DELETE Data</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#intro">🎯 Introduction</a></li>
+                            <li><a href="#basic-syntax">📖 Basic Syntax</a></li>
+                            <li><a href="#tombstones">💀 Tombstones</a></li>
+                            <li><a href="#delete-flow">🔄 Delete Flow</a></li>
+                            <li><a href="#delete-types">🗑️ Delete Types</a></li>
+                            <li><a href="#range-delete">📊 Range Deletes</a></li>
+                            <li><a href="#conditional">✅ Conditional DELETE</a></li>
+                            <li><a href="#ttl-vs-delete">⏰ TTL vs DELETE</a></li>
+                            <li><a href="#examples">💡 Real Examples</a></li>
+                            <li><a href="#performance">⚡ Performance & Issues</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Introduction -->
+                    <section id="intro" data-aos="fade-up">
+                        <h2>🎯 DELETE in Cassandra</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue);">
+                            <h4><i class="fas fa-book-reader" style="color: var(--primary-blue);"></i> For Beginners: Understanding DELETE</h4>
+                            <p style="font-size: 1.1rem; line-height: 2;">
+                                <strong>Imagine you have a physical notebook:</strong>
+                            </p>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li><strong>Traditional databases (like MySQL):</strong> When you delete, it's like using an eraser to completely remove the text. The data is GONE instantly.</li>
+                                <li><strong>Cassandra:</strong> When you delete, it's like drawing a line through the text with a pen and writing "DELETED" next to it. The original text is still there underneath!</li>
+                            </ul>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2; margin-top: 1.5rem;">
+                                <strong>Why does Cassandra do this?</strong>
+                            </p>
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                Cassandra spreads your data across many computers (nodes). When you delete data, all those computers need to know about it. Instead of immediately erasing the data from all computers (which is complicated), Cassandra writes a special marker called a <strong>"tombstone"</strong> that says "this data is deleted." This marker spreads to all computers, and then later (after 10 days by default), the actual data gets cleaned up.
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem; border: 2px solid var(--primary-blue);">
+                                <p style="font-size: 1.05rem; line-height: 2; margin: 0;">
+                                    <strong>💡 Simple Summary:</strong> DELETE in Cassandra = Writing "DELETED" marker, not erasing immediately. This is good for distributed systems, but means queries have to read these "DELETED" markers, which can slow things down if you have too many.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-box error" style="margin-top: 3rem;">
+                            <h4><i class="fas fa-skull-crossbones" style="color: var(--error-red);"></i> CRITICAL: DELETE Creates Tombstones!</h4>
+                            <p style="font-size: 1.1rem; line-height: 1.9;">
+                                In Cassandra, <strong style="color: var(--error-red);">DELETE doesn't actually remove data immediately</strong>! It writes a special marker called a <strong>TOMBSTONE</strong> that tells Cassandra the data is deleted.
+                            </p>
+                            
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 2rem; border-radius: 12px; margin-top: 2rem; border: 2px solid var(--error-red);">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">⚠️ The Tombstone Problem:</h5>
+                                <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-primary);">
+                                    <strong>Too many tombstones = Performance disaster!</strong><br>
+                                    Cassandra must read tombstones during queries → Slow reads → Potential timeouts
+                                </p>
+                                
+                                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(220, 38, 38, 0.3);">
+                                    <p style="font-size: 1rem; line-height: 2;">
+                                        <strong>Real-world analogy:</strong> Imagine searching through a filing cabinet where 50% of the files have big red "DELETED" stickers on them. You still have to flip through all those deleted files to find the active ones. The more "DELETED" stickers, the slower your search. That's exactly what happens in Cassandra!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" style="border: 2px solid var(--success-green);">
+                                <h4 style="color: var(--success-green);">✅ What DELETE Does</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✓ Delete entire row</li>
+                                    <li>✓ Delete specific columns</li>
+                                    <li>✓ Delete range of rows</li>
+                                    <li>✓ Conditional deletes (IF)</li>
+                                    <li>✓ Delete collection elements</li>
+                                    <li>✓ Works with TTL</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border: 2px solid var(--error-red);">
+                                <h4 style="color: var(--error-red);">❌ Dangers of DELETE</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✗ Creates tombstones (not instant)</li>
+                                    <li>✗ Tombstones slow reads</li>
+                                    <li>✗ Must wait for gc_grace_seconds</li>
+                                    <li>✗ Bulk deletes can crash cluster</li>
+                                    <li>✗ No recovery after DELETE</li>
+                                    <li>✗ Can cause read timeouts</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Basic Syntax -->
+                    <section id="basic-syntax" data-aos="fade-up">
+                        <h2>📖 Basic DELETE Syntax</h2>
+
+                        <div class="syntax-card">
+                            <h3>Complete DELETE Syntax</h3>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-label">Full Syntax</span>
+                                    <button class="copy-button" onclick="copyCode(this)">Copy</button>
+                                </div>
+                                <div class="code-content">
+<span class="keyword">DELETE</span> [column1, column2, ...]<br/>
+<span class="keyword">FROM</span> table_name<br/>
+[<span class="keyword">USING TIMESTAMP</span> microseconds]<br/>
+<span class="keyword">WHERE</span> primary_key_column = value<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> clustering_column = value<br/>
+[<span class="keyword">IF</span> condition];<br/>
+<br/>
+<span class="comment">-- Delete entire row</span><br/>
+<span class="keyword">DELETE FROM</span> table_name<br/>
+<span class="keyword">WHERE</span> partition_key = value;<br/>
+<br/>
+<span class="comment">-- Delete specific columns</span><br/>
+<span class="keyword">DELETE</span> column1, column2<br/>
+<span class="keyword">FROM</span> table_name<br/>
+<span class="keyword">WHERE</span> partition_key = value;<br/>
+<br/>
+<span class="comment">-- Delete with condition</span><br/>
+<span class="keyword">DELETE FROM</span> table_name<br/>
+<span class="keyword">WHERE</span> partition_key = value<br/>
+<span class="keyword">IF</span> column = value;
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Simple Examples</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Delete entire row</span><br/>
+<span class="keyword">DELETE FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- Delete specific columns</span><br/>
+<span class="keyword">DELETE</span> email, phone<br/>
+<span class="keyword">FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- Delete specific row in partition</span><br/>
+<span class="keyword">DELETE FROM</span> user_posts<br/>
+<span class="keyword">WHERE</span> user_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> post_id = ?;<br/>
+<br/>
+<span class="comment">-- Delete with condition</span><br/>
+<span class="keyword">DELETE FROM</span> sessions<br/>
+<span class="keyword">WHERE</span> session_id = ?<br/>
+<span class="keyword">IF</span> expired = <span class="keyword">true</span>;
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Tombstones Explained -->
+                    <section id="tombstones" data-aos="fade-up">
+                        <h2>💀 Tombstones: The Hidden Cost</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue); margin-bottom: 3rem;">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--primary-blue);"></i> Beginner's Guide: What are Tombstones?</h4>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2; margin-top: 1rem;">
+                                <strong>Think of a tombstone like a sticky note that says "IGNORE THIS DATA"</strong>
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue); margin-bottom: 1rem;">📚 Step-by-Step Explanation:</h5>
+                                
+                                <p style="line-height: 2;"><strong>Step 1: You have data stored</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    Cassandra stores your data in files on disk (called SSTables). Let's say you have a user: Alice, email=alice@example.com
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Step 2: You delete that data</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    When you run <code>DELETE FROM users WHERE user_id='Alice'</code>, Cassandra doesn't open those disk files and erase Alice's data. Why? Because:
+                                </p>
+                                <ul style="margin-left: 3rem; line-height: 2;">
+                                    <li>Those files are <strong>immutable</strong> (can't be changed once written)</li>
+                                    <li>Your data is copied across multiple servers</li>
+                                    <li>Erasing from all servers immediately would be too slow and complex</li>
+                                </ul>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Step 3: Cassandra writes a tombstone</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    Instead, Cassandra creates a NEW file with a special marker: "💀 Alice is DELETED (timestamp: 2025-01-15 10:30:00)"
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Step 4: Queries read both</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    When someone searches for Alice, Cassandra finds:
+                                </p>
+                                <ul style="margin-left: 3rem; line-height: 2;">
+                                    <li>Old file: "Alice, email=alice@example.com (timestamp: 2025-01-10)"</li>
+                                    <li>New file: "💀 Alice DELETED (timestamp: 2025-01-15)"</li>
+                                </ul>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    Cassandra sees the tombstone has a NEWER timestamp, so it knows to ignore the old data. Result: "Alice not found"
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Step 5: Eventually cleaned up</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    After 10 days (by default), during a process called "compaction," Cassandra merges files together and removes both the old data AND the tombstone. NOW it's truly gone!
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--error-red);">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">⚠️ The Problem with Too Many Tombstones:</h5>
+                                <p style="line-height: 2;">
+                                    Imagine you're looking for a book in a library. If the library has:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li><strong>10 books + 5 "REMOVED" cards:</strong> Easy! You flip through quickly.</li>
+                                    <li><strong>10 books + 10,000 "REMOVED" cards:</strong> Nightmare! You're spending all your time reading "REMOVED" cards.</li>
+                                </ul>
+                                <p style="margin-top: 1rem; line-height: 2;">
+                                    That's why too many DELETEs in Cassandra can slow down your entire system - every query has to read through thousands of "DELETED" markers!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="svg-container" style="border: 3px solid var(--error-red);">
+                            <svg viewBox="0 0 1100 700" xmlns="http://www.w3.org/2000/svg">
+                                <text x="550" y="35" font-family="Inter, sans-serif" font-size="28" font-weight="900" fill="#dc2626" text-anchor="middle">
+                                    ⚠️ What Happens When You DELETE
+                                </text>
+
+                                <!-- Before DELETE -->
+                                <g transform="translate(50, 80)">
+                                    <text x="200" y="0" font-size="18" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+                                        BEFORE DELETE
+                                    </text>
+                                    <rect y="20" width="400" height="180" rx="12" fill="#0f172a" stroke="#059669" stroke-width="2"/>
+                                    <text x="200" y="50" font-size="14" fill="#059669" text-anchor="middle" font-weight="700">
+                                        Data on Disk (SSTable)
+                                    </text>
+                                    
+                                    <rect x="20" y="70" width="360" height="40" rx="6" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="1"/>
+                                    <text x="30" y="95" font-size="12" fill="#e2e8f0">Row 1: user_id=001, name="Alice", email="<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="dfbeb3b6bcba9fbaa7beb2afb3baf1bcb0b2">[email&#160;protected]</a>"</text>
+                                    
+                                    <rect x="20" y="120" width="360" height="40" rx="6" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="1"/>
+                                    <text x="30" y="145" font-size="12" fill="#e2e8f0">Row 2: user_id=002, name="Bob", email="<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="781a171a381d00191508141d561b1715">[email&#160;protected]</a>"</text>
+                                    
+                                    <rect x="20" y="170" width="360" height="20" rx="4" fill="#334155"/>
+                                    <text x="200" y="185" font-size="11" fill="#94a3b8" text-anchor="middle">...</text>
+                                </g>
+
+                                <!-- DELETE Command -->
+                                <g transform="translate(200, 280)">
+                                    <rect width="250" height="60" rx="10" fill="#dc2626" opacity="0.9">
+                                        <animate attributeName="opacity" values="0.9;0.6;0.9" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="125" y="25" font-size="14" fill="white" text-anchor="middle" font-weight="700">
+                                        ⚠️ DELETE FROM users
+                                    </text>
+                                    <text x="125" y="45" font-size="13" fill="white" text-anchor="middle">
+                                        WHERE user_id = 001
+                                    </text>
+                                </g>
+
+                                <line x1="325" y1="340" x2="325" y2="380" stroke="#dc2626" stroke-width="4">
+                                    <animate attributeName="y2" values="380;390;380" dur="1.5s" repeatCount="indefinite"/>
+                                </line>
+                                <polygon points="325,390 320,380 330,380" fill="#dc2626">
+                                    <animate attributeName="points" values="325,390 320,380 330,380;325,400 320,390 330,390;325,390 320,380 330,380" dur="1.5s" repeatCount="indefinite"/>
+                                </polygon>
+
+                                <!-- After DELETE -->
+                                <g transform="translate(50, 400)">
+                                    <text x="200" y="0" font-size="18" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+                                        AFTER DELETE (Tombstone Written!)
+                                    </text>
+                                    <rect y="20" width="400" height="250" rx="12" fill="#0f172a" stroke="#dc2626" stroke-width="3"/>
+                                    <text x="200" y="50" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        Newer SSTable (Memtable flushed)
+                                    </text>
+                                    
+                                    <!-- Tombstone marker -->
+                                    <rect x="20" y="70" width="360" height="50" rx="6" fill="#dc2626" opacity="0.3" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,5">
+                                        <animate attributeName="opacity" values="0.3;0.5;0.3" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="200" y="92" font-size="13" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        💀 TOMBSTONE: user_id=001 DELETED
+                                    </text>
+                                    <text x="200" y="110" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                        (Timestamp: newer than data below)
+                                    </text>
+
+                                    <text x="200" y="145" font-size="13" fill="#64748b" text-anchor="middle" font-style="italic">
+                                        Original SSTable Still Exists:
+                                    </text>
+                                    
+                                    <rect x="20" y="155" width="360" height="40" rx="6" fill="#334155" opacity="0.5" stroke="#64748b" stroke-width="1" stroke-dasharray="3,3"/>
+                                    <text x="30" y="180" font-size="11" fill="#64748b" text-decoration="line-through">
+                                        Row 1: user_id=001, name="Alice" (shadowed by tombstone)
+                                    </text>
+                                    
+                                    <rect x="20" y="205" width="360" height="40" rx="6" fill="#059669" opacity="0.2" stroke="#059669" stroke-width="1"/>
+                                    <text x="30" y="230" font-size="12" fill="#e2e8f0">Row 2: user_id=002, name="Bob" (still active)</text>
+                                </g>
+
+                                <!-- Key Points -->
+                                <rect x="500" y="80" width="550" height="570" rx="12" fill="#dc2626" opacity="0.05" stroke="#dc2626" stroke-width="2"/>
+                                <text x="775" y="115" font-size="18" font-weight="700" fill="#dc2626" text-anchor="middle">
+                                    💀 Tombstone Facts
+                                </text>
+
+                                <text x="520" y="150" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    What is a Tombstone?
+                                </text>
+                                <text x="520" y="175" font-size="12" fill="#e2e8f0">
+                                    • Marker that says "data deleted"
+                                </text>
+                                <text x="520" y="195" font-size="12" fill="#e2e8f0">
+                                    • Has timestamp (newer than data)
+                                </text>
+                                <text x="520" y="215" font-size="12" fill="#e2e8f0">
+                                    • Written to new SSTable
+                                </text>
+
+                                <text x="520" y="250" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    Why Not Delete Immediately?
+                                </text>
+                                <text x="520" y="275" font-size="12" fill="#e2e8f0">
+                                    • Distributed system: replicas need notice
+                                </text>
+                                <text x="520" y="295" font-size="12" fill="#e2e8f0">
+                                    • SSTables immutable (can't edit files)
+                                </text>
+                                <text x="520" y="315" font-size="12" fill="#e2e8f0">
+                                    • Need to propagate DELETE to all nodes
+                                </text>
+
+                                <text x="520" y="350" font-size="14" fill="#e2e8f0" font-weight="700">
+                                    When Are Tombstones Removed?
+                                </text>
+                                <text x="520" y="375" font-size="12" fill="#e2e8f0">
+                                    • During compaction (merges SSTables)
+                                </text>
+                                <text x="520" y="395" font-size="12" fill="#e2e8f0">
+                                    • After gc_grace_seconds (default: 10 days)
+                                </text>
+                                <text x="520" y="415" font-size="12" fill="#e2e8f0">
+                                    • If tombstone older than gc_grace
+                                </text>
+                                <text x="520" y="435" font-size="12" fill="#e2e8f0">
+                                    • AND all replicas have seen it
+                                </text>
+
+                                <rect x="520" y="455" width="510" height="180" rx="10" fill="#dc2626" opacity="0.15" stroke="#dc2626" stroke-width="2"/>
+                                <text x="775" y="485" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    ⚠️ THE PROBLEM
+                                </text>
+                                <text x="540" y="510" font-size="12" fill="#e2e8f0">
+                                    <tspan font-weight="700" fill="#dc2626">Queries must read tombstones!</tspan>
+                                </text>
+                                <text x="540" y="535" font-size="12" fill="#e2e8f0">
+                                    • SELECT scans tombstones to know what's deleted
+                                </text>
+                                <text x="540" y="555" font-size="12" fill="#e2e8f0">
+                                    • 1000s of tombstones = SLOW queries
+                                </text>
+                                <text x="540" y="575" font-size="12" fill="#e2e8f0">
+                                    • Can cause read timeouts
+                                </text>
+                                <text x="540" y="595" font-size="12" fill="#e2e8f0">
+                                    • Even crash nodes (out of memory)
+                                </text>
+                                <text x="540" y="615" font-size="12" fill="#dc2626" font-weight="700">
+                                    → Avoid mass deletes if possible!
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box error">
+                            <h4><i class="fas fa-bomb" style="color: var(--error-red);"></i> Tombstone Warning Threshold</h4>
+                            <p style="font-size: 1.05rem; line-height: 1.9;">
+                                <strong>Default warning:</strong> 1,000 tombstones in a query<br>
+                                <strong>Default abort:</strong> 100,000 tombstones in a query<br>
+                                <strong>What happens:</strong> Query aborted with TombstoneOverwhelmingException
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- DELETE Flow -->
+                    <section id="delete-flow" data-aos="fade-up">
+                        <h2>🔄 DELETE Execution Flow</h2>
+
+                        <div class="svg-container">
+                            <svg viewBox="0 0 1000 650" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrowDel" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+                                    </marker>
+                                </defs>
+
+                                <text x="500" y="35" font-family="Inter, sans-serif" font-size="26" font-weight="900" fill="#3b82f6" text-anchor="middle">
+                                    DELETE Execution Flow
+                                </text>
+
+                                <!-- Step 1 -->
+                                <g transform="translate(325, 80)">
+                                    <rect width="350" height="70" rx="10" fill="#dc2626" opacity="0.9">
+                                        <animate attributeName="opacity" values="0.9;0.7;0.9" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="175" y="30" font-size="15" fill="white" text-anchor="middle" font-weight="700">
+                                        1️⃣ Client Sends DELETE
+                                    </text>
+                                    <text x="175" y="52" font-size="12" fill="white" text-anchor="middle">
+                                        DELETE FROM users WHERE user_id = ?
+                                    </text>
+                                </g>
+
+                                <line x1="500" y1="150" x2="500" y2="185" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowDel)"/>
+
+                                <!-- Step 2 -->
+                                <g transform="translate(275, 185)">
+                                    <rect width="450" height="70" rx="10" fill="#0f172a" stroke="#dc2626" stroke-width="2"/>
+                                    <text x="225" y="28" font-size="15" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        2️⃣ Create Tombstone Marker
+                                    </text>
+                                    <text x="225" y="50" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                        Tombstone = {key: user_id, timestamp: NOW, deleted: true}
+                                    </text>
+                                </g>
+
+                                <line x1="500" y1="255" x2="500" y2="290" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowDel)"/>
+
+                                <!-- Step 3 -->
+                                <g transform="translate(275, 290)">
+                                    <rect width="450" height="70" rx="10" fill="#0f172a" stroke="#d97706" stroke-width="2"/>
+                                    <text x="225" y="28" font-size="15" fill="#d97706" text-anchor="middle" font-weight="700">
+                                        3️⃣ Write Tombstone to Memtable
+                                    </text>
+                                    <text x="225" y="50" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                        Tombstone stored in memory (just like regular write)
+                                    </text>
+                                </g>
+
+                                <line x1="500" y1="360" x2="500" y2="395" stroke="#d97706" stroke-width="3" marker-end="url(#arrowDel)"/>
+
+                                <!-- Step 4 -->
+                                <g transform="translate(275, 395)">
+                                    <rect width="450" height="70" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+                                    <text x="225" y="28" font-size="15" fill="#3b82f6" text-anchor="middle" font-weight="700">
+                                        4️⃣ Append to Commit Log
+                                    </text>
+                                    <text x="225" y="50" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                        Durability ensured (tombstone survives crashes)
+                                    </text>
+                                </g>
+
+                                <line x1="500" y1="465" x2="500" y2="500" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrowDel)"/>
+
+                                <!-- Step 5 -->
+                                <g transform="translate(325, 500)">
+                                    <rect width="350" height="70" rx="10" fill="#059669" opacity="0.9">
+                                        <animate attributeName="opacity" values="0.9;0.7;0.9" dur="1.5s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="175" y="30" font-size="15" fill="white" text-anchor="middle" font-weight="700">
+                                        5️⃣ Acknowledge to Client
+                                    </text>
+                                    <text x="175" y="52" font-size="12" fill="white" text-anchor="middle">
+                                        ✅ DELETE successful (tombstone written)
+                                    </text>
+                                </g>
+
+                                <!-- Side note -->
+                                <rect x="50" y="185" width="200" height="160" rx="10" fill="#d97706" opacity="0.1" stroke="#d97706" stroke-width="2"/>
+                                <text x="150" y="210" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">
+                                    ⚡ Fast!
+                                </text>
+                                <text x="60" y="235" font-size="11" fill="#e2e8f0">
+                                    • DELETE = Write operation
+                                </text>
+                                <text x="60" y="255" font-size="11" fill="#e2e8f0">
+                                    • No read required
+                                </text>
+                                <text x="60" y="275" font-size="11" fill="#e2e8f0">
+                                    • 1-5ms typically
+                                </text>
+                                <text x="60" y="295" font-size="11" fill="#e2e8f0">
+                                    • Same speed as INSERT
+                                </text>
+
+                                <rect x="750" y="185" width="200" height="220" rx="10" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="2"/>
+                                <text x="850" y="210" font-size="13" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    ⏰ Later...
+                                </text>
+                                <text x="760" y="235" font-size="11" fill="#e2e8f0">
+                                    • Memtable → SSTable flush
+                                </text>
+                                <text x="760" y="255" font-size="11" fill="#e2e8f0">
+                                    • Tombstone in SSTable
+                                </text>
+                                <text x="760" y="275" font-size="11" fill="#e2e8f0">
+                                    • Replicas sync
+                                </text>
+                                <text x="760" y="295" font-size="11" fill="#e2e8f0">
+                                    • Wait gc_grace_seconds
+                                </text>
+                                <text x="760" y="315" font-size="11" fill="#e2e8f0">
+                                    • Compaction runs
+                                </text>
+                                <text x="760" y="335" font-size="11" fill="#e2e8f0">
+                                    • Tombstone purged
+                                </text>
+                                <text x="850" y="365" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    (10+ days typically)
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box tip">
+                            <h4><i class="fas fa-info-circle" style="color: var(--accent-sky);"></i> DELETE Performance</h4>
+                            <p style="font-size: 1.05rem; line-height: 1.9;">
+                                <strong>DELETE is FAST to execute</strong> (1-5ms) because it's just a write operation.<br>
+                                <strong>DELETE is SLOW for reads</strong> because queries must scan tombstones.
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Delete Types -->
+                    <section id="delete-types" data-aos="fade-up">
+                        <h2>🗑️ Types of DELETE Operations</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue); margin-bottom: 3rem;">
+                            <h4><i class="fas fa-list" style="color: var(--primary-blue);"></i> Beginner's Guide: Different Ways to Delete</h4>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                Just like you can delete things differently in real life, Cassandra has different types of deletes. Let's understand each one with simple examples!
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue); margin-bottom: 1rem;">📝 Think of it Like Editing a Document:</h5>
+                                
+                                <p style="line-height: 2;"><strong>1. Delete Entire Page (Row DELETE):</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "Delete everything about User Alice" - removes the entire row<br>
+                                    <span style="color: var(--text-secondary);">Example: User deletes their account</span>
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>2. Delete Specific Words (Column DELETE):</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "Delete Alice's email and phone, but keep her name" - removes only specific columns<br>
+                                    <span style="color: var(--text-secondary);">Example: User wants to remove contact info but keep account</span>
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>3. Delete List Items (Collection DELETE):</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "Delete Alice's list of hobbies" - removes a whole collection<br>
+                                    <span style="color: var(--text-secondary);">Example: User clears their interest list</span>
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>4. Delete Date Range (Range DELETE - Dangerous!):</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "Delete all posts from January" - removes multiple rows at once<br>
+                                    <span style="color: var(--error-red); font-weight: 600;">⚠️ Warning: This creates performance problems!</span>
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>5. Auto-Delete (TTL - Best Choice!):</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "This session expires in 1 hour" - data deletes itself automatically<br>
+                                    <span style="color: var(--success-green); font-weight: 600;">✅ Best: No manual deletion needed!</span>
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(217, 119, 6, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--warning-orange);">
+                                <h5 style="color: var(--warning-orange); margin-bottom: 1rem;">💡 Which Type Should You Use?</h5>
+                                <ul style="line-height: 2;">
+                                    <li><strong>Deleting one user/item:</strong> Use Row DELETE (safe)</li>
+                                    <li><strong>Removing personal info:</strong> Use Column DELETE (safe)</li>
+                                    <li><strong>Clearing a list:</strong> Use Collection DELETE (safe)</li>
+                                    <li><strong>Data expires after time:</strong> Use TTL (BEST!)</li>
+                                    <li><strong>Deleting many items at once:</strong> Avoid if possible! If you must, be very careful</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>1. Row DELETE (Entire Row)</h3>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-label">Delete Entire Row</span>
+                                    <button class="copy-button" onclick="copyCode(this)">Copy</button>
+                                </div>
+                                <div class="code-content">
+<span class="comment">-- Delete entire partition (all clustering rows)</span><br/>
+<span class="keyword">DELETE FROM</span> user_posts<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<span class="comment">// Deletes ALL posts for this user</span><br/>
+<br/>
+<span class="comment">-- Delete specific clustering row</span><br/>
+<span class="keyword">DELETE FROM</span> user_posts<br/>
+<span class="keyword">WHERE</span> user_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> post_id = ?;<br/>
+<span class="comment">// Deletes ONE specific post</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>2. Column DELETE (Specific Columns)</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Delete specific columns from row</span><br/>
+<span class="keyword">DELETE</span> email, phone<br/>
+<span class="keyword">FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<span class="comment">// Deletes email and phone, keeps other columns</span><br/>
+<br/>
+<span class="comment">-- Delete single column</span><br/>
+<span class="keyword">DELETE</span> temporary_token<br/>
+<span class="keyword">FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>3. Collection DELETE</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Delete entire collection</span><br/>
+<span class="keyword">DELETE</span> tags<br/>
+<span class="keyword">FROM</span> posts<br/>
+<span class="keyword">WHERE</span> post_id = ?;<br/>
+<br/>
+<span class="comment">-- Delete map key</span><br/>
+<span class="keyword">DELETE</span> preferences[<span class="string">'theme'</span>]<br/>
+<span class="keyword">FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- Delete list element (NOT recommended - full scan)</span><br/>
+<span class="keyword">UPDATE</span> posts<br/>
+<span class="keyword">SET</span> tags = tags - [<span class="string">'old-tag'</span>]<br/>
+<span class="keyword">WHERE</span> post_id = ?;<br/>
+<span class="comment">// Use UPDATE for list/set element removal</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>DELETE Type</th>
+                                    <th>What It Does</th>
+                                    <th>Tombstone Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Row DELETE</strong></td>
+                                    <td>Deletes entire row</td>
+                                    <td>Partition or Row tombstone</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Column DELETE</strong></td>
+                                    <td>Deletes specific columns</td>
+                                    <td>Cell tombstone (per column)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Range DELETE</strong></td>
+                                    <td>Deletes range of clustering rows</td>
+                                    <td>Range tombstone</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Collection DELETE</strong></td>
+                                    <td>Deletes entire collection</td>
+                                    <td>Collection tombstone</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>TTL Expiration</strong></td>
+                                    <td>Auto-delete after time</td>
+                                    <td>TTL tombstone (auto-created)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <!-- Range DELETE -->
+                    <section id="range-delete" data-aos="fade-up">
+                        <h2>📊 Range DELETE (Dangerous!)</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue); margin-bottom: 3rem;">
+                            <h4><i class="fas fa-lightbulb" style="color: var(--primary-blue);"></i> Understanding Range DELETE for Beginners</h4>
+                            
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                <strong>What is a Range DELETE?</strong>
+                            </p>
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                Instead of deleting one specific row, you delete MANY rows at once using conditions like "greater than" or "between dates."
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">📖 Real-World Example:</h5>
+                                <p style="line-height: 2;">
+                                    Imagine you're a teacher with a gradebook:
+                                </p>
+                                <ul style="line-height: 2;">
+                                    <li><strong>Individual Delete:</strong> "Cross out John's grade, cross out Mary's grade, cross out Bob's grade..."<br>
+                                        → Creates 3 separate "DELETED" marks</li>
+                                    <li><strong>Range Delete:</strong> "Cross out ALL grades from January 1st to January 31st"<br>
+                                        → Creates ONE big "DELETED FROM JAN 1-31" sticky note that covers many rows</li>
+                                </ul>
+                            </div>
+
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--error-red); margin-top: 1.5rem;">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">🚨 Why Range DELETE is Dangerous:</h5>
+                                <p style="line-height: 2;">
+                                    The "sticky note" stays there forever (well, 10 days), and EVERY time someone looks for ANY grade in that section, they have to check:
+                                </p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    "Does this fall under the January 1-31 deletion range?"
+                                </p>
+                                <p style="line-height: 2; margin-top: 1rem;">
+                                    So even if you're looking for a February grade (which wasn't deleted), you still waste time checking against that January range!
+                                </p>
+                                <p style="line-height: 2; margin-top: 1rem;">
+                                    <strong style="color: var(--error-red);">Result:</strong> ALL queries in that partition become slower, not just queries for deleted data!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box error">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: var(--error-red);"></i> Range DELETE Warning</h4>
+                            <p style="font-size: 1.1rem; line-height: 1.9;">
+                                Range deletes create a SINGLE range tombstone that covers many rows. This can be <strong style="color: var(--error-red);">extremely dangerous</strong> for performance!
+                            </p>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Range DELETE Examples</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Delete range of clustering rows</span><br/>
+<span class="keyword">DELETE FROM</span> sensor_data<br/>
+<span class="keyword">WHERE</span> sensor_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> timestamp >= <span class="string">'2025-01-01'</span><br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> timestamp <= <span class="string">'2025-01-31'</span>;<br/>
+<span class="comment">// ⚠️ Deletes all January data with ONE range tombstone</span><br/>
+<br/>
+<span class="comment">-- Delete everything after a point</span><br/>
+<span class="keyword">DELETE FROM</span> user_timeline<br/>
+<span class="keyword">WHERE</span> user_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> post_date > <span class="string">'2024-12-01'</span>;<br/>
+<span class="comment">// ⚠️ Range tombstone covers all future posts</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="svg-container" style="border: 3px solid var(--error-red);">
+                            <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+                                <text x="500" y="35" font-family="Inter, sans-serif" font-size="24" font-weight="900" fill="#dc2626" text-anchor="middle">
+                                    ⚠️ Range Tombstone Problem
+                                </text>
+
+                                <!-- Individual Deletes -->
+                                <g transform="translate(50, 80)">
+                                    <text x="175" y="0" font-size="16" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+                                        Individual Row Deletes (Better)
+                                    </text>
+                                    <rect y="20" width="350" height="280" rx="10" fill="#0f172a" stroke="#059669" stroke-width="2"/>
+                                    
+                                    <rect x="20" y="40" width="310" height="35" rx="5" fill="#dc2626" opacity="0.3"/>
+                                    <text x="30" y="62" font-size="11" fill="#e2e8f0">💀 Tombstone: Row 1</text>
+
+                                    <rect x="20" y="85" width="310" height="35" rx="5" fill="#dc2626" opacity="0.3"/>
+                                    <text x="30" y="107" font-size="11" fill="#e2e8f0">💀 Tombstone: Row 2</text>
+
+                                    <rect x="20" y="130" width="310" height="35" rx="5" fill="#dc2626" opacity="0.3"/>
+                                    <text x="30" y="152" font-size="11" fill="#e2e8f0">💀 Tombstone: Row 3</text>
+
+                                    <rect x="20" y="175" width="310" height="35" rx="5" fill="#059669" opacity="0.2"/>
+                                    <text x="30" y="197" font-size="11" fill="#059669">✓ Active Row 4</text>
+
+                                    <rect x="20" y="220" width="310" height="35" rx="5" fill="#059669" opacity="0.2"/>
+                                    <text x="30" y="242" font-size="11" fill="#059669">✓ Active Row 5</text>
+
+                                    <text x="175" y="280" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">
+                                        3 tombstones to scan
+                                    </text>
+                                </g>
+
+                                <!-- Range Delete -->
+                                <g transform="translate(550, 80)">
+                                    <text x="175" y="0" font-size="16" font-weight="700" fill="#e2e8f0" text-anchor="middle">
+                                        Range DELETE (Worse!)
+                                    </text>
+                                    <rect y="20" width="350" height="280" rx="10" fill="#0f172a" stroke="#dc2626" stroke-width="3"/>
+                                    
+                                    <!-- Giant range tombstone -->
+                                    <rect x="20" y="40" width="310" height="165" rx="5" fill="#dc2626" opacity="0.4" stroke="#dc2626" stroke-width="3" stroke-dasharray="5,5">
+                                        <animate attributeName="opacity" values="0.4;0.6;0.4" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="175" y="75" font-size="13" fill="white" text-anchor="middle" font-weight="700">
+                                        💀 RANGE TOMBSTONE
+                                    </text>
+                                    <text x="175" y="95" font-size="11" fill="white" text-anchor="middle">
+                                        Covers Rows 1-3
+                                    </text>
+                                    <text x="175" y="125" font-size="10" fill="#94a3b8" text-anchor="middle">
+                                        (Queries MUST check every row
+                                    </text>
+                                    <text x="175" y="145" font-size="10" fill="#94a3b8" text-anchor="middle">
+                                        in range to see if it falls
+                                    </text>
+                                    <text x="175" y="165" font-size="10" fill="#94a3b8" text-anchor="middle">
+                                        under this tombstone)
+                                    </text>
+
+                                    <rect x="20" y="220" width="310" height="35" rx="5" fill="#059669" opacity="0.2"/>
+                                    <text x="30" y="242" font-size="11" fill="#059669">✓ Active Row 4 (checked against range)</text>
+
+                                    <text x="175" y="280" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        ALL rows checked!
+                                    </text>
+                                </g>
+
+                                <!-- Warning -->
+                                <rect x="50" y="400" width="900" height="80" rx="10" fill="#dc2626" opacity="0.15" stroke="#dc2626" stroke-width="2"/>
+                                <text x="500" y="430" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    ⚠️ Range tombstones affect EVERY query in partition
+                                </text>
+                                <text x="500" y="455" font-size="12" fill="#e2e8f0" text-anchor="middle">
+                                    Even queries NOT touching deleted rows must check against range tombstone!
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box warning">
+                            <h4><i class="fas fa-bomb" style="color: var(--warning-orange);"></i> When Range DELETE is Acceptable</h4>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li>✓ Deleting entire partition (going away anyway)</li>
+                                <li>✓ Small ranges (< 100 rows)</li>
+                                <li>✓ Time-series data with TTL (auto-cleanup)</li>
+                                <li>✗ Large ranges (1000s of rows)</li>
+                                <li>✗ Frequently queried partitions</li>
+                                <li>✗ Without understanding the performance impact</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Conditional DELETE -->
+                    <section id="conditional" data-aos="fade-up">
+                        <h2>✅ Conditional DELETE (IF)</h2>
+
+                        <div class="syntax-card">
+                            <h3>IF EXISTS / IF Conditions</h3>
+                            <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-label">Conditional DELETE</span>
+                                    <button class="copy-button" onclick="copyCode(this)">Copy</button>
+                                </div>
+                                <div class="code-content">
+<span class="comment">-- Only delete if row exists</span><br/>
+<span class="keyword">DELETE FROM</span> sessions<br/>
+<span class="keyword">WHERE</span> session_id = ?<br/>
+<span class="keyword">IF EXISTS</span>;<br/>
+<br/>
+<span class="comment">-- Delete if column matches value</span><br/>
+<span class="keyword">DELETE FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?<br/>
+<span class="keyword">IF</span> status = <span class="string">'inactive'</span>;<br/>
+<br/>
+<span class="comment">-- Multiple conditions</span><br/>
+<span class="keyword">DELETE FROM</span> orders<br/>
+<span class="keyword">WHERE</span> order_id = ?<br/>
+<span class="keyword">IF</span> status = <span class="string">'pending'</span><br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> created_at < <span class="string">'2025-01-01'</span>;
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning">
+                            <h4><i class="fas fa-clock" style="color: var(--warning-orange);"></i> Performance Cost</h4>
+                            <p style="font-size: 1.05rem; line-height: 1.9;">
+                                Conditional DELETE uses lightweight transactions (Paxos):<br>
+                                <strong>Normal DELETE:</strong> 1-5ms<br>
+                                <strong>Conditional DELETE:</strong> 10-50ms (10x slower)
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- TTL vs DELETE -->
+                    <section id="ttl-vs-delete" data-aos="fade-up">
+                        <h2>⏰ TTL vs DELETE</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue); margin-bottom: 3rem;">
+                            <h4><i class="fas fa-clock" style="color: var(--primary-blue);"></i> Beginner's Guide: TTL - The Smart Alternative</h4>
+                            
+                            <p style="font-size: 1.1rem; line-height: 2;">
+                                <strong>What is TTL?</strong>
+                            </p>
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                TTL stands for "Time To Live." It's like setting a self-destruct timer on your data - after X seconds, it automatically disappears!
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">🍪 Cookie Analogy:</h5>
+                                <p style="line-height: 2;">
+                                    <strong>DELETE approach:</strong> You bake cookies, eat some, then manually throw away each remaining cookie one by one. Each time you throw one away, you leave a note "Cookie #5 thrown away." Those notes pile up!
+                                </p>
+                                <p style="line-height: 2; margin-top: 1rem;">
+                                    <strong>TTL approach:</strong> You bake cookies with an expiration date printed on them. After 3 days, they automatically vanish - no manual throwing away, no notes piling up, completely automatic cleanup!
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--success-green); margin-top: 1.5rem;">
+                                <h5 style="color: var(--success-green); margin-bottom: 1rem;">✅ Why TTL is MUCH Better:</h5>
+                                <ol style="line-height: 2; font-size: 1.05rem;">
+                                    <li><strong>Automatic:</strong> You set it once when inserting data, then forget about it. No code needed to delete later!</li>
+                                    <li><strong>No tombstone problem:</strong> TTL creates special "TTL tombstones" that Cassandra handles more efficiently</li>
+                                    <li><strong>Cleaner:</strong> Data expires naturally, like milk going bad after a week</li>
+                                    <li><strong>Faster:</strong> No accumulation of regular tombstones that slow down queries</li>
+                                </ol>
+                            </div>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin-top: 1.5rem;">
+                                <h5 style="color: var(--primary-blue);">💡 When to Use Each:</h5>
+                                <table style="width: 100%; background: transparent; margin: 1rem 0;">
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: none;"><strong>Use TTL for:</strong></td>
+                                        <td style="padding: 0.5rem; border: none;"><strong>Use DELETE for:</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: none; vertical-align: top;">
+                                            • Session data (expires in hours)<br>
+                                            • Cache data (expires in minutes)<br>
+                                            • Temporary codes (expire in 5 mins)<br>
+                                            • Anything with predictable lifetime
+                                        </td>
+                                        <td style="padding: 0.5rem; border: none; vertical-align: top;">
+                                            • User deletes their account<br>
+                                            • Admin removes inappropriate content<br>
+                                            • User deletes a post/comment<br>
+                                            • Anything user-initiated
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <p style="font-size: 1.05rem; line-height: 2; margin-top: 1.5rem; color: var(--success-green); font-weight: 600;">
+                                💡 Golden Rule: If you know data will expire after a certain time, ALWAYS use TTL instead of DELETE!
+                            </p>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" style="border: 2px solid var(--success-green);">
+                                <h4 style="color: var(--success-green);">✅ Use TTL When:</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✓ Data expires after known time</li>
+                                    <li>✓ Session data (hours/days)</li>
+                                    <li>✓ Cache entries</li>
+                                    <li>✓ Temporary tokens</li>
+                                    <li>✓ Recent activity logs</li>
+                                    <li>✓ Auto-cleanup preferred</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border: 2px solid var(--warning-orange);">
+                                <h4 style="color: var(--warning-orange);">⚠️ Use DELETE When:</h4>
+                                <ul style="line-height: 2;">
+                                    <li>• Immediate deletion needed</li>
+                                    <li>• User-triggered removal</li>
+                                    <li>• Data violation (GDPR)</li>
+                                    <li>• Explicit deletion required</li>
+                                    <li>• No predictable expiration</li>
+                                    <li>• But be aware of tombstones!</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>TTL Example (Preferred!)</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Insert with TTL (auto-deletes after 1 hour)</span><br/>
+<span class="keyword">INSERT INTO</span> sessions (session_id, data)<br/>
+<span class="keyword">VALUES</span> (?, ?)<br/>
+<span class="keyword">USING TTL</span> 3600;<br/>
+<span class="comment">// No tombstone accumulation!</span><br/>
+<span class="comment">// Data expires cleanly</span><br/>
+<br/>
+<span class="comment">-- vs DELETE (creates tombstones)</span><br/>
+<span class="keyword">DELETE FROM</span> sessions<br/>
+<span class="keyword">WHERE</span> session_id = ?;<br/>
+<span class="comment">// Tombstone remains for gc_grace_seconds</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box tip">
+                            <h4><i class="fas fa-lightbulb" style="color: var(--accent-sky);"></i> Why TTL is Better</h4>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li><strong>No manual DELETE needed:</strong> Automatic cleanup</li>
+                                <li><strong>Less tombstone pressure:</strong> Compaction handles expired data efficiently</li>
+                                <li><strong>Better performance:</strong> No accumulation of delete tombstones</li>
+                                <li><strong>Simpler code:</strong> Set once, forget it</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Real Examples -->
+                    <section id="examples" data-aos="fade-up">
+                        <h2>💡 Real-World DELETE Examples</h2>
+
+                        <div class="syntax-card">
+                            <h3>Example 1: User Account Deletion</h3>
+                            <div class="info-box tip">
+                                <p><strong>Scenario:</strong> User deletes account - must remove all related data</p>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- 1. Delete main user record</span><br/>
+<span class="keyword">DELETE FROM</span> users<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- 2. Delete all user posts</span><br/>
+<span class="keyword">DELETE FROM</span> user_posts<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- 3. Delete user preferences</span><br/>
+<span class="keyword">DELETE FROM</span> user_preferences<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- 4. Delete sessions</span><br/>
+<span class="keyword">DELETE FROM</span> user_sessions<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">// ⚠️ Problem: Multiple partition deletes</span><br/>
+<span class="comment">// Better: Design with user_id as partition key in all tables</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Example 2: Cleanup Old Data</h3>
+                            <div class="info-box tip">
+                                <p><strong>Scenario:</strong> Delete data older than 90 days</p>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- ❌ BAD: Range delete (huge range tombstone)</span><br/>
+<span class="keyword">DELETE FROM</span> logs<br/>
+<span class="keyword">WHERE</span> app_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> log_date < <span class="string">'2024-10-01'</span>;<br/>
+<br/>
+<span class="comment">-- ✅ BETTER: Use TTL from the start</span><br/>
+<span class="keyword">INSERT INTO</span> logs (app_id, log_date, message)<br/>
+<span class="keyword">VALUES</span> (?, ?, ?)<br/>
+<span class="keyword">USING TTL</span> 7776000;  <span class="comment">-- 90 days in seconds</span><br/>
+<br/>
+<span class="comment">-- ✅ ALTERNATIVE: Delete by day (if must DELETE)</span><br/>
+<span class="keyword">DELETE FROM</span> logs<br/>
+<span class="keyword">WHERE</span> app_id = ?<br/>
+&nbsp;&nbsp;<span class="keyword">AND</span> log_date = <span class="string">'2024-09-30'</span>;<br/>
+<span class="comment">// Delete one day at a time, not 90-day range</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Example 3: Cancel Pending Order</h3>
+                            <div class="info-box tip">
+                                <p><strong>Scenario:</strong> User cancels order - only delete if still pending</p>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Conditional delete (only if pending)</span><br/>
+<span class="keyword">DELETE FROM</span> orders<br/>
+<span class="keyword">WHERE</span> order_id = ?<br/>
+<span class="keyword">IF</span> status = <span class="string">'pending'</span>;<br/>
+<br/>
+<span class="comment">-- Check result</span><br/>
+<span class="comment">// [applied]=true → Successfully deleted</span><br/>
+<span class="comment">// [applied]=false → Order already processing/shipped</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Example 4: Clear Shopping Cart</h3>
+                            <div class="info-box tip">
+                                <p><strong>Scenario:</strong> User clears cart after purchase</p>
+                            </div>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Delete entire cart partition</span><br/>
+<span class="keyword">DELETE FROM</span> shopping_carts<br/>
+<span class="keyword">WHERE</span> user_id = ?;<br/>
+<br/>
+<span class="comment">-- OR just delete items collection</span><br/>
+<span class="keyword">DELETE</span> items<br/>
+<span class="keyword">FROM</span> shopping_carts<br/>
+<span class="keyword">WHERE</span> user_id = ?;
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Performance & Issues -->
+                    <section id="performance" data-aos="fade-up">
+                        <h2>⚡ Performance Issues & Solutions</h2>
+
+                        <div class="info-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(14, 165, 233, 0.1)); border-left-color: var(--primary-blue); margin-bottom: 3rem;">
+                            <h4><i class="fas fa-tachometer-alt" style="color: var(--primary-blue);"></i> Understanding DELETE Performance Problems</h4>
+                            
+                            <p style="font-size: 1.1rem; line-height: 2;">
+                                <strong>Why does DELETE cause performance problems?</strong>
+                            </p>
+
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                                <h5 style="color: var(--primary-blue);">🎬 Movie Theater Analogy:</h5>
+                                <p style="line-height: 2;">
+                                    Imagine you're in a movie theater looking for empty seats:
+                                </p>
+                                
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Scenario 1: Few Deleted Seats</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    Theater has 100 seats, 10 have "RESERVED - DO NOT SIT" signs.<br>
+                                    Finding an empty seat is EASY - you only skip past 10 reserved ones.
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Scenario 2: Many Deleted Seats (THE PROBLEM!)</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    Theater has 100 seats, 80 have "RESERVED - DO NOT SIT" signs.<br>
+                                    Finding an empty seat is NIGHTMARE - you're checking 80 "RESERVED" signs to find 20 actual seats!
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1.5rem; color: var(--error-red); font-weight: 600;">
+                                    This is EXACTLY what happens in Cassandra when you delete too much data. Queries become slow because they're reading through thousands of "DELETED" markers!
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--error-red); margin-top: 1.5rem;">
+                                <h5 style="color: var(--error-red); margin-bottom: 1rem;">🚨 The 4 Main Problems with DELETE:</h5>
+                                
+                                <p style="line-height: 2;"><strong>Problem 1: Queries Get Slower Over Time</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    <em>What you see:</em> Your app was fast, now it's slow<br>
+                                    <em>What's happening:</em> Tombstones piling up like trash<br>
+                                    <em>Solution:</em> Use TTL instead, or redesign your table
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Problem 2: Queries Start Timing Out</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    <em>What you see:</em> "TombstoneOverwhelmingException" error<br>
+                                    <em>What's happening:</em> Query tried to read 100,000+ tombstones and gave up<br>
+                                    <em>Solution:</em> Stop mass deleting! Use smaller batches or TTL
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Problem 3: Everything Slows Down (Range Tombstone)</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    <em>What you see:</em> Even queries for non-deleted data are slow<br>
+                                    <em>What's happening:</em> Range DELETE created a massive tombstone covering everything<br>
+                                    <em>Solution:</em> Delete individual rows, or accept 10 days of slow queries
+                                </p>
+
+                                <p style="line-height: 2; margin-top: 1rem;"><strong>Problem 4: Disk Space Doesn't Free Up</strong></p>
+                                <p style="margin-left: 1.5rem; line-height: 2;">
+                                    <em>What you see:</em> Deleted millions of rows, but disk still 90% full<br>
+                                    <em>What's happening:</em> Tombstones + old data still on disk (waiting 10 days)<br>
+                                    <em>Solution:</em> Wait for compaction (automatic cleanup) or run manual cleanup
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 10px; border: 2px solid var(--success-green); margin-top: 1.5rem;">
+                                <h5 style="color: var(--success-green); margin-bottom: 1rem;">✅ How to Avoid These Problems:</h5>
+                                <ol style="line-height: 2; font-size: 1.05rem;">
+                                    <li><strong>Use TTL whenever possible</strong> - Let data expire automatically</li>
+                                    <li><strong>Design tables to be dropped entirely</strong> - Create one table per day/month, drop old tables</li>
+                                    <li><strong>Monitor tombstone warnings</strong> - Check logs for warnings before it becomes critical</li>
+                                    <li><strong>Delete in small batches</strong> - If you must DELETE, do 100-1000 rows at a time, not millions</li>
+                                    <li><strong>Test delete patterns before production</strong> - What works with 1000 rows might fail with 1 million</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="info-box error">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: var(--error-red);"></i> Common DELETE Problems</h4>
+                            
+                            <h5 style="margin-top: 1.5rem;">Problem 1: Tombstone Accumulation</h5>
+                            <p><strong>Symptom:</strong> Queries getting slower over time</p>
+                            <p><strong>Cause:</strong> Too many deletes creating too many tombstones</p>
+                            <p><strong>Solution:</strong> Use TTL instead, or redesign table</p>
+
+                            <h5 style="margin-top: 1.5rem;">Problem 2: Read Timeouts</h5>
+                            <p><strong>Symptom:</strong> TombstoneOverwhelmingException</p>
+                            <p><strong>Cause:</strong> Query reading 100,000+ tombstones</p>
+                            <p><strong>Solution:</strong> Avoid mass deletes, increase tombstone thresholds (temporary)</p>
+
+                            <h5 style="margin-top: 1.5rem;">Problem 3: Range Tombstone Overhead</h5>
+                            <p><strong>Symptom:</strong> All queries in partition slow</p>
+                            <p><strong>Cause:</strong> Range DELETE created range tombstone</p>
+                            <p><strong>Solution:</strong> Delete individual rows, or accept performance hit</p>
+
+                            <h5 style="margin-top: 1.5rem;">Problem 4: Disk Space Not Freed</h5>
+                            <p><strong>Symptom:</strong> Disk usage stays high after DELETE</p>
+                            <p><strong>Cause:</strong> Tombstones waiting for gc_grace_seconds + compaction</p>
+                            <p><strong>Solution:</strong> Wait for compaction, or run manual nodetool compact</p>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Tombstone Monitoring</h3>
+                            <div class="code-block">
+                                <div class="code-content">
+<span class="comment">-- Check tombstone warnings in logs:</span><br/>
+<span class="comment">// WARN  ... Read 5000 live rows and 10000 tombstone cells</span><br/>
+<span class="comment">// for query SELECT * FROM ... (see tombstone_warn_threshold)</span><br/>
+<br/>
+<span class="comment">-- Monitor with nodetool:</span><br/>
+$ nodetool cfstats keyspace.table | grep Tombstone<br/>
+<br/>
+<span class="comment">-- Check table metrics:</span><br/>
+$ nodetool tablestats keyspace.table<br/>
+<br/>
+<span class="comment">-- Set custom thresholds (cassandra.yaml):</span><br/>
+tombstone_warn_threshold: 1000<br/>
+tombstone_failure_threshold: 100000
+                                </div>
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Issue</th>
+                                    <th>Impact</th>
+                                    <th>Solution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="background: rgba(220, 38, 38, 0.1);">
+                                    <td>Many deletes</td>
+                                    <td>Slow reads</td>
+                                    <td>Use TTL instead</td>
+                                </tr>
+                                <tr style="background: rgba(220, 38, 38, 0.1);">
+                                    <td>Range deletes</td>
+                                    <td>Very slow reads</td>
+                                    <td>Delete individual rows</td>
+                                </tr>
+                                <tr style="background: rgba(220, 38, 38, 0.1);">
+                                    <td>Mass deletes</td>
+                                    <td>Cluster instability</td>
+                                    <td>Batch in small chunks</td>
+                                </tr>
+                                <tr style="background: rgba(217, 119, 6, 0.1);">
+                                    <td>Old tombstones</td>
+                                    <td>Disk space wasted</td>
+                                    <td>Run compaction</td>
+                                </tr>
+                                <tr style="background: rgba(5, 150, 105, 0.1);">
+                                    <td>Conditional DELETE</td>
+                                    <td>10x slower</td>
+                                    <td>Use sparingly</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ DELETE Best Practices</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" style="border: 2px solid var(--success-green);">
+                                <h4 style="color: var(--success-green);">✅ DO These Things</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✓ Prefer TTL over DELETE</li>
+                                    <li>✓ Design for TTL from start</li>
+                                    <li>✓ Monitor tombstone warnings</li>
+                                    <li>✓ Delete individual rows (not ranges)</li>
+                                    <li>✓ Batch small delete operations</li>
+                                    <li>✓ Run regular compaction</li>
+                                    <li>✓ Test delete workloads</li>
+                                    <li>✓ Consider table redesign</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border: 2px solid var(--error-red);">
+                                <h4 style="color: var(--error-red);">❌ DON'T Do These</h4>
+                                <ul style="line-height: 2;">
+                                    <li>✗ Mass delete operations</li>
+                                    <li>✗ Range deletes on hot data</li>
+                                    <li>✗ Delete entire partitions frequently</li>
+                                    <li>✗ Ignore tombstone warnings</li>
+                                    <li>✗ Overuse conditional DELETE</li>
+                                    <li>✗ Expect instant disk recovery</li>
+                                    <li>✗ Delete without monitoring</li>
+                                    <li>✗ Use DELETE as primary workflow</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--success-green);"></i> Golden Rules for DELETE</h4>
+                            <ol style="font-size: 1.05rem; line-height: 2;">
+                                <li><strong>TTL is king:</strong> Always prefer TTL for time-based expiration</li>
+                                <li><strong>Tombstones are expensive:</strong> They slow reads for gc_grace_seconds (default 10 days)</li>
+                                <li><strong>Range deletes are dangerous:</strong> Create range tombstones that affect all queries</li>
+                                <li><strong>Monitor actively:</strong> Watch for tombstone warnings in logs</li>
+                                <li><strong>Design for deletes:</strong> If heavy deletes expected, consider time-bucketed tables</li>
+                                <li><strong>Compaction is crucial:</strong> Tombstones only removed during compaction</li>
+                                <li><strong>Batch carefully:</strong> Delete in small batches (100-1000 rows at a time)</li>
+                                <li><strong>Test at scale:</strong> Delete patterns that work small may fail at scale</li>
+                            </ol>
+                        </div>
+
+                        <div class="syntax-card">
+                            <h3>Recommended Delete Patterns</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Use Case</th>
+                                        <th>Recommended Approach</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="background: rgba(5, 150, 105, 0.1);">
+                                        <td>Session data</td>
+                                        <td>TTL (1-24 hours)</td>
+                                        <td>Auto-cleanup, no tombstones</td>
+                                    </tr>
+                                    <tr style="background: rgba(5, 150, 105, 0.1);">
+                                        <td>Cache entries</td>
+                                        <td>TTL (minutes-hours)</td>
+                                        <td>Perfect for TTL</td>
+                                    </tr>
+                                    <tr style="background: rgba(5, 150, 105, 0.1);">
+                                        <td>Time-series logs</td>
+                                        <td>Time-bucketed tables + TTL</td>
+                                        <td>Drop entire tables</td>
+                                    </tr>
+                                    <tr style="background: rgba(217, 119, 6, 0.1);">
+                                        <td>User deletion</td>
+                                        <td>Individual row DELETE</td>
+                                        <td>Infrequent, acceptable</td>
+                                    </tr>
+                                    <tr style="background: rgba(217, 119, 6, 0.1);">
+                                        <td>GDPR compliance</td>
+                                        <td>DELETE + manual compaction</td>
+                                        <td>Legal requirement</td>
+                                    </tr>
+                                    <tr style="background: rgba(220, 38, 38, 0.1);">
+                                        <td>Bulk cleanup</td>
+                                        <td>Redesign or truncate table</td>
+                                        <td>DELETE too expensive</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="info-box warning">
+                            <h4><i class="fas fa-tools" style="color: var(--warning-orange);"></i> When to Consider Table Redesign</h4>
+                            <p style="font-size: 1.05rem; line-height: 2;">
+                                If you find yourself frequently deleting data, consider these alternatives:
+                            </p>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li><strong>Time-bucketed tables:</strong> Create table per day/month, drop entire tables</li>
+                                <li><strong>TTL everywhere:</strong> Set TTL on all writes, let data expire</li>
+                                <li><strong>Separate hot/cold tables:</strong> Active data in one table, archive in another</li>
+                                <li><strong>Status columns:</strong> Mark as deleted, filter in queries (if acceptable)</li>
+                            </ul>
+                        </div>
+                    </section>
+
+        <div class="page-navigation">
+    <a href="update-data.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Update Data</div>
+        </div>
+    </a>
+    <a href="batch-operations.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Batch Operations</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+        
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => { sidebar.classList.toggle('active'); });
+
+        function toggleSection(element) { element.closest('.path-section').classList.toggle('expanded'); }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => { scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300); });
+        scrollTopBtn.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            let currentSection = '';
+            sections.forEach(section => {
+                if (window.pageYOffset >= (section.offsetTop - 200)) { currentSection = section.getAttribute('id'); }
+            });
+            tocLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === `#${currentSection}`);
+            });
+        }
+        window.addEventListener('scroll', highlightTOC);
+        highlightTOC();
+
+        function copyCode(button) {
+    const codeBlock = button.closest('.code-block').querySelector('.code-content');
+    const text = codeBlock.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.style.background = '#059669';
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.style.background = '';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        button.textContent = 'Failed!';
+        button.style.background = '#dc2626';
+        setTimeout(() => {
+            button.textContent = 'Copy';
+            button.style.background = '';
+        }, 2000);
+    });
+}
+
+// Search functionality for page content
+const searchInput = document.getElementById('page-search');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const sections = document.querySelectorAll('section[id]');
+        
+        if (searchTerm.length > 2) {
+            sections.forEach(section => {
+                const text = section.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    section.style.display = 'block';
+                    section.style.background = 'rgba(59, 130, 246, 0.05)';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        } else {
+            sections.forEach(section => {
+                section.style.display = 'block';
+                section.style.background = '';
+            });
+        }
+    });
+}
+
+// Smooth scroll for TOC links
+document.querySelectorAll('.toc-floating a, a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href.startsWith('#')) {
+            e.preventDefault();
+            const target = document.querySelector(href);
+            if (target) {
+                const offset = 100;
+                const targetPosition = target.offsetTop - offset;
+                window.scrollTo({
+                    top: targetPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    });
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    
+    if (sidebar && menuToggle) {
+        if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {
+            sidebar.classList.remove('active');
+        }
+    }
+});
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + K to focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('page-search');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    }
+    
+    // Escape to close mobile menu
+    if (e.key === 'Escape') {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.classList.remove('active');
+        }
+    }
+});
+
+// Track reading progress
+let readingSections = new Set();
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            readingSections.add(entry.target.id);
+            updateReadingProgress();
+        }
+    });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('section[id]').forEach(section => {
+    observer.observe(section);
+});
+
+function updateReadingProgress() {
+    const totalSections = document.querySelectorAll('section[id]').length;
+    const readPercentage = (readingSections.size / totalSections) * 100;
+    
+    // Store progress in localStorage
+    const pageUrl = window.location.pathname;
+    localStorage.setItem(`reading-progress-${pageUrl}`, readPercentage.toFixed(0));
+}
+
+// Restore scroll position on page load
+window.addEventListener('load', () => {
+    const savedPosition = sessionStorage.getItem('scrollPosition');
+    if (savedPosition) {
+        window.scrollTo(0, parseInt(savedPosition));
+        sessionStorage.removeItem('scrollPosition');
+    }
+});
+
+// Save scroll position before leaving
+window.addEventListener('beforeunload', () => {
+    sessionStorage.setItem('scrollPosition', window.pageYOffset);
+});
+
+// Add copy feedback animation
+document.querySelectorAll('.copy-button').forEach(button => {
+    button.addEventListener('click', function() {
+        this.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            this.style.transform = '';
+        }, 150);
+    });
+});
+
+// Initialize all tooltips if Bootstrap is available
+if (typeof bootstrap !== 'undefined') {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// Console easter egg for curious developers
+console.log('%c🚀 Welcome to myPathshala!', 'font-size: 20px; color: #3b82f6; font-weight: bold;');
+console.log('%cLearning Cassandra? You\'re in the right place!', 'font-size: 14px; color: #059669;');
+console.log('%cBuilt with ❤️ for beginners by Vineeta', 'font-size: 12px; color: #94a3b8;');
+</script>
+</body>
+</html>

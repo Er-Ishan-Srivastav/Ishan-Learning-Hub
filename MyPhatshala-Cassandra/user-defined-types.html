@@ -1,0 +1,2813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to ALTER KEYSPACE in Cassandra - Master replication changes, datacenter expansion, and production migrations with animations and live examples!">
+    <meta name="keywords" content="cassandra alter keyspace, change replication, datacenter expansion, cassandra migration">
+    <title>User Defined Types in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🔄';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        /* SVG Container */
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box.expert {
+            border-left-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .comparison-card:hover::before {
+            opacity: 1;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Interactive Console */
+        .live-console {
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .console-header {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .console-title {
+            color: white;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .console-btn.primary {
+            background: var(--accent-teal);
+            border-color: var(--accent-teal);
+        }
+
+        .console-btn.primary:hover {
+            background: #0d9488;
+        }
+
+        .console-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .console-output {
+            color: var(--text-secondary);
+        }
+
+        .console-log {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .log-input {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .log-success {
+            color: #059669;
+            background: rgba(5, 150, 105, 0.1);
+            font-weight: 600;
+        }
+
+        .log-warning {
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        .log-error {
+            color: #dc2626;
+            background: rgba(220, 38, 38, 0.1);
+        }
+
+        .log-info {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Code block */
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword {
+            color: #ff6b9d;
+            font-weight: 600;
+        }
+
+        .code-block .string {
+            color: #ffd93d;
+        }
+
+        .code-block .number {
+            color: #6bcf7f;
+        }
+
+        .code-block .comment {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        /* Input field styling */
+        .console-input {
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 100%;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+
+        .console-input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+   <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">CQL - Complete Guide</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html" class="active">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+   </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <section class="page-hero">
+    <div class="container">
+        <div class="page-hero-content" data-aos="fade-up">
+            <span class="hero-badge">
+                <i class="fas fa-puzzle-piece"></i>
+                Advanced CQL Features
+            </span>
+            <h1>User-Defined Types <span class="gradient-text">(UDT)</span></h1>
+            <p>Create custom complex data structures! Bundle related fields together like building LEGO blocks for your data model.</p>
+        </div>
+    </div>
+</section>
+
+<div class="breadcrumb-modern">
+    <div class="container">
+        <a href="index.html"><i class="fas fa-home"></i> Home</a>
+        <span class="separator">›</span>
+        <a href="cql-intro.html">CQL Guide</a>
+        <span class="separator">›</span>
+        <span class="current">User-Defined Types</span>
+    </div>
+</div>
+
+<div class="container" style="padding: 4rem 0;">
+
+    <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 The Opening Story</a></li>
+                            <li><a href="#what-is-udt">🛠️ UDT</a></li>
+                            <li><a href="#syntax">🚀 Syntax</a></li>
+                            <li><a href="#real-examples">✅ Real Examples</a></li>
+                            <li><a href="#nested-udt">⚠️ Nested UDTs</a></li>
+                            <li><a href="#live-console">⚠️ Live Console Demo</a></li>
+                            <li><a href="#best-practices">⭐ Best Practices</a></li>
+                             <li><a href="#interview-questions">⭐ Interview Questions</a></li>
+
+                            
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: Mike's Address Nightmare</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Mike is building a user management system. Every user has an address with street, city, state, and zip code. He tried storing it THREE different ways...</p>
+
+                                <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                                    <h3 style="color: #dc2626; margin-top: 0;">❌ Attempt 1: Separate Columns (Messy!)</h3>
+                                    <div class="code-block" style="margin-top: 1rem;">
+                <span class="keyword">CREATE TABLE</span> users_v1 (
+                    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+                    name <span class="type">TEXT</span>,
+                    street <span class="type">TEXT</span>,         <span class="comment">-- Home address street</span>
+                    city <span class="type">TEXT</span>,           <span class="comment">-- Home address city</span>
+                    state <span class="type">TEXT</span>,          <span class="comment">-- Home address state</span>
+                    zip <span class="type">TEXT</span>,            <span class="comment">-- Home address zip</span>
+                    work_street <span class="type">TEXT</span>,    <span class="comment">-- Work address street</span>
+                    work_city <span class="type">TEXT</span>,      <span class="comment">-- Work address city</span>
+                    work_state <span class="type">TEXT</span>,     <span class="comment">-- Work address state</span>
+                    work_zip <span class="type">TEXT</span>        <span class="comment">-- Work address zip</span>
+                );
+                                    </div>
+                                    <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Problems:</strong></p>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li>🤯 16 columns for just 2 addresses! What if we add shipping address? 24 columns!</li>
+                                        <li>📝 Updating address requires 4 UPDATE statements</li>
+                                        <li>🐛 Easy to miss a field (forgot to update zip code!)</li>
+                                        <li>❌ Can't validate complete address (partial data corruption)</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #f59e0b;">
+                                    <h3 style="color: #f59e0b; margin-top: 0;">⚠️ Attempt 2: JSON String (Hacky!)</h3>
+                                    <div class="code-block" style="margin-top: 1rem;">
+                <span class="keyword">CREATE TABLE</span> users_v2 (
+                    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+                    name <span class="type">TEXT</span>,
+                    address_json <span class="type">TEXT</span>  <span class="comment">-- '{"street":"123 Main","city":"NYC"...}'</span>
+                );
+                                    </div>
+                                    <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Problems:</strong></p>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li>🔍 Can't query by city (it's inside JSON string!)</li>
+                                        <li>❌ No type validation (stored "12345" for city name!)</li>
+                                        <li>🐌 Must parse JSON every read (slow!)</li>
+                                        <li>💥 JSON parsing errors at runtime</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                                    <h3 style="color: #059669; margin-top: 0;">✅ The RIGHT Way: User-Defined Types!</h3>
+                                    <div class="code-block" style="margin-top: 1rem;">
+                <span class="comment">-- Step 1: Define the custom type ONCE</span>
+                <span class="keyword">CREATE TYPE</span> address (
+                    street <span class="type">TEXT</span>,
+                    city <span class="type">TEXT</span>,
+                    state <span class="type">TEXT</span>,
+                    zip <span class="type">TEXT</span>
+                );
+
+                <span class="comment">-- Step 2: Use it everywhere!</span>
+                <span class="keyword">CREATE TABLE</span> users (
+                    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+                    name <span class="type">TEXT</span>,
+                    home_address <span class="type">FROZEN&lt;address&gt;</span>,
+                    work_address <span class="type">FROZEN&lt;address&gt;</span>,
+                    shipping_address <span class="type">FROZEN&lt;address&gt;</span>
+                );
+
+                <span class="comment">-- Clean! Reusable! Type-safe!</span>
+                <span class="keyword">INSERT INTO</span> users (user_id, name, home_address)
+                <span class="keyword">VALUES</span> (
+                    uuid(),
+                    <span class="string">'Mike Johnson'</span>,
+                    {street: <span class="string">'123 Main St'</span>, city: <span class="string">'NYC'</span>, state: <span class="string">'NY'</span>, zip: <span class="string">'10001'</span>}
+                );
+                                    </div>
+                                    <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Benefits:</strong></p>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li>✅ <strong>Clean schema:</strong> 3 columns instead of 12!</li>
+                                        <li>✅ <strong>Reusable:</strong> Define address ONCE, use everywhere</li>
+                                        <li>✅ <strong>Type-safe:</strong> Cassandra validates each field</li>
+                                        <li>✅ <strong>Atomic updates:</strong> Update entire address in one operation</li>
+                                        <li>✅ <strong>Easy to add:</strong> Need billing address? Just add one column!</li>
+                                    </ul>
+                                    <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                                        <strong>Mike's code is now clean, maintainable, and production-ready! 🎉</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="what-is-udt" data-aos="fade-up">
+        <h2>🎭 What are User-Defined Types?</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">UDTs let you create custom complex data structures by combining multiple primitive types into a single reusable unit.</p>
+
+        <div class="info-box" data-aos="fade-up">
+            <h4><i class="fas fa-lightbulb" style="color: var(--accent-purple);"></i> Simple Definition</h4>
+            <p><strong>User-Defined Type (UDT):</strong> A custom data structure that groups related fields together, like a mini-table or struct.</p>
+            
+            <p style="margin-top: 1.5rem;"><strong>Think of UDT as:</strong></p>
+            <ul>
+                <li>📦 <strong>LEGO Blocks:</strong> Build complex structures from simple pieces</li>
+                <li>🧩 <strong>Puzzle Pieces:</strong> Snap related fields together</li>
+                <li>🏗️ <strong>Building Blocks:</strong> Create reusable components</li>
+                <li>📚 <strong>Templates:</strong> Define structure once, use many times</li>
+            </ul>
+        </div>
+
+        <h3 style="color: var(--accent-purple);">When to Use UDT</h3>
+
+        <div class="comparison-grid" data-aos="fade-up">
+            <div class="comparison-card" style="border-color: #059669;">
+                <div class="comparison-icon">✅</div>
+                <h3>Perfect For</h3>
+                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                    <li><strong>Grouped Data:</strong> Address, phone number, geolocation</li>
+                    <li><strong>Repeating Structures:</strong> Multiple addresses per user</li>
+                    <li><strong>Complex Objects:</strong> Payment info, ratings, coordinates</li>
+                    <li><strong>Atomic Updates:</strong> Update all fields together</li>
+                    <li><strong>Cleaner Schema:</strong> Reduce column count</li>
+                </ul>
+            </div>
+
+            <div class="comparison-card" style="border-color: #dc2626;">
+                <div class="comparison-icon">❌</div>
+                <h3>Avoid For</h3>
+                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                    <li><strong>Frequently Queried Fields:</strong> Can't index UDT fields directly</li>
+                    <li><strong>Partial Updates:</strong> Must replace entire UDT</li>
+                    <li><strong>Large Data:</strong> Keep UDTs small (< 1KB typical)</li>
+                    <li><strong>High Mutation Rate:</strong> Whole UDT must be rewritten</li>
+                    <li><strong>Query Filters:</strong> Can't WHERE on UDT subfields</li>
+                </ul>
+            </div>
+        </div>
+                    </section>
+
+                    <section id="syntax" data-aos="fade-up">
+        <h2>📝 UDT Syntax & Usage</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master the complete UDT lifecycle: CREATE, USE, ALTER, DROP.</p>
+
+        <h3 style="color: var(--accent-purple);">Creating a UDT</h3>
+
+        <div class="code-block">
+<span class="comment">-- Basic Syntax</span>
+<span class="keyword">CREATE TYPE</span> [keyspace_name.]type_name (
+    field1 data_type,
+    field2 data_type,
+    ...
+);
+
+<span class="comment">-- Real Example: Address Type</span>
+<span class="keyword">CREATE TYPE</span> address (
+    street <span class="type">TEXT</span>,
+    city <span class="type">TEXT</span>,
+    state <span class="type">TEXT</span>,
+    zip <span class="type">TEXT</span>,
+    country <span class="type">TEXT</span>
+);
+
+<span class="comment">-- Example: Phone Number Type</span>
+<span class="keyword">CREATE TYPE</span> phone_number (
+    country_code <span class="type">TEXT</span>,
+    area_code <span class="type">TEXT</span>,
+    number <span class="type">TEXT</span>,
+    extension <span class="type">TEXT</span>
+);
+        </div>
+
+        <h3 style="color: var(--accent-purple);">Using UDT in Tables</h3>
+
+        <div class="code-block">
+<span class="comment">-- Single UDT Column</span>
+<span class="keyword">CREATE TABLE</span> users (
+    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    name <span class="type">TEXT</span>,
+    email <span class="type">TEXT</span>,
+    address <span class="type">FROZEN&lt;address&gt;</span>  <span class="comment">-- FROZEN is required!</span>
+);
+
+<span class="comment">-- Multiple UDT Columns</span>
+<span class="keyword">CREATE TABLE</span> contacts (
+    contact_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    name <span class="type">TEXT</span>,
+    home_address <span class="type">FROZEN&lt;address&gt;</span>,
+    work_address <span class="type">FROZEN&lt;address&gt;</span>,
+    mobile <span class="type">FROZEN&lt;phone_number&gt;</span>
+);
+        </div>
+
+        <div class="info-box warning" data-aos="fade-up">
+            <h4><i class="fas fa-snowflake" style="color: #d97706;"></i> Why FROZEN?</h4>
+            <p><strong>FROZEN means the UDT is treated as a single BLOB - you cannot update individual fields.</strong></p>
+            
+            <p style="margin-top: 1rem;"><strong>What FROZEN Does:</strong></p>
+            <ul>
+                <li>Entire UDT stored as one unit (blob)</li>
+                <li>Cannot update single field (must replace whole UDT)</li>
+                <li>Better performance (single read/write)</li>
+                <li>Simpler consistency model</li>
+            </ul>
+            
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- ❌ WRONG: Can't update just city</span>
+<span class="keyword">UPDATE</span> users
+<span class="keyword">SET</span> address.city = <span class="string">'Boston'</span>  <span class="comment">-- ERROR!</span>
+<span class="keyword">WHERE</span> user_id = ...;
+
+<span class="comment">-- ✅ CORRECT: Replace entire address</span>
+<span class="keyword">UPDATE</span> users
+<span class="keyword">SET</span> address = {
+    street: <span class="string">'456 Oak Ave'</span>,
+    city: <span class="string">'Boston'</span>,
+    state: <span class="string">'MA'</span>,
+    zip: <span class="string">'02101'</span>
+}
+<span class="keyword">WHERE</span> user_id = ...;
+            </div>
+        </div>
+
+        <h3 style="color: var(--accent-purple);">Inserting Data with UDT</h3>
+
+        <div class="code-block">
+<span class="comment">-- Insert with UDT using curly braces {}</span>
+<span class="keyword">INSERT INTO</span> users (user_id, name, address)
+<span class="keyword">VALUES</span> (
+    uuid(),
+    <span class="string">'Sarah Johnson'</span>,
+    {
+        street: <span class="string">'123 Main Street'</span>,
+        city: <span class="string">'New York'</span>,
+        state: <span class="string">'NY'</span>,
+        zip: <span class="string">'10001'</span>,
+        country: <span class="string">'USA'</span>
+    }
+);
+
+<span class="comment">-- NULL UDT field</span>
+<span class="keyword">INSERT INTO</span> users (user_id, name, address)
+<span class="keyword">VALUES</span> (uuid(), <span class="string">'Jane Smith'</span>, <span class="keyword">null</span>);
+
+<span class="comment">-- Partial UDT fields (missing fields become null)</span>
+<span class="keyword">INSERT INTO</span> users (user_id, name, address)
+<span class="keyword">VALUES</span> (
+    uuid(),
+    <span class="string">'Bob Wilson'</span>,
+    {city: <span class="string">'LA'</span>, state: <span class="string">'CA'</span>}  <span class="comment">-- street, zip, country are null</span>
+);
+        </div>
+
+        <h3 style="color: var(--accent-purple);">Querying UDT Data</h3>
+
+        <div class="code-block">
+<span class="comment">-- Select entire UDT</span>
+<span class="keyword">SELECT</span> user_id, name, address
+<span class="keyword">FROM</span> users;
+
+<span class="comment">-- Access specific UDT field</span>
+<span class="keyword">SELECT</span> name, address.city, address.state
+<span class="keyword">FROM</span> users;
+
+<span class="comment">-- CANNOT filter by UDT subfield (limitation!)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users
+<span class="keyword">WHERE</span> address.city = <span class="string">'NYC'</span>;  <span class="comment">-- ERROR!</span>
+        </div>
+                    </section>
+
+                    <section id="real-examples" data-aos="fade-up">
+    <h2>🏗️ Real-World UDT Examples</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-ready UDT patterns from real applications!</p>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 1: E-Commerce Product Catalog</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Define dimensions and weight</span>
+<span class="keyword">CREATE TYPE</span> dimensions (
+    length <span class="type">DECIMAL</span>,
+    width <span class="type">DECIMAL</span>,
+    height <span class="type">DECIMAL</span>,
+    unit <span class="type">TEXT</span>  <span class="comment">-- 'cm' or 'inch'</span>
+);
+
+<span class="keyword">CREATE TYPE</span> weight (
+    value <span class="type">DECIMAL</span>,
+    unit <span class="type">TEXT</span>  <span class="comment">-- 'kg' or 'lb'</span>
+);
+
+<span class="comment">-- Use in products table</span>
+<span class="keyword">CREATE TABLE</span> products (
+    product_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    name <span class="type">TEXT</span>,
+    price <span class="type">DECIMAL</span>,
+    size <span class="type">FROZEN&lt;dimensions&gt;</span>,
+    weight <span class="type">FROZEN&lt;weight&gt;</span>
+);
+
+<span class="comment">-- Insert product</span>
+<span class="keyword">INSERT INTO</span> products (product_id, name, price, size, weight)
+<span class="keyword">VALUES</span> (
+    uuid(),
+    <span class="string">'MacBook Pro 16"'</span>,
+    <span class="number">2499.99</span>,
+    {length: <span class="number">35.79</span>, width: <span class="number">24.59</span>, height: <span class="number">1.62</span>, unit: <span class="string">'cm'</span>},
+    {value: <span class="number">2.0</span>, unit: <span class="string">'kg'</span>}
+);
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 2: Social Media User Profile</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Profile picture metadata</span>
+<span class="keyword">CREATE TYPE</span> image_metadata (
+    url <span class="type">TEXT</span>,
+    width <span class="type">INT</span>,
+    height <span class="type">INT</span>,
+    format <span class="type">TEXT</span>,  <span class="comment">-- 'jpeg', 'png'</span>
+    size_bytes <span class="type">BIGINT</span>
+);
+
+<span class="comment">-- Social links</span>
+<span class="keyword">CREATE TYPE</span> social_links (
+    twitter <span class="type">TEXT</span>,
+    linkedin <span class="type">TEXT</span>,
+    github <span class="type">TEXT</span>,
+    website <span class="type">TEXT</span>
+);
+
+<span class="keyword">CREATE TABLE</span> user_profiles (
+    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    username <span class="type">TEXT</span>,
+    bio <span class="type">TEXT</span>,
+    profile_pic <span class="type">FROZEN&lt;image_metadata&gt;</span>,
+    cover_photo <span class="type">FROZEN&lt;image_metadata&gt;</span>,
+    social <span class="type">FROZEN&lt;social_links&gt;</span>
+);
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 3: IoT Sensor Data</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- GPS coordinates</span>
+<span class="keyword">CREATE TYPE</span> gps_location (
+    latitude <span class="type">DECIMAL</span>,
+    longitude <span class="type">DECIMAL</span>,
+    altitude <span class="type">DECIMAL</span>,
+    accuracy <span class="type">DECIMAL</span>  <span class="comment">-- meters</span>
+);
+
+<span class="comment">-- Sensor reading</span>
+<span class="keyword">CREATE TYPE</span> sensor_reading (
+    temperature <span class="type">DECIMAL</span>,
+    humidity <span class="type">DECIMAL</span>,
+    pressure <span class="type">DECIMAL</span>,
+    battery_level <span class="type">INT</span>  <span class="comment">-- percentage</span>
+);
+
+<span class="keyword">CREATE TABLE</span> sensor_data (
+    sensor_id <span class="type">UUID</span>,
+    timestamp <span class="type">TIMESTAMP</span>,
+    location <span class="type">FROZEN&lt;gps_location&gt;</span>,
+    readings <span class="type">FROZEN&lt;sensor_reading&gt;</span>,
+    <span class="keyword">PRIMARY KEY</span> (sensor_id, timestamp)
+) <span class="keyword">WITH CLUSTERING ORDER BY</span> (timestamp <span class="keyword">DESC</span>);
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+                <h4>Example 4: Payment System</h4>
+                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Credit card info (encrypted in real production!)</span>
+<span class="keyword">CREATE TYPE</span> payment_card (
+    card_type <span class="type">TEXT</span>,       <span class="comment">-- 'visa', 'mastercard'</span>
+    last_four <span class="type">TEXT</span>,       <span class="comment">-- Last 4 digits</span>
+    expiry_month <span class="type">INT</span>,
+    expiry_year <span class="type">INT</span>,
+    cardholder_name <span class="type">TEXT</span>
+);
+
+<span class="comment">-- Billing address</span>
+<span class="keyword">CREATE TYPE</span> billing_info (
+    address <span class="type">FROZEN&lt;address&gt;</span>,  <span class="comment">-- Nested UDT!</span>
+    phone <span class="type">FROZEN&lt;phone_number&gt;</span>
+);
+
+<span class="keyword">CREATE TABLE</span> payment_methods (
+    user_id <span class="type">UUID</span>,
+    method_id <span class="type">UUID</span>,
+    card <span class="type">FROZEN&lt;payment_card&gt;</span>,
+    billing <span class="type">FROZEN&lt;billing_info&gt;</span>,
+    is_default <span class="type">BOOLEAN</span>,
+    <span class="keyword">PRIMARY KEY</span> (user_id, method_id)
+);
+                </div>
+            </div>
+        </div>
+    </div>
+                    </section>
+
+                    <section id="nested-udt" data-aos="fade-up">
+                        <h2>🔗 Nested User-Defined Types</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">UDTs can contain other UDTs! Build complex hierarchical structures.</p>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                                <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">Nested UDT Structure</text>
+
+                                <!-- Top Level: Person -->
+                                <rect x="250" y="80" width="300" height="80" rx="12" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="400" y="110" font-size="18" fill="#8b5cf6" text-anchor="middle" font-weight="700">person</text>
+                                <text x="400" y="135" font-size="13" fill="#94a3b8" text-anchor="middle">name: TEXT</text>
+                                <text x="400" y="152" font-size="13" fill="#94a3b8" text-anchor="middle">contact: contact_info</text>
+
+                                <!-- Arrow down -->
+                                <path d="M 400 160 L 400 220" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrowOrange)"/>
+
+                                <!-- Second Level: Contact Info -->
+                                <rect x="250" y="220" width="300" height="100" rx="12" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="3"/>
+                                <text x="400" y="250" font-size="18" fill="#f59e0b" text-anchor="middle" font-weight="700">contact_info</text>
+                                <text x="400" y="275" font-size="13" fill="#94a3b8" text-anchor="middle">email: TEXT</text>
+                                <text x="400" y="292" font-size="13" fill="#94a3b8" text-anchor="middle">phone: phone_number</text>
+                                <text x="400" y="309" font-size="13" fill="#94a3b8" text-anchor="middle">address: address</text>
+
+                                <!-- Arrows to Level 3 -->
+                                <path d="M 350 320 L 200 400" stroke="#0d9488" stroke-width="3" marker-end="url(#arrowTeal)"/>
+                                <path d="M 450 320 L 600 400" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+                                <!-- Third Level Left: Phone Number -->
+                                <rect x="50" y="400" width="300" height="100" rx="12" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="3"/>
+                                <text x="200" y="430" font-size="18" fill="#0d9488" text-anchor="middle" font-weight="700">phone_number</text>
+                                <text x="200" y="455" font-size="13" fill="#94a3b8" text-anchor="middle">country_code: TEXT</text>
+                                <text x="200" y="472" font-size="13" fill="#94a3b8" text-anchor="middle">area_code: TEXT</text>
+                                <text x="200" y="489" font-size="13" fill="#94a3b8" text-anchor="middle">number: TEXT</text>
+
+                                <!-- Third Level Right: Address -->
+                                <rect x="450" y="400" width="300" height="120" rx="12" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="3"/>
+                                <text x="600" y="430" font-size="18" fill="#10b981" text-anchor="middle" font-weight="700">address</text>
+                                <text x="600" y="455" font-size="13" fill="#94a3b8" text-anchor="middle">street: TEXT</text>
+                                <text x="600" y="472" font-size="13" fill="#94a3b8" text-anchor="middle">city: TEXT</text>
+                                <text x="600" y="489" font-size="13" fill="#94a3b8" text-anchor="middle">state: TEXT</text>
+                                <text x="600" y="506" font-size="13" fill="#94a3b8" text-anchor="middle">zip: TEXT</text>
+
+                                <!-- Note -->
+                                <rect x="150" y="540" width="500" height="50" rx="8" fill="rgba(139, 92, 246, 0.1)" stroke="#8b5cf6" stroke-width="2"/>
+                                <text x="400" y="570" font-size="14" fill="#e2e8f0" text-anchor="middle">
+                                    📦 UDTs can contain other UDTs → Build complex structures!
+                                </text>
+
+                                <!-- Definitions -->
+                                <defs>
+                                    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#f59e0b"/>
+                                    </marker>
+                                    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#0d9488"/>
+                                    </marker>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#10b981"/>
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        <div class="code-block">
+                    <span class="comment">-- Step 1: Create base types</span>
+                    <span class="keyword">CREATE TYPE</span> phone_number (
+                        country_code <span class="type">TEXT</span>,
+                        area_code <span class="type">TEXT</span>,
+                        number <span class="type">TEXT</span>
+                    );
+
+                    <span class="keyword">CREATE TYPE</span> address (
+                        street <span class="type">TEXT</span>,
+                        city <span class="type">TEXT</span>,
+                        state <span class="type">TEXT</span>,
+                        zip <span class="type">TEXT</span>
+                    );
+
+                    <span class="comment">-- Step 2: Create composite type using base types</span>
+                    <span class="keyword">CREATE TYPE</span> contact_info (
+                        email <span class="type">TEXT</span>,
+                        phone <span class="type">FROZEN&lt;phone_number&gt;</span>,  <span class="comment">-- Nested UDT!</span>
+                        address <span class="type">FROZEN&lt;address&gt;</span>        <span class="comment">-- Nested UDT!</span>
+                    );
+
+                    <span class="comment">-- Step 3: Create top-level type</span>
+                    <span class="keyword">CREATE TYPE</span> person (
+                        name <span class="type">TEXT</span>,
+                        contact <span class="type">FROZEN&lt;contact_info&gt;</span>  <span class="comment">-- Contains nested UDTs!</span>
+                    );
+
+                    <span class="comment">-- Step 4: Use in table</span>
+                    <span class="keyword">CREATE TABLE</span> employees (
+                        emp_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+                        employee <span class="type">FROZEN&lt;person&gt;</span>,
+                        department <span class="type">TEXT</span>
+                    );
+
+                    <span class="comment">-- Insert with nested UDT</span>
+                    <span class="keyword">INSERT INTO</span> employees (emp_id, employee, department)
+                    <span class="keyword">VALUES</span> (
+                        uuid(),
+                        {
+                            name: <span class="string">'Sarah Johnson'</span>,
+                            contact: {
+                                email: <span class="string">'sarah@company.com'</span>,
+                                phone: {country_code: <span class="string">'+1'</span>, area_code: <span class="string">'415'</span>, number: <span class="string">'555-1234'</span>},
+                                address: {street: <span class="string">'123 Tech Blvd'</span>, city: <span class="string">'San Francisco'</span>, state: <span class="string">'CA'</span>, zip: <span class="string">'94105'</span>}
+                            }
+                        },
+                        <span class="string">'Engineering'</span>
+                    );
+
+                    <span class="comment">-- Query nested UDT fields</span>
+                    <span class="keyword">SELECT</span> 
+                        employee.name,
+                        employee.contact.email,
+                        employee.contact.phone.area_code,
+                        employee.contact.address.city
+                    <span class="keyword">FROM</span> employees;
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--accent-purple);"></i> Nested UDT Best Practices</h4>
+                            <ol style="margin-top: 1rem; line-height: 1.9;">
+                                <li><strong>Limit Nesting Depth:</strong> Max 2-3 levels deep (readability!)</li>
+                                <li><strong>Create Base Types First:</strong> Build from bottom-up</li>
+                                <li><strong>Always FROZEN:</strong> All nested UDTs must be FROZEN</li>
+                                <li><strong>Document Structure:</strong> Complex hierarchies need good docs</li>
+                                <li><strong>Consider Performance:</strong> Deep nesting = larger blobs</li>
+                            </ol>
+                        </div>
+                    </section>
+
+<section id="live-console" data-aos="fade-up">
+    <h2>🖥️ Interactive UDT Console</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Practice UDT commands in our safe simulator!</p>
+
+    <div class="live-console" data-aos="fade-up">
+        <div class="console-header">
+            <div class="console-title">
+                <i class="fas fa-terminal"></i>
+                CQL User-Defined Types Playground
+            </div>
+            <div class="console-controls">
+                <button class="console-btn primary" onclick="executeUDT()">
+                    <i class="fas fa-play"></i> Run Command
+                </button>
+                <button class="console-btn" onclick="loadUDTExample(1)">Example 1</button>
+                <button class="console-btn" onclick="loadUDTExample(2)">Example 2</button>
+                <button class="console-btn" onclick="loadUDTExample(3)">Example 3</button>
+                <button class="console-btn" onclick="clearUDTConsole()">
+                    <i class="fas fa-eraser"></i> Clear
+                </button>
+            </div>
+        </div>
+        <div class="console-body">
+            <div style="margin-bottom: 1rem;">
+                <label style="color: #8b5cf6; font-weight: 600; margin-bottom: 0.5rem; display: block;">Enter CQL Command:</label>
+                <textarea id="udtInput" class="console-input" rows="8" placeholder="CREATE TYPE ..." style="resize: vertical; min-height: 200px;">CREATE TYPE address (
+    street TEXT,
+    city TEXT,
+    state TEXT,
+    zip TEXT
+);</textarea>
+            </div>
+            <div id="udtOutput" class="console-output">
+                <div class="console-log" style="color: #94a3b8;">
+                    <strong>🚀 UDT Simulator Ready!</strong><br/>
+                    Try the examples or create your own UDT...<br/><br/>
+                    <strong>Available Examples:</strong><br/>
+                    • Example 1: Create address type<br/>
+                    • Example 2: Use UDT in table<br/>
+                    • Example 3: Nested UDT
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="best-practices" data-aos="fade-up">
+    <h2>⭐ UDT Best Practices & Common Mistakes</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-proven strategies and pitfalls to avoid!</p>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>DO's</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Keep UDTs Small:</strong> < 1KB typical, max 1MB</li>
+                <li><strong>Group Related Data:</strong> Address, contact info, coordinates</li>
+                <li><strong>Always Use FROZEN:</strong> Required for UDT columns</li>
+                <li><strong>Reuse Types:</strong> Define once, use everywhere</li>
+                <li><strong>Name Clearly:</strong> address_type vs addr (be descriptive!)</li>
+                <li><strong>Document Schema:</strong> Especially for nested UDTs</li>
+                <li><strong>Version Types:</strong> Consider address_v2 for breaking changes</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>DON'Ts</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Don't Query by Subfields:</strong> Can't WHERE on UDT.field</li>
+                <li><strong>Don't Partial Update:</strong> Must replace entire UDT</li>
+                <li><strong>Don't Overuse:</strong> Not every column needs UDT</li>
+                <li><strong>Don't Make Huge:</strong> Large UDTs = slow reads/writes</li>
+                <li><strong>Don't Nest Too Deep:</strong> Max 2-3 levels</li>
+                <li><strong>Don't Skip FROZEN:</strong> Non-frozen UDTs fail</li>
+                <li><strong>Don't Index UDTs:</strong> Can't create secondary index</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">💡</div>
+            <h3>Pro Tips</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Denormalize for Queries:</strong> If you need to filter by city, add city column</li>
+                <li><strong>Use Collections:</strong> LIST&lt;FROZEN&lt;udt&gt;&gt; for multiple</li>
+                <li><strong>Null Individual Fields:</strong> Missing fields become null</li>
+                <li><strong>Monitor Size:</strong> Track UDT size in production</li>
+                <li><strong>Plan for Evolution:</strong> How will you handle schema changes?</li>
+                <li><strong>Test Performance:</strong> Large UDTs impact throughput</li>
+                <li><strong>Consider Alternatives:</strong> Sometimes separate tables better</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-left-color: #dc2626; margin-top: 3rem;">
+        <h3 style="color: #dc2626;">⚠️ Common Mistake: Trying to Query by UDT Subfield</h3>
+        <div style="line-height: 1.9;">
+            <p><strong>The Problem:</strong> Developer tries to find all users in NYC...</p>
+            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- ❌ This does NOT work!</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users
+<span class="keyword">WHERE</span> address.city = <span class="string">'NYC'</span>;
+
+<span class="comment">-- ERROR: Cannot filter by UDT subfield!</span>
+            </div>
+
+            <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Fix:</strong></p>
+            <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ✅ Option 1: Denormalize - add city column</span>
+<span class="keyword">CREATE TABLE</span> users (
+    user_id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY</span>,
+    name <span class="type">TEXT</span>,
+    city <span class="type">TEXT</span>,  <span class="comment">-- Denormalized for querying</span>
+    address <span class="type">FROZEN&lt;address&gt;</span>
+);
+
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users
+<span class="keyword">WHERE</span> city = <span class="string">'NYC'</span>;  <span class="comment">-- Now it works!</span>
+
+<span class="comment">-- ✅ Option 2: Create separate table for querying</span>
+<span class="keyword">CREATE TABLE</span> users_by_city (
+    city <span class="type">TEXT</span>,
+    user_id <span class="type">UUID</span>,
+    name <span class="type">TEXT</span>,
+    address <span class="type">FROZEN&lt;address&gt;</span>,
+    <span class="keyword">PRIMARY KEY</span> (city, user_id)
+);
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Ace your Cassandra interview with these UDT questions!</p>
+
+        <!-- Question 1 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">What is the difference between a UDT and a Collection?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>UDTs and Collections serve different purposes:</p>
+                    
+                    <p style="margin-top: 1.5rem;"><strong>User-Defined Type (UDT):</strong></p>
+                    <ul>
+                        <li><strong>Purpose:</strong> Group different data types together</li>
+                        <li><strong>Structure:</strong> Named fields with specific types</li>
+                        <li><strong>Example:</strong> address {street: TEXT, city: TEXT, zip: TEXT}</li>
+                        <li><strong>Use Case:</strong> Composite data that belongs together</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Collection (LIST/SET/MAP):</strong></p>
+                    <ul>
+                        <li><strong>Purpose:</strong> Store multiple values of same type</li>
+                        <li><strong>Structure:</strong> Homogeneous elements</li>
+                        <li><strong>Example:</strong> LIST&lt;TEXT&gt; → ['tag1', 'tag2', 'tag3']</li>
+                        <li><strong>Use Case:</strong> Multiple similar items</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Combined:</strong> You can have LIST&lt;FROZEN&lt;address&gt;&gt; - multiple addresses!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">Why is FROZEN required for UDTs?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer:</strong></p>
+                    <p>FROZEN treats the entire UDT as a single immutable blob, which simplifies Cassandra's internals.</p>
+                    
+                    <p style="margin-top: 1.5rem;"><strong>Why FROZEN is Required:</strong></p>
+                    <ol>
+                        <li><strong>Consistency:</strong> Entire UDT is atomic - all fields update together</li>
+                        <li><strong>Performance:</strong> Single read/write operation (not field-by-field)</li>
+                        <li><strong>Indexing:</strong> UDT stored as one blob, easier to handle internally</li>
+                        <li><strong>Comparison:</strong> Can compare entire UDT for equality</li>
+                    </ol>
+
+                    <p style="margin-top: 1.5rem;"><strong>Trade-off:</strong></p>
+                    <p>Cannot update individual fields - must replace entire UDT:</p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ❌ Can't do this:</span>
+<span class="keyword">UPDATE</span> users <span class="keyword">SET</span> address.city = <span class="string">'Boston'</span>...
+
+<span class="comment">-- ✅ Must do this:</span>
+<span class="keyword">UPDATE</span> users <span class="keyword">SET</span> address = {street:..., city: <span class="string">'Boston'</span>, ...}...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">Can you query/filter by UDT subfields?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: NO - This is a major UDT limitation!</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>You CANNOT do this:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> users
+<span class="keyword">WHERE</span> address.city = <span class="string">'NYC'</span>;  <span class="comment">-- ERROR!</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why Not:</strong></p>
+                    <ul>
+                        <li>UDT is stored as single blob (FROZEN)</li>
+                        <li>Cassandra doesn't index individual UDT fields</li>
+                        <li>Would require deserializing every row (super slow!)</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Workarounds:</strong></p>
+                    <ol>
+                        <li><strong>Denormalize:</strong> Add city as separate column</li>
+                        <li><strong>Separate Table:</strong> Create users_by_city table</li>
+                        <li><strong>Application Filter:</strong> Fetch all, filter in app (small datasets only)</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">How do you ALTER a UDT? Can you add/remove fields?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: You can ADD fields, but cannot REMOVE or RENAME!</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Adding a Field (Allowed):</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Add new field to existing UDT</span>
+<span class="keyword">ALTER TYPE</span> address
+<span class="keyword">ADD</span> country <span class="type">TEXT</span>;
+
+<span class="comment">-- Old data: new field is null</span>
+<span class="comment">-- New data: can include country</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Cannot Remove Fields:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ❌ This does NOT work:</span>
+<span class="keyword">ALTER TYPE</span> address <span class="keyword">DROP</span> zip;  <span class="comment">-- ERROR!</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Cannot Rename Fields:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- ❌ Cannot rename zip to postal_code</span>
+<span class="keyword">ALTER TYPE</span> address <span class="keyword">RENAME</span> zip <span class="keyword">TO</span> postal_code;  <span class="comment">-- ERROR!</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Workaround for Breaking Changes:</strong></p>
+                    <ol>
+                        <li>Create new UDT (address_v2)</li>
+                        <li>Create new table using address_v2</li>
+                        <li>Migrate data from old table to new</li>
+                        <li>Drop old table and UDT</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">What happens to existing data when you add a field to a UDT?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Existing data remains valid - new field is NULL for old rows!</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Scenario:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Original UDT</span>
+<span class="keyword">CREATE TYPE</span> address (
+    street <span class="type">TEXT</span>,
+    city <span class="type">TEXT</span>,
+    zip <span class="type">TEXT</span>
+);
+
+<span class="comment">-- Insert old data</span>
+<span class="keyword">INSERT INTO</span> users (...) <span class="keyword">VALUES</span> (
+    ...,
+    {street: <span class="string">'123 Main'</span>, city: <span class="string">'NYC'</span>, zip: <span class="string">'10001'</span>}
+);
+
+<span class="comment">-- Later: Add country field</span>
+<span class="keyword">ALTER TYPE</span> address <span class="keyword">ADD</span> country <span class="type">TEXT</span>;
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>What Happens:</strong></p>
+                    <ul>
+                        <li>✅ Old data still works perfectly</li>
+                        <li>✅ Queries on old data return NULL for country</li>
+                        <li>✅ New inserts can include country field</li>
+                        <li>✅ You can UPDATE old rows to add country</li>
+                    </ul>
+
+                    <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Query old data</span>
+<span class="keyword">SELECT</span> address <span class="keyword">FROM</span> users;
+<span class="comment">-- Returns: {street:'123 Main', city:'NYC', zip:'10001', country:null}</span>
+
+<span class="comment">-- Update old data to add country</span>
+<span class="keyword">UPDATE</span> users
+<span class="keyword">SET</span> address = {
+    street: <span class="string">'123 Main'</span>,
+    city: <span class="string">'NYC'</span>,
+    zip: <span class="string">'10001'</span>,
+    country: <span class="string">'USA'</span>  <span class="comment">-- Now included!</span>
+}
+<span class="keyword">WHERE</span> user_id = ...;
+                    </div>
+
+                    <p style="margin-top: 1rem;"><strong>Best Practice:</strong> Plan for evolution - add optional fields, never remove!</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: UDT Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">Congratulations! You now understand User-Defined Types at a production level!</strong></p>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">Key Concepts Mastered:</h4>
+        <ul style="line-height: 1.9;">
+            <li><strong style="color: var(--text-primary);">UDT Definition:</strong> Custom data structures grouping related fields</li>
+            <li><strong style="color: var(--text-primary);">FROZEN Requirement:</strong> UDTs must be FROZEN (atomic updates)</li>
+            <li><strong style="color: var(--text-primary);">Nested UDTs:</strong> UDTs can contain other UDTs (max 2-3 levels)</li>
+            <li><strong style="color: var(--text-primary);">Collections:</strong> LIST/SET/MAP can contain UDTs</li>
+            <li><strong style="color: var(--text-primary);">Limitations:</strong> Cannot query by subfields, cannot partial update</li>
+        </ul>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">The Golden Rule:</h4>
+        <div style="background: rgba(245, 158, 11, 0.2); padding: 1.5rem; border-radius: 12px; border-left: 3px solid #f59e0b; margin-top: 1rem;">
+            <p style="font-size: 1.2rem; margin: 0; text-align: center;">
+                <strong style="color: #f59e0b;">UDT = Grouping Related Data Together</strong><br/>
+                <span style="font-size: 0.95rem; color: var(--text-secondary); margin-top: 0.5rem; display: block;">Keep UDTs small, reusable, and always FROZEN!</span>
+            </p>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">When to Use UDT:</h4>
+        <ul style="line-height: 1.9;">
+            <li>✅ <strong>Address:</strong> street, city, state, zip together</li>
+            <li>✅ <strong>Contact Info:</strong> phone, email, social links</li>
+            <li>✅ <strong>Coordinates:</strong> latitude, longitude, altitude</li>
+            <li>✅ <strong>Metadata:</strong> width, height, format, size</li>
+            <li>❌ <strong>Don't use for:</strong> Fields you need to query/filter by</li>
+        </ul>
+
+        <p style="margin-top: 2rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+            <strong style="color: var(--accent-purple);">🚀 You're now equipped to design clean, maintainable schemas with UDT!</strong>
+        </p>
+    </div>
+</div>
+<div class="page-navigation">
+    <a href="cql-data-types.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">CQL Data Types</div>
+        </div>
+    </a>
+    <a href="indexes.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Indexes</div>
+        </div>
+    </a>
+</div>
+     <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    // Initialize AOS
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+    // Progress Bar
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    // Mobile Menu
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    // Toggle Section
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    // Toggle Question
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    // Scroll to Top
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // UDT Console Functions
+    function clearUDTConsole() {
+        document.getElementById('udtOutput').innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared. Ready for new commands...</div>';
+    }
+
+    function addUDTLog(message, type = '') {
+        const output = document.getElementById('udtOutput');
+        const logDiv = document.createElement('div');
+        logDiv.className = `console-log log-${type}`;
+        logDiv.innerHTML = message;
+        output.appendChild(logDiv);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function executeUDT() {
+        const input = document.getElementById('udtInput').value.trim().toUpperCase();
+        if (!input) {
+            alert('Please enter a command!');
+            return;
+        }
+
+        clearUDTConsole();
+        
+        addUDTLog('════════════════════════════════════════', '');
+        addUDTLog('<strong>EXECUTING UDT COMMAND</strong>', 'info');
+        addUDTLog('════════════════════════════════════════<br/>', '');
+        
+        if (input.includes('CREATE TYPE')) {
+            const typeMatch = input.match(/CREATE\s+TYPE\s+(\w+)/);
+            const typeName = typeMatch ? typeMatch[1] : 'unknown';
+            
+            addUDTLog(`<strong>Step 1: Validating Syntax</strong>`, 'input');
+            addUDTLog(`Type Name: ${typeName}`, '');
+            addUDTLog(`Command type: CREATE TYPE<br/>`, '');
+            
+            addUDTLog(`<strong>Step 2: Creating User-Defined Type</strong>`, 'info');
+            addUDTLog(`Registering type in schema...`, '');
+            addUDTLog(`<strong style="color: #10b981;">✓ Type created successfully!</strong><br/>`, 'success');
+            
+            addUDTLog(`<strong>Step 3: Usage Information</strong>`, 'info');
+            addUDTLog(`You can now use this type in table definitions:`, '');
+            addUDTLog(`Example: column_name FROZEN<${typeName}><br/>`, '');
+            
+            addUDTLog('<br/>════════════════════════════════════════', '');
+            addUDTLog('<strong style="color: #059669;">CREATE TYPE completed successfully!</strong>', 'success');
+            addUDTLog('════════════════════════════════════════', '');
+            
+            addUDTLog('<br/><strong style="color: #8b5cf6;">📝 Remember:</strong>', 'info');
+            addUDTLog('• Always use FROZEN when using UDT in tables', 'info');
+            addUDTLog('• Update entire UDT at once (no partial updates)', 'info');
+            addUDTLog('• Cannot query by UDT subfields', 'info');
+            
+        } else if (input.includes('CREATE TABLE')) {
+            addUDTLog(`<strong>Creating Table with UDT</strong>`, 'info');
+            addUDTLog(`Validating table schema...`, '');
+            addUDTLog(`<strong style="color: #10b981;">✓ Table created!</strong>`, 'success');
+            addUDTLog(`You can now insert data with UDT values.`, '');
+        } else {
+            addUDTLog('Error: Not a valid UDT command', 'error');
+            addUDTLog('Try: CREATE TYPE type_name (field1 data_type, ...);', 'error');
+        }
+    }
+
+    function loadUDTExample(num) {
+        const examples = {
+            1: `CREATE TYPE address (
+    street TEXT,
+    city TEXT,
+    state TEXT,
+    zip TEXT
+);`,
+            2: `CREATE TABLE users (
+    user_id UUID PRIMARY KEY,
+    name TEXT,
+    address FROZEN<address>
+);`,
+            3: `CREATE TYPE phone_number (
+    country_code TEXT,
+    area_code TEXT,
+    number TEXT
+);
+
+CREATE TYPE contact_info (
+    email TEXT,
+    phone FROZEN<phone_number>
+);`
+        };
+        
+        document.getElementById('udtInput').value = examples[num] || examples[1];
+    }
+</script>
+</body>
+</html>

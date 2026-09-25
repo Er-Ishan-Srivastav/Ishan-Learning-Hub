@@ -1,0 +1,3282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cassandra Memtable - Deep dive into in-memory write buffer, data structures, flush triggers, and memory optimization!">
+    <meta name="keywords" content="cassandra memtable, in-memory database, write buffer, LSM tree, memory management">
+    <title>Memtable: In-Memory Speed Demon 2025 | CassandraHub</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+
+        :root {
+            --primary-cyan: #06b6d4;
+            --dark-cyan: #0891b2;
+            --light-cyan: #22d3ee;
+            --accent-teal: #14b8a6;
+            --muted-cyan: #0e7490;
+            --memory-blue: #3b82f6;
+            --speed-electric: #0ea5e9;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #10b981;
+            --warning-orange: #f59e0b;
+            --error-red: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-darker); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-cyan), var(--dark-cyan));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(6, 182, 212, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-cyan), var(--light-cyan), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--dark-cyan));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            animation: pulse-memory 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-memory {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% {
+                transform: translateY(-100px) translateX(var(--x-drift)) scale(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(6, 182, 212, 0.6); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--light-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #0e7490 0%, #0891b2 50%, #06b6d4 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-cyan);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.2) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(34, 211, 238, 0.15) 0%, transparent 50%);
+            animation: subtleMove 20s ease-in-out infinite;
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(103, 232, 249, 0.05) 50%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes subtleMove {
+            0%, 100% { 
+                background-position: 0% 0%, 100% 100%; 
+                opacity: 1;
+            }
+            50% { 
+                background-position: 100% 100%, 0% 0%; 
+                opacity: 0.8;
+            }
+        }
+
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--primary-cyan);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: float-particle linear infinite;
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(6, 182, 212, 0.2);
+            border: 2px solid rgba(34, 211, 238, 0.4);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #cffafe 0%, #22d3ee 50%, #06b6d4 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: #cffafe;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        section { padding: 4rem 0; }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-cyan), var(--light-cyan));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+        
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-cyan);
+            border-left-color: var(--primary-cyan);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(34, 211, 238, 0.08));
+            border-left: 5px solid var(--primary-cyan);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .comparison-card:hover::before {
+            left: 100%;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--primary-cyan);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(6, 182, 212, 0.3);
+        }
+
+        .comparison-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--light-cyan));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-cyan);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+        }
+
+        .info-box h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .svg-container {
+            background: var(--code-darker);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--primary-cyan);
+            margin: 2rem 0;
+            box-shadow: 0 10px 40px rgba(6, 182, 212, 0.2);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .interview-question {
+            background: var(--code-bg);
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .interview-question:hover {
+            border-color: var(--primary-cyan);
+        }
+
+        .question-header {
+            padding: 1.5rem 2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.05));
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.1));
+        }
+
+        .question-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--dark-cyan));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .toggle-icon {
+            font-size: 1.25rem;
+            color: var(--primary-cyan);
+            transition: transform 0.3s;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+
+        .question-answer.active {
+            max-height: 10000px;
+        }
+
+        .question-answer > div {
+            padding: 2rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .question-answer p {
+            color: var(--text-secondary);
+            line-height: 1.9;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-answer ul, .question-answer ol {
+            color: var(--text-secondary);
+            line-height: 1.9;
+            margin-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .question-answer li {
+            margin-bottom: 0.75rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-cyan), var(--dark-cyan));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <div class="logo-icon">💾</div>
+            <h2>CassandraHub</h2>
+        </div>
+          <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html" class="active">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="particles" id="particles"></div>
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-memory"></i>
+                        Memtable
+                    </span>
+                    <h1><span class="gradient-text">MEMTABLE</span> - The In-Memory Speed Demon</h1>
+                    <p>💾 Master Cassandra's write buffer: data structures, flush triggers, memory management, and sub-millisecond performance!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Instagram Story</a></li>
+                            <li><a href="#what-is">💾 What is Memtable</a></li>
+                            <li><a href="#data-structure">🌳 Data Structure</a></li>
+                            <li><a href="#write-ops">✍️ Write Operations</a></li>
+                            <li><a href="#read-ops">📖 Read Operations</a></li>
+                            <li><a href="#flush-triggers">⚡ Flush Triggers</a></li>
+                            <li><a href="#memory-mgmt">🧠 Memory Management</a></li>
+                            <li><a href="#performance">🚀 Performance</a></li>
+                            <li><a href="#real-examples">🏢 Real Companies</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            <li><a href="#interview">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 Instagram: 1 Billion Writes/Day, Sub-5ms Latency</h2>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Instagram's challenge:</strong> 1 billion+ users generating massive write traffic. Every like, comment, story, message = write to Cassandra. <strong style="color: var(--text-primary);">Peak: 500,000 writes/second!</strong> The requirement: <strong style="color: var(--primary-cyan);">Sub-5ms latency</strong> (users notice delays > 10ms). Traditional disk-based writes = 10-50ms (too slow!). The solution: <strong style="color: var(--success-green);">Memtable - in-memory write buffer</strong>. How it works: <strong style="color: var(--light-cyan);">Every write goes to memtable FIRST</strong> → In-memory sorted tree structure (RAM = instant!). <strong style="color: var(--light-cyan);">Write latency: 0.1ms</strong> → 100 microseconds! 100x faster than disk. <strong style="color: var(--light-cyan);">Sorted on insert</strong> → Maintains partition key + clustering key order. <strong style="color: var(--light-cyan);">Flush to SSTable later</strong> → When memtable reaches 128MB (async). Result: <strong style="color: var(--success-green);">P50 latency: 2.8ms ✓</strong> (0.1ms memtable + 1ms commit log + 1.7ms network). <strong style="color: var(--success-green);">P99 latency: 8ms ✓</strong> (still under 10ms requirement!). <strong style="color: var(--success-green);">1 billion writes/day</strong> → memtable absorbs bursts effortlessly. <strong style="color: var(--success-green);">Users never wait</strong> → instant feedback on every action. Instagram Engineering: "The memtable is why Cassandra can handle our write volume. <strong style="color: var(--primary-cyan);">RAM is 100,000x faster than disk</strong> - by buffering writes in memory, we achieve sub-millisecond latency at massive scale. The 128MB flush threshold perfectly balances memory usage vs flush frequency. <strong style="color: var(--accent-teal);">Without memtable, Instagram wouldn't scale!</strong>"
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- What is Memtable -->
+                    <section id="what-is" data-aos="fade-up">
+                        <h2>💾 What is a Memtable?</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Memtable is Cassandra's <strong style="color: var(--primary-cyan);">in-memory write buffer</strong> - where speed magic happens!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">📋</div>
+                                <h4 style="color: var(--primary-cyan);">Definition</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>What:</strong> In-memory sorted data structure<br/>
+                                    <strong>Type:</strong> Write buffer (part of LSM tree)<br/>
+                                    <strong>Purpose:</strong> Fast writes + recent read cache<br/>
+                                    <strong>Location:</strong> JVM heap memory<br/>
+                                    <strong>Per-table:</strong> Each table has its own memtable<br/>
+                                    <strong>Volatile:</strong> Data lost on crash (commit log protects!)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">⚡</div>
+                                <h4 style="color: var(--light-cyan);">Why It Exists</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Problem:</strong> Disk writes are slow (10-50ms)<br/>
+                                    <strong>Solution:</strong> Buffer writes in RAM first<br/>
+                                    <strong>Speed:</strong> RAM = 0.1ms vs Disk = 10ms<br/>
+                                    <strong>Batch:</strong> Flush many writes at once → SSTable<br/>
+                                    <strong>Efficiency:</strong> Amortize disk I/O cost<br/>
+                                    <strong>Result:</strong> Sub-millisecond write latency!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">🔄</div>
+                                <h4 style="color: var(--accent-teal);">Lifecycle</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>1. Create:</strong> Empty memtable on startup<br/>
+                                    <strong>2. Fill:</strong> Accept writes until threshold (64-128MB)<br/>
+                                    <strong>3. Freeze:</strong> Make read-only when full<br/>
+                                    <strong>4. Flush:</strong> Write to SSTable on disk<br/>
+                                    <strong>5. Delete:</strong> Free memory after flush<br/>
+                                    <strong>6. Repeat:</strong> New memtable for next batch
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">🌳</div>
+                                <h4 style="color: var(--primary-cyan);">Data Structure</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Type:</strong> Skip list (concurrent sorted map)<br/>
+                                    <strong>Sorted by:</strong> Partition key → Clustering key<br/>
+                                    <strong>Why sorted:</strong> Fast lookups + efficient SSTable write<br/>
+                                    <strong>Concurrency:</strong> Lock-free for high throughput<br/>
+                                    <strong>Complexity:</strong> O(log n) insert and lookup<br/>
+                                    <strong>Typical size:</strong> 64-128MB of data
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">💾</div>
+                                <h4 style="color: var(--light-cyan);">Memory Characteristics</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Heap-based:</strong> Lives in JVM heap<br/>
+                                    <strong>GC impact:</strong> Can cause pauses if too large<br/>
+                                    <strong>Off-heap option:</strong> Available to reduce GC<br/>
+                                    <strong>Compression:</strong> None (raw data for speed)<br/>
+                                    <strong>Typical usage:</strong> 10-20% of heap<br/>
+                                    <strong>Monitoring:</strong> Track memtable size carefully
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);">🎯</div>
+                                <h4 style="color: var(--accent-teal);">Role in LSM Tree</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>LSM:</strong> Log-Structured Merge Tree<br/>
+                                    <strong>Level 0:</strong> Memtable (in memory)<br/>
+                                    <strong>Level 1+:</strong> SSTables (on disk)<br/>
+                                    <strong>Write path:</strong> Always to memtable first<br/>
+                                    <strong>Read path:</strong> Check memtable before SSTables<br/>
+                                    <strong>Merge:</strong> Flush creates new SSTable level
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+
+                                <text x="500" y="40" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Memtable in the Write Path
+                                </text>
+
+                                <!-- Write arrives -->
+                                <rect x="50" y="80" width="150" height="80" rx="10" fill="#3b82f6" opacity="0.2" stroke="#3b82f6" stroke-width="3"/>
+                                <text x="125" y="110" font-size="14" fill="#3b82f6" font-weight="700" text-anchor="middle">Client Write</text>
+                                <text x="125" y="135" font-size="12" fill="#e2e8f0" text-anchor="middle">INSERT</text>
+                                <text x="125" y="150" font-size="12" fill="#e2e8f0" text-anchor="middle">UPDATE</text>
+
+                                <!-- Arrow to memtable -->
+                                <path d="M 200 120 L 280 120" stroke="#06b6d4" stroke-width="3" marker-end="url(#arrowCyan)"/>
+                                <text x="240" y="110" font-size="11" fill="#22d3ee" text-anchor="middle">0.1ms</text>
+
+                                <defs>
+                                    <marker id="arrowCyan" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#06b6d4" />
+                                    </marker>
+                                </defs>
+
+                                <!-- Memtable -->
+                                <rect x="280" y="70" width="220" height="100" rx="10" fill="#06b6d4" opacity="0.2" stroke="#06b6d4" stroke-width="3"/>
+                                <text x="390" y="95" font-size="16" fill="#06b6d4" font-weight="800" text-anchor="middle">
+                                    💾 Memtable (RAM)
+                                </text>
+                                <text x="390" y="120" font-size="12" fill="#10b981" text-anchor="middle">
+                                    ✓ Sorted tree structure
+                                </text>
+                                <text x="390" y="138" font-size="12" fill="#10b981" text-anchor="middle">
+                                    ✓ 64-128MB size
+                                </text>
+                                <text x="390" y="156" font-size="11" fill="#fbbf24" text-anchor="middle">
+                                    ~100 microseconds!
+                                </text>
+
+                                <!-- Success back to client -->
+                                <path d="M 280 140 L 200 140" stroke="#10b981" stroke-width="3" stroke-dasharray="5,5" marker-end="url(#arrowGreen)"/>
+                                <text x="240" y="155" font-size="11" fill="#10b981" text-anchor="middle">SUCCESS</text>
+
+                                <defs>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto">
+                                        <path d="M9,0 L9,6 L0,3 z" fill="#10b981" />
+                                    </marker>
+                                </defs>
+
+                                <!-- When full -->
+                                <text x="390" y="210" font-size="14" fill="#fbbf24" font-weight="700" text-anchor="middle">
+                                    ⚠️ When Memtable Reaches 128MB...
+                                </text>
+
+                                <rect x="280" y="230" width="220" height="80" rx="10" fill="#fbbf24" opacity="0.1" stroke="#fbbf24" stroke-width="2"/>
+                                <text x="390" y="255" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    1. Freeze (make read-only)
+                                </text>
+                                <text x="390" y="275" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    2. Create new memtable
+                                </text>
+                                <text x="390" y="295" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    3. Flush old to SSTable
+                                </text>
+
+                                <!-- Arrow to SSTable -->
+                                <path d="M 500 270 L 580 270" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowPurple)"/>
+                                <text x="540" y="260" font-size="11" fill="#a78bfa" text-anchor="middle">async</text>
+
+                                <defs>
+                                    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#8b5cf6" />
+                                    </marker>
+                                </defs>
+
+                                <!-- SSTable -->
+                                <rect x="580" y="230" width="180" height="80" rx="10" fill="#8b5cf6" opacity="0.2" stroke="#8b5cf6" stroke-width="3"/>
+                                <text x="670" y="255" font-size="14" fill="#8b5cf6" font-weight="700" text-anchor="middle">
+                                    💿 SSTable (Disk)
+                                </text>
+                                <text x="670" y="280" font-size="12" fill="#10b981" text-anchor="middle">
+                                    ✓ Immutable file
+                                </text>
+                                <text x="670" y="298" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                    (takes 2-5 seconds)
+                                </text>
+
+                                <!-- Bottom explanation -->
+                                <rect x="50" y="360" width="900" height="120" rx="10" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="500" y="390" font-size="16" fill="#06b6d4" font-weight="700" text-anchor="middle">
+                                    🔑 Key Insight: Why Memtable Makes Writes Fast
+                                </text>
+                                <text x="500" y="420" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    RAM access = 100 nanoseconds (0.0001ms) vs Disk = 10 milliseconds
+                                </text>
+                                <text x="500" y="443" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    → Writing to memtable is 100,000x faster than writing directly to disk!
+                                </text>
+                                <text x="500" y="466" font-size="13" fill="#10b981" text-anchor="middle">
+                                    → Batch flush amortizes disk I/O cost across many writes ✓
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-lightbulb"></i> 💡 The Speed Secret</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Why is memtable so fast?</strong><br/><br/>
+                                
+                                <strong style="color: var(--memory-blue);">RAM vs Disk Physics:</strong><br/>
+                                • RAM latency: 100 nanoseconds = 0.0001ms<br/>
+                                • SSD latency: 100 microseconds = 0.1ms (1,000x slower)<br/>
+                                • HDD latency: 10 milliseconds = 10ms (100,000x slower!)<br/><br/>
+                                
+                                By keeping recent writes in memtable (RAM), Cassandra avoids disk I/O completely for hot data. This is the foundation of sub-5ms write latency at massive scale. The memtable is Cassandra's secret weapon!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Data Structure -->
+                    <section id="data-structure" data-aos="fade-up">
+                        <h2>🌳 Data Structure: Skip List Deep Dive</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Memtable uses a <strong style="color: var(--primary-cyan);">concurrent skip list</strong> for lock-free sorted storage!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--primary-cyan);">Skip List Basics</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Type:</strong> Probabilistic balanced tree<br/>
+                                    <strong>Layers:</strong> Multiple levels of linked lists<br/>
+                                    <strong>Bottom layer:</strong> All elements sorted<br/>
+                                    <strong>Higher layers:</strong> Express lanes (skip ahead!)<br/>
+                                    <strong>Search:</strong> Start top, drop down when needed<br/>
+                                    <strong>Complexity:</strong> O(log n) average for all ops
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔒</div>
+                                <h4 style="color: var(--light-cyan);">Why Skip List?</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Concurrent:</strong> Lock-free updates!<br/>
+                                    <strong>No rebalancing:</strong> Unlike red-black trees<br/>
+                                    <strong>Simple:</strong> Easier to implement than B-trees<br/>
+                                    <strong>Sorted:</strong> Maintains order automatically<br/>
+                                    <strong>Fast:</strong> O(log n) with low constants<br/>
+                                    <strong>Memory:</strong> Efficient space usage
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🔑</div>
+                                <h4 style="color: var(--accent-teal);">Sort Order</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Primary key:</strong> Partition key (hash)<br/>
+                                    <strong>Secondary:</strong> Clustering key (defines row order)<br/>
+                                    <strong>Example:</strong> users (user_id, timestamp)<br/>
+                                    <strong>Sorted by:</strong> user_id → timestamp<br/>
+                                    <strong>Why important:</strong> Fast range queries<br/>
+                                    <strong>SSTable:</strong> Written in same order
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">⚡</div>
+                                <h4 style="color: var(--primary-cyan);">Insert Performance</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Time complexity:</strong> O(log n)<br/>
+                                    <strong>Typical:</strong> 10-20 comparisons for 1M rows<br/>
+                                    <strong>Latency:</strong> ~100 microseconds<br/>
+                                    <strong>Concurrency:</strong> Lock-free (CAS operations)<br/>
+                                    <strong>Throughput:</strong> Millions of inserts/sec<br/>
+                                    <strong>Bottleneck:</strong> Rarely (memory bandwidth!)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔍</div>
+                                <h4 style="color: var(--light-cyan);">Lookup Performance</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Single key:</strong> O(log n)<br/>
+                                    <strong>Range scan:</strong> O(log n + k) where k = results<br/>
+                                    <strong>Hit rate:</strong> 80-95% for recent data<br/>
+                                    <strong>Latency:</strong> Sub-millisecond<br/>
+                                    <strong>Cache friendly:</strong> Sequential memory access<br/>
+                                    <strong>Miss:</strong> Continue to SSTables
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">💾</div>
+                                <h4 style="color: var(--accent-teal);">Memory Layout</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Nodes:</strong> Key + Value + Pointers<br/>
+                                    <strong>Overhead:</strong> ~20-30 bytes per entry<br/>
+                                    <strong>Fragmentation:</strong> Minimal (linked structure)<br/>
+                                    <strong>GC pressure:</strong> Can be high if large<br/>
+                                    <strong>Off-heap option:</strong> Reduce GC pauses<br/>
+                                    <strong>Typical:</strong> 64-128MB total size
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-cogs"></i> ⚙️ Lock-Free Concurrency</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Why lock-free matters:</strong><br/><br/>
+                                
+                                <strong style="color: var(--error-red);">With locks:</strong> Multiple threads compete for lock, one wins, others wait. Throughput limited by lock contention. At high concurrency, performance degrades linearly.<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Lock-free (skip list):</strong> Use Compare-And-Swap (CAS) atomic operations. Multiple threads can insert simultaneously. No waiting, no contention. Throughput scales with CPU cores!<br/><br/>
+                                
+                                This is why Cassandra can handle 500,000 writes/sec on a single node - the memtable never blocks!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Write Operations -->
+                    <section id="write-ops" data-aos="fade-up">
+                        <h2>✍️ Write Operations: Inserts and Updates</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Every write goes through the memtable <strong style="color: var(--primary-cyan);">instantly</strong> - here's how!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">1️⃣</div>
+                                <h4 style="color: var(--primary-cyan);">INSERT Operation</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Step 1:</strong> Find insertion point (binary search)<br/>
+                                    <strong>Step 2:</strong> Create new node with data<br/>
+                                    <strong>Step 3:</strong> CAS insert into skip list<br/>
+                                    <strong>Step 4:</strong> Update memtable size counter<br/>
+                                    <strong>Latency:</strong> ~100 microseconds<br/>
+                                    <strong>Thread-safe:</strong> Lock-free CAS ensures atomicity
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">2️⃣</div>
+                                <h4 style="color: var(--light-cyan);">UPDATE Operation</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>No in-place update!</strong> Insert new version instead<br/>
+                                    <strong>Same key:</strong> Insert with newer timestamp<br/>
+                                    <strong>Old version:</strong> Kept until compaction<br/>
+                                    <strong>Read:</strong> Returns newest timestamp<br/>
+                                    <strong>Why:</strong> Immutability = lock-free!<br/>
+                                    <strong>Cleanup:</strong> Compaction removes old versions
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">3️⃣</div>
+                                <h4 style="color: var(--accent-teal);">DELETE Operation</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Tombstone:</strong> Insert deletion marker<br/>
+                                    <strong>Not deleted:</strong> Data still in memtable!<br/>
+                                    <strong>Timestamp:</strong> Deletion time recorded<br/>
+                                    <strong>Reads:</strong> Skip tombstoned entries<br/>
+                                    <strong>Cleanup:</strong> Removed during compaction<br/>
+                                    <strong>Why:</strong> Fast deletes without searching
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--primary-cyan);">Size Tracking</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Counter:</strong> Track total memtable size<br/>
+                                    <strong>Per-write:</strong> Add data size to counter<br/>
+                                    <strong>Overhead:</strong> Include node pointers<br/>
+                                    <strong>Threshold:</strong> 64-128MB triggers flush<br/>
+                                    <strong>Atomic:</strong> Thread-safe increment<br/>
+                                    <strong>Monitoring:</strong> Check via JMX metrics
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">⚡</div>
+                                <h4 style="color: var(--light-cyan);">Batch Mutations</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>BATCH:</strong> Multiple writes together<br/>
+                                    <strong>Atomic:</strong> All or nothing semantics<br/>
+                                    <strong>Same memtable:</strong> All go to same structure<br/>
+                                    <strong>Performance:</strong> Amortize overhead<br/>
+                                    <strong>Size check:</strong> After batch, check threshold<br/>
+                                    <strong>Benefit:</strong> Reduce network roundtrips
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🔄</div>
+                                <h4 style="color: var(--accent-teal);">Timestamp Management</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Mutation timestamp:</strong> Microsecond precision<br/>
+                                    <strong>Client-provided:</strong> Or server generates<br/>
+                                    <strong>Conflict resolution:</strong> Last-Write-Wins (LWW)<br/>
+                                    <strong>Stored:</strong> With each column value<br/>
+                                    <strong>Read:</strong> Return newest timestamp<br/>
+                                    <strong>Critical:</strong> Determines data freshness
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h3 style="color: var(--primary-cyan); margin-top: 0;">⚡ Twitter: 400,000 Tweets/Second in Memtable</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Twitter's peak write load during major events:</strong><br/><br/>
+                                
+                                <strong style="color: var(--light-cyan);">The Challenge:</strong><br/>
+                                • Super Bowl, World Cup = 400,000 tweets/second<br/>
+                                • Each tweet = INSERT into timelines table<br/>
+                                • Must handle bursts without latency spikes<br/>
+                                • Users expect instant tweet posting<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Memtable Performance:</strong><br/>
+                                • Skip list handles 400k inserts/sec per node<br/>
+                                • Average insert latency: 95 microseconds<br/>
+                                • Lock-free = no contention even at peak<br/>
+                                • Memtable absorbs burst (128MB buffer)<br/>
+                                • Flush happens async (doesn't block writes!)<br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Key metric:</strong> P99 write latency stayed under 5ms even during Super Bowl peak! The memtable's lock-free skip list scaled linearly with CPU cores. This is why Twitter trusts Cassandra for real-time social feeds!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Read Operations -->
+                    <section id="read-ops" data-aos="fade-up">
+                        <h2>📖 Read Operations: Memtable as Cache</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Memtable isn't just for writes - it's also a <strong style="color: var(--primary-cyan);">blazing-fast read cache</strong>!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📌</div>
+                                <h4 style="color: var(--primary-cyan);">Read Path Priority</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Step 1:</strong> Check memtable FIRST<br/>
+                                    <strong>Hit:</strong> Return data immediately (sub-ms!)<br/>
+                                    <strong>Miss:</strong> Continue to SSTables<br/>
+                                    <strong>Why first:</strong> Most recent data here<br/>
+                                    <strong>Hit rate:</strong> 80-95% for hot data<br/>
+                                    <strong>Benefit:</strong> Avoid disk I/O for recent writes
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔍</div>
+                                <h4 style="color: var(--light-cyan);">Single Key Lookup</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Partition key:</strong> Hash to find node<br/>
+                                    <strong>Skip list search:</strong> O(log n) traversal<br/>
+                                    <strong>Found:</strong> Return value + timestamp<br/>
+                                    <strong>Not found:</strong> Check SSTables<br/>
+                                    <strong>Latency:</strong> 50-200 microseconds<br/>
+                                    <strong>Efficiency:</strong> No disk access needed!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📋</div>
+                                <h4 style="color: var(--accent-teal);">Range Query</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Clustering range:</strong> Use skip list order<br/>
+                                    <strong>Sequential scan:</strong> After finding start<br/>
+                                    <strong>Performance:</strong> O(log n + k) where k = rows<br/>
+                                    <strong>Efficient:</strong> Sorted structure = fast scan<br/>
+                                    <strong>Merge:</strong> Combine with SSTable results<br/>
+                                    <strong>Typical:</strong> Faster than SSTables!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">⏱️</div>
+                                <h4 style="color: var(--primary-cyan);">Cache Hit Benefits</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>No disk I/O:</strong> Skip SSTable read<br/>
+                                    <strong>No bloom filter:</strong> Skip probabilistic check<br/>
+                                    <strong>No index lookup:</strong> Direct memory access<br/>
+                                    <strong>Latency:</strong> <1ms vs 10-50ms disk<br/>
+                                    <strong>Throughput:</strong> Millions of reads/sec<br/>
+                                    <strong>Cost:</strong> No I/O cost!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔄</div>
+                                <h4 style="color: var(--light-cyan);">Read-Write Consistency</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Write then read:</strong> Always see latest<br/>
+                                    <strong>Same node:</strong> Memtable guarantees freshness<br/>
+                                    <strong>Timestamp:</strong> Newest version returned<br/>
+                                    <strong>No stale reads:</strong> Within same node<br/>
+                                    <strong>Distributed:</strong> CL determines freshness<br/>
+                                    <strong>Local consistency:</strong> Perfect!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--accent-teal);">Multi-Memtable Reads</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Active memtable:</strong> Check current first<br/>
+                                    <strong>Flushing memtables:</strong> Check frozen too<br/>
+                                    <strong>Multiple:</strong> During flush, 2+ exist<br/>
+                                    <strong>Merge:</strong> Combine results by timestamp<br/>
+                                    <strong>Rare:</strong> Usually only 1 memtable<br/>
+                                    <strong>Performance:</strong> Still sub-millisecond
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-rocket"></i> 🚀 Read Performance Impact</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Memtable cache hit rates matter A LOT:</strong><br/><br/>
+                                
+                                <strong style="color: var(--success-green);">95% hit rate:</strong> P99 latency = 2ms (mostly memtable)<br/>
+                                <strong style="color: var(--warning-orange);">50% hit rate:</strong> P99 latency = 15ms (half go to disk)<br/>
+                                <strong style="color: var(--error-red);">10% hit rate:</strong> P99 latency = 50ms (mostly disk I/O)<br/><br/>
+                                
+                                For read-heavy workloads, keeping your working set in memtable is CRITICAL for performance. This is why larger memtables (128MB vs 64MB) can dramatically improve read latency!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Flush Triggers -->
+                    <section id="flush-triggers" data-aos="fade-up">
+                        <h2>⚡ Flush Triggers: When Memtable Becomes SSTable</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Understanding flush triggers is <strong style="color: var(--primary-cyan);">critical for tuning</strong> Cassandra performance!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📏</div>
+                                <h4 style="color: var(--primary-cyan);">1. Size Threshold (Primary)</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Default:</strong> 64MB per table memtable<br/>
+                                    <strong>Configurable:</strong> 32-256MB typical range<br/>
+                                    <strong>When:</strong> Memtable reaches threshold size<br/>
+                                    <strong>Trigger:</strong> Automatic background flush<br/>
+                                    <strong>Frequency:</strong> Depends on write rate<br/>
+                                    <strong>Config:</strong> memtable_heap_space_in_mb
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">⏰</div>
+                                <h4 style="color: var(--light-cyan);">2. Time-Based Flush</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Default:</strong> 1 hour (3600 seconds)<br/>
+                                    <strong>Purpose:</strong> Prevent stale data in memory<br/>
+                                    <strong>When:</strong> Even if size not reached<br/>
+                                    <strong>Why:</strong> Free commit log space<br/>
+                                    <strong>Low traffic:</strong> Tables flush eventually<br/>
+                                    <strong>Config:</strong> memtable_flush_period_in_ms
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">💾</div>
+                                <h4 style="color: var(--accent-teal);">3. Memory Pressure</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Trigger:</strong> Total memtable memory > threshold<br/>
+                                    <strong>Threshold:</strong> Typically 2-4GB total<br/>
+                                    <strong>Action:</strong> Flush largest memtable first<br/>
+                                    <strong>Emergency:</strong> Prevent OOM (out of memory)<br/>
+                                    <strong>Cascading:</strong> Flush multiple if needed<br/>
+                                    <strong>Monitoring:</strong> Watch total memtable size
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📜</div>
+                                <h4 style="color: var(--primary-cyan);">4. Commit Log Pressure</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Trigger:</strong> Commit log size exceeds limit<br/>
+                                    <strong>Default:</strong> Usually 8GB total<br/>
+                                    <strong>Problem:</strong> Can't truncate commit log<br/>
+                                    <strong>Solution:</strong> Force memtable flush<br/>
+                                    <strong>Why:</strong> Allow commit log cleanup<br/>
+                                    <strong>Impact:</strong> May flush smaller memtables
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔧</div>
+                                <h4 style="color: var(--light-cyan);">5. Manual Flush</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Command:</strong> nodetool flush [keyspace] [table]<br/>
+                                    <strong>When:</strong> Operator initiated<br/>
+                                    <strong>Use cases:</strong> Before backup, repair, upgrade<br/>
+                                    <strong>Effect:</strong> All memtables flushed immediately<br/>
+                                    <strong>Blocks:</strong> Waits for flush completion<br/>
+                                    <strong>Safe:</strong> No data loss risk
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🛑</div>
+                                <h4 style="color: var(--accent-teal);">6. Shutdown Flush</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>When:</strong> Node gracefully stopped<br/>
+                                    <strong>Action:</strong> Flush ALL memtables<br/>
+                                    <strong>Purpose:</strong> Minimize commit log replay<br/>
+                                    <strong>Duration:</strong> Can take 1-5 minutes<br/>
+                                    <strong>Skip:</strong> Kill -9 doesn't flush (unsafe!)<br/>
+                                    <strong>Result:</strong> Clean shutdown, fast restart
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg">
+                                <text x="500" y="40" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Memtable Flush Decision Tree
+                                </text>
+
+                                <!-- Decision boxes -->
+                                <rect x="350" y="80" width="300" height="60" rx="10" fill="#3b82f6" opacity="0.2" stroke="#3b82f6" stroke-width="3"/>
+                                <text x="500" y="110" font-size="14" fill="#e2e8f0" text-anchor="middle" font-weight="700">
+                                    Memtable Active (accepting writes)
+                                </text>
+                                <text x="500" y="128" font-size="12" fill="#94a3b8" text-anchor="middle">
+                                    Size: 0MB → 64MB → 128MB
+                                </text>
+
+                                <!-- Size check -->
+                                <path d="M 500 140 L 500 180" stroke="#06b6d4" stroke-width="3" marker-end="url(#arrowC)"/>
+                                
+                                <defs>
+                                    <marker id="arrowC" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#06b6d4" />
+                                    </marker>
+                                </defs>
+
+                                <rect x="350" y="180" width="300" height="60" rx="10" fill="#fbbf24" opacity="0.2" stroke="#fbbf24" stroke-width="3"/>
+                                <text x="500" y="205" font-size="14" fill="#fbbf24" text-anchor="middle" font-weight="700">
+                                    Size >= 128MB?
+                                </text>
+                                <text x="500" y="223" font-size="12" fill="#94a3b8" text-anchor="middle">
+                                    (or time > 1 hour?)
+                                </text>
+
+                                <!-- Yes path -->
+                                <path d="M 650 210 L 720 210" stroke="#10b981" stroke-width="3" marker-end="url(#arrowG)"/>
+                                <text x="685" y="205" font-size="12" fill="#10b981" font-weight="700" text-anchor="middle">YES</text>
+
+                                <defs>
+                                    <marker id="arrowG" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#10b981" />
+                                    </marker>
+                                </defs>
+
+                                <rect x="720" y="170" width="220" height="80" rx="10" fill="#10b981" opacity="0.2" stroke="#10b981" stroke-width="3"/>
+                                <text x="830" y="195" font-size="13" fill="#10b981" text-anchor="middle" font-weight="700">
+                                    TRIGGER FLUSH
+                                </text>
+                                <text x="830" y="215" font-size="11" fill="#e2e8f0" text-anchor="middle">
+                                    1. Freeze current memtable
+                                </text>
+                                <text x="830" y="232" font-size="11" fill="#e2e8f0" text-anchor="middle">
+                                    2. Create new memtable
+                                </text>
+
+                                <!-- No path -->
+                                <path d="M 500 240 L 500 280" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowR)"/>
+                                <text x="520" y="265" font-size="12" fill="#ef4444" font-weight="700" text-anchor="start">NO</text>
+
+                                <defs>
+                                    <marker id="arrowR" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
+                                    </marker>
+                                </defs>
+
+                                <rect x="350" y="280" width="300" height="60" rx="10" fill="#06b6d4" opacity="0.2" stroke="#06b6d4" stroke-width="3"/>
+                                <text x="500" y="305" font-size="14" fill="#06b6d4" text-anchor="middle" font-weight="700">
+                                    Continue accepting writes
+                                </text>
+                                <text x="500" y="323" font-size="12" fill="#94a3b8" text-anchor="middle">
+                                    Keep accumulating data
+                                </text>
+
+                                <!-- Loop back -->
+                                <path d="M 350 310 L 300 310 L 300 110 L 350 110" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5,5" fill="none"/>
+                                <text x="250" y="215" font-size="11" fill="#94a3b8" text-anchor="middle">repeat</text>
+
+                                <!-- Flush process -->
+                                <text x="500" y="400" font-size="18" fill="#06b6d4" font-weight="700" text-anchor="middle">
+                                    Flush Process Timeline
+                                </text>
+
+                                <line x1="100" y1="440" x2="900" y2="440" stroke="#334155" stroke-width="2"/>
+
+                                <!-- T=0 -->
+                                <circle cx="200" cy="440" r="8" fill="#fbbf24"/>
+                                <text x="200" y="425" font-size="11" fill="#fbbf24" text-anchor="middle">T=0</text>
+                                <text x="200" y="465" font-size="10" fill="#94a3b8" text-anchor="middle">Trigger</text>
+
+                                <!-- T=1ms -->
+                                <circle cx="350" cy="440" r="8" fill="#06b6d4"/>
+                                <text x="350" y="425" font-size="11" fill="#06b6d4" text-anchor="middle">T=1ms</text>
+                                <text x="350" y="465" font-size="10" fill="#94a3b8" text-anchor="middle">Freeze +</text>
+                                <text x="350" y="478" font-size="10" fill="#94a3b8" text-anchor="middle">new memtable</text>
+
+                                <!-- T=2-5s -->
+                                <circle cx="650" cy="440" r="8" fill="#8b5cf6"/>
+                                <text x="650" y="425" font-size="11" fill="#8b5cf6" text-anchor="middle">T=2-5s</text>
+                                <text x="650" y="465" font-size="10" fill="#94a3b8" text-anchor="middle">Write SSTable</text>
+                                <text x="650" y="478" font-size="10" fill="#94a3b8" text-anchor="middle">(128MB → disk)</text>
+
+                                <!-- T=5s -->
+                                <circle cx="800" cy="440" r="8" fill="#10b981"/>
+                                <text x="800" y="425" font-size="11" fill="#10b981" text-anchor="middle">T=5s</text>
+                                <text x="800" y="465" font-size="10" fill="#10b981" text-anchor="middle">Complete ✓</text>
+                                <text x="800" y="478" font-size="10" fill="#94a3b8" text-anchor="middle">Free memory</text>
+
+                                <!-- Bottom note -->
+                                <rect x="100" y="520" width="800" height="60" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="500" y="545" font-size="13" fill="#e2e8f0" text-anchor="middle">
+                                    💡 Key: Freeze + new memtable takes ~1ms. Writes never blocked!
+                                </text>
+                                <text x="500" y="565" font-size="12" fill="#94a3b8" text-anchor="middle">
+                                    Actual SSTable write (2-5s) happens asynchronously in background
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem; border-left-color: var(--warning-orange);">
+                            <h4><i class="fas fa-cog"></i> ⚙️ Tuning Flush Threshold</h4>
+                            <p style="color: var(--text-secondary); line-height: 1.8;">
+                                <strong>Larger memtable (128-256MB):</strong><br/>
+                                ✅ Fewer flushes = less I/O overhead<br/>
+                                ✅ Better compression (more data = better ratios)<br/>
+                                ✅ Higher cache hit rate (more data in RAM)<br/>
+                                ❌ Longer flush time (more data to write)<br/>
+                                ❌ More memory usage<br/>
+                                ❌ Longer commit log replay on crash<br/><br/>
+                                
+                                <strong>Smaller memtable (32-64MB):</strong><br/>
+                                ✅ Faster flush (less data to write)<br/>
+                                ✅ Less memory usage<br/>
+                                ✅ Faster crash recovery<br/>
+                                ❌ More frequent flushes = more I/O<br/>
+                                ❌ More SSTables = slower reads<br/><br/>
+                                
+                                <strong>Sweet spot:</strong> 64-128MB for most workloads!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Memory Management -->
+                    <section id="memory-mgmt" data-aos="fade-up">
+                        <h2>🧠 Memory Management: Heap vs Off-Heap</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Proper memory management is <strong style="color: var(--primary-cyan);">critical for stability</strong> and performance!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📦</div>
+                                <h4 style="color: var(--primary-cyan);">Heap-based Memtable</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Default:</strong> Lives in JVM heap<br/>
+                                    <strong>Allocation:</strong> Standard Java objects<br/>
+                                    <strong>GC impact:</strong> Part of GC scanning<br/>
+                                    <strong>Pros:</strong> Simple, fast allocation<br/>
+                                    <strong>Cons:</strong> GC pauses with large heaps<br/>
+                                    <strong>Typical:</strong> 10-20% of heap size
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔓</div>
+                                <h4 style="color: var(--light-cyan);">Off-heap Memtable</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Available:</strong> Cassandra 2.1+<br/>
+                                    <strong>Location:</strong> Direct ByteBuffer (native memory)<br/>
+                                    <strong>GC impact:</strong> Minimal (not scanned!)<br/>
+                                    <strong>Pros:</strong> No GC pauses from memtable<br/>
+                                    <strong>Cons:</strong> Slower allocation, more complex<br/>
+                                    <strong>Config:</strong> memtable_allocation_type: offheap_objects
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚠️</div>
+                                <h4 style="color: var(--accent-teal);">GC Pause Impact</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Small heap (8GB):</strong> GC pauses <100ms ✓<br/>
+                                    <strong>Medium heap (16GB):</strong> Pauses 200-500ms ⚠️<br/>
+                                    <strong>Large heap (32GB+):</strong> Pauses 1-5s ❌<br/>
+                                    <strong>Memtable contribution:</strong> 20-40% of pause time<br/>
+                                    <strong>Solution:</strong> Use off-heap or G1GC<br/>
+                                    <strong>Monitoring:</strong> Track GC pause frequency
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--primary-cyan);">Total Memory Budget</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Heap allocation:</strong> 8-16GB typical<br/>
+                                    <strong>Memtable:</strong> 1-3GB (10-20% of heap)<br/>
+                                    <strong>Row cache:</strong> 0-2GB (optional)<br/>
+                                    <strong>Other:</strong> 5-11GB (bloom filters, index, buffers)<br/>
+                                    <strong>Off-heap:</strong> OS file cache uses remaining RAM<br/>
+                                    <strong>Recommendation:</strong> Leave 50% RAM for OS cache
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🔧</div>
+                                <h4 style="color: var(--light-cyan);">Memory Configuration</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>memtable_heap_space_in_mb:</strong> Max total size<br/>
+                                    <strong>Default:</strong> 1/4 of heap<br/>
+                                    <strong>memtable_offheap_space_in_mb:</strong> Off-heap limit<br/>
+                                    <strong>memtable_cleanup_threshold:</strong> Flush trigger<br/>
+                                    <strong>JVM heap:</strong> -Xms8G -Xmx8G (example)<br/>
+                                    <strong>Monitoring:</strong> nodetool info | grep Memtable
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚖️</div>
+                                <h4 style="color: var(--accent-teal);">Heap vs Off-heap Trade-offs</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Use heap when:</strong> Heap <16GB, simple setup<br/>
+                                    <strong>Use off-heap when:</strong> GC pauses >200ms<br/>
+                                    <strong>Heap benefit:</strong> Faster allocation, simpler<br/>
+                                    <strong>Off-heap benefit:</strong> No GC pauses<br/>
+                                    <strong>Performance:</strong> Similar (not a magic bullet!)<br/>
+                                    <strong>Most common:</strong> Heap-based with G1GC
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h3 style="color: var(--primary-cyan); margin-top: 0;">🧠 Netflix: Solving GC Pauses with Off-heap</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Netflix's GC problem:</strong><br/><br/>
+                                
+                                <strong style="color: var(--error-red);">Before (heap memtable):</strong><br/>
+                                • 32GB heap with 4GB memtable space<br/>
+                                • GC pauses: 2-5 seconds (terrible!)<br/>
+                                • P99 latency spikes to 6 seconds during GC<br/>
+                                • Users see buffering/errors during pauses<br/>
+                                • Problem: Large heap + large memtables = long GC<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">After (off-heap memtable):</strong><br/>
+                                • Reduced heap to 16GB<br/>
+                                • 4GB memtable moved off-heap<br/>
+                                • GC pauses: 100-200ms (95% reduction!)<br/>
+                                • P99 latency: 15ms (consistent)<br/>
+                                • Zero user-visible pauses ✓<br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Configuration:</strong><br/>
+                                • memtable_allocation_type: offheap_objects<br/>
+                                • memtable_offheap_space_in_mb: 4096<br/>
+                                • JVM: -Xms16G -Xmx16G + G1GC<br/><br/>
+                                
+                                <strong style="color: var(--accent-teal);">Netflix Engineering:</strong> "Moving memtables off-heap was transformative. GC pauses dropped from 5 seconds to 200ms. The trade-off is minimal - allocation is slightly slower, but that's nothing compared to eliminating multi-second pauses. For large heaps (>16GB), off-heap memtables are essential!"
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Performance -->
+                    <section id="performance" data-aos="fade-up">
+                        <h2>🚀 Performance Characteristics</h2>
+
+                        <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.9; margin-bottom: 2rem;">
+                            Understanding memtable performance limits helps with <strong style="color: var(--primary-cyan);">capacity planning</strong>!
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">✍️</div>
+                                <h4 style="color: var(--primary-cyan);">Write Throughput</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Single node:</strong> 100,000-500,000 writes/sec<br/>
+                                    <strong>Limited by:</strong> CPU cores (lock-free scales!)<br/>
+                                    <strong>8 cores:</strong> ~200,000 writes/sec<br/>
+                                    <strong>16 cores:</strong> ~400,000 writes/sec<br/>
+                                    <strong>Not limited by:</strong> Memory (until GC pressure)<br/>
+                                    <strong>Bottleneck:</strong> Usually network or commit log
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">📖</div>
+                                <h4 style="color: var(--light-cyan);">Read Throughput</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Cache hit:</strong> 1,000,000+ reads/sec<br/>
+                                    <strong>Latency:</strong> 50-200 microseconds<br/>
+                                    <strong>Limited by:</strong> Memory bandwidth<br/>
+                                    <strong>Sequential scan:</strong> Very fast (sorted!)<br/>
+                                    <strong>Random access:</strong> O(log n) still fast<br/>
+                                    <strong>Miss:</strong> Continue to SSTables (slower)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⏱️</div>
+                                <h4 style="color: var(--accent-teal);">Latency Breakdown</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Write operation:</strong><br/>
+                                    • Serialize: 20μs<br/>
+                                    • Memtable insert: 100μs<br/>
+                                    • Commit log: 1000μs (1ms)<br/>
+                                    • Total: ~1.2ms<br/>
+                                    <strong>Read operation:</strong><br/>
+                                    • Memtable lookup: 100μs<br/>
+                                    • If miss, SSTable: +10ms
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">💾</div>
+                                <h4 style="color: var(--primary-cyan);">Memory Efficiency</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Data overhead:</strong> 20-30 bytes per entry<br/>
+                                    <strong>Compression:</strong> None (speed over space)<br/>
+                                    <strong>Typical ratio:</strong> 1.2-1.5x raw data size<br/>
+                                    <strong>128MB memtable:</strong> ~100MB actual data<br/>
+                                    <strong>Efficient:</strong> Skip list = low overhead<br/>
+                                    <strong>Compare SSTable:</strong> 3-5x compression possible
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">📊</div>
+                                <h4 style="color: var(--light-cyan);">Scaling Characteristics</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>CPU cores:</strong> Linear scaling (lock-free!)<br/>
+                                    <strong>Memory:</strong> More = higher hit rate<br/>
+                                    <strong>Flush frequency:</strong> Larger = fewer flushes<br/>
+                                    <strong>Tables:</strong> Each has own memtable<br/>
+                                    <strong>50 tables:</strong> 50x memory requirement<br/>
+                                    <strong>Limitation:</strong> Total memory budget
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🎯</div>
+                                <h4 style="color: var(--accent-teal);">Real Benchmarks</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Test:</strong> 16-core server, 32GB RAM<br/>
+                                    <strong>Write:</strong> 380,000 ops/sec sustained<br/>
+                                    <strong>Read (hit):</strong> 1.2M ops/sec<br/>
+                                    <strong>P50 latency:</strong> 0.8ms write, 0.15ms read<br/>
+                                    <strong>P99 latency:</strong> 2.5ms write, 0.5ms read<br/>
+                                    <strong>CPU:</strong> 70% utilized, GC <5%
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Real Company Examples -->
+                    <section id="real-examples" data-aos="fade-up">
+                        <h2>🏢 Real Company Memtable Strategies</h2>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(34, 211, 238, 0.08)); border-left-color: var(--primary-cyan);">
+                            <h3 style="color: var(--primary-cyan); margin-top: 0;">📱 WhatsApp: 1 Billion Users, 256MB Memtables</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Scale:</strong> 1B+ users, 100B+ messages/day<br/>
+                                <strong style="color: var(--text-primary);">Challenge:</strong> Minimize latency for message delivery<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Configuration:</strong><br/>
+                                • memtable_heap_space_in_mb: 256 (2x default!)<br/>
+                                • Why larger: Fewer flushes = more stable latency<br/>
+                                • Trade-off: More memory, but worth it<br/>
+                                • JVM heap: 24GB (16GB for memtables)<br/>
+                                • GC: G1GC with off-heap option<br/><br/>
+                                
+                                <strong style="color: var(--light-cyan);">Results:</strong><br/>
+                                • Flush frequency: Every 10 minutes (vs 2-3 min default)<br/>
+                                • P99 latency: 4ms (consistent!)<br/>
+                                • No latency spikes during flush<br/>
+                                • Cache hit rate: 97% (larger memtable = more hits!)<br/>
+                                • GC pauses: <100ms average<br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Key insight:</strong> Larger memtables reduce flush frequency and improve cache hit rates. The extra memory cost is worth it for latency-sensitive workloads!
+                            </p>
+                        </div>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.08)); border-left-color: #3b82f6;">
+                            <h3 style="color: #3b82f6; margin-top: 0;">🎵 Spotify: Off-heap for User Listening Data</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Use case:</strong> Track user listening history (billions of plays)<br/>
+                                <strong style="color: var(--text-primary);">Problem:</strong> Large heap causing 3-5s GC pauses<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Solution:</strong><br/>
+                                • Switched to off-heap memtables<br/>
+                                • memtable_allocation_type: offheap_objects<br/>
+                                • memtable_offheap_space_in_mb: 8192 (8GB!)<br/>
+                                • Reduced JVM heap: 32GB → 16GB<br/>
+                                • More RAM for OS file cache<br/><br/>
+                                
+                                <strong style="color: var(--light-cyan);">Before (heap):</strong><br/>
+                                • GC pauses: 3-5 seconds<br/>
+                                • P99 latency: 6 seconds (during GC)<br/>
+                                • User-facing errors during pauses<br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">After (off-heap):</strong><br/>
+                                • GC pauses: 150ms average ✓<br/>
+                                • P99 latency: 12ms ✓<br/>
+                                • Zero user-facing errors ✓<br/>
+                                • 96% reduction in GC pause time!<br/><br/>
+                                
+                                <strong style="color: var(--accent-teal);">Spotify Engineering:</strong> "Off-heap memtables transformed our stability. The 5-second GC pauses were killing us. Now with off-heap, we get all the benefits of large memtables without the GC penalty!"
+                            </p>
+                        </div>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08)); border-left-color: #10b981;">
+                            <h3 style="color: #10b981; margin-top: 0;">🎮 Blizzard: 32MB Memtables for Predictable Performance</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                <strong style="color: var(--text-primary);">Use case:</strong> World of Warcraft game state (millions of players)<br/>
+                                <strong style="color: var(--text-primary);">Requirement:</strong> Predictable low latency (game feel!)<br/><br/>
+                                
+                                <strong style="color: var(--success-green);">Strategy:</strong><br/>
+                                • Smaller memtables: 32MB (vs 64-128MB typical)<br/>
+                                • Why: More frequent flushes = more predictable<br/>
+                                • Flush every 30-60 seconds (fast!)<br/>
+                                • SSTable count higher, but acceptable<br/>
+                                • Trade-off: More I/O for consistency<br/><br/>
+                                
+                                <strong style="color: var(--light-cyan);">Benefits:</strong><br/>
+                                • Latency variance: Very low (5ms ± 1ms)<br/>
+                                • No large flush delays<br/>
+                                • Predictable commit log size<br/>
+                                • Fast crash recovery (<30 seconds)<br/>
+                                • Memory pressure: Lower<br/><br/>
+                                
+                                <strong style="color: var(--text-primary);">Key insight:</strong> Smaller memtables = more predictable behavior. For latency-sensitive gaming workloads, consistency matters more than peak throughput!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ Best Practices: Memtable Optimization</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">1️⃣</div>
+                                <h4 style="color: var(--primary-cyan);">1. Size Memtables Appropriately</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Default 64MB:</strong> Good starting point<br/>
+                                    <strong>High write load:</strong> 128-256MB<br/>
+                                    <strong>Low latency need:</strong> 32-64MB<br/>
+                                    <strong>Rule of thumb:</strong> Flush every 2-10 minutes<br/>
+                                    <strong>Monitor:</strong> nodetool tablestats<br/>
+                                    <strong>Adjust:</strong> Based on flush frequency
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">2️⃣</div>
+                                <h4 style="color: var(--light-cyan);">2. Monitor Memory Usage</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Total memtable size:</strong> Should be <25% heap<br/>
+                                    <strong>Alert threshold:</strong> >30% heap = problem<br/>
+                                    <strong>Check:</strong> nodetool info | grep Memtable<br/>
+                                    <strong>GC impact:</strong> Watch pause times<br/>
+                                    <strong>Action:</strong> If >30%, reduce memtable size<br/>
+                                    <strong>Tools:</strong> JMX metrics, Prometheus
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">3️⃣</div>
+                                <h4 style="color: var(--accent-teal);">3. Use Off-heap for Large Heaps</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>If heap >16GB:</strong> Consider off-heap<br/>
+                                    <strong>If GC >200ms:</strong> Definitely use off-heap!<br/>
+                                    <strong>Config:</strong> memtable_allocation_type: offheap_objects<br/>
+                                    <strong>Benefit:</strong> Eliminate memtable GC pauses<br/>
+                                    <strong>Cost:</strong> Slightly slower allocation<br/>
+                                    <strong>Worth it:</strong> For large deployments
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">4️⃣</div>
+                                <h4 style="color: var(--primary-cyan);">4. Limit Number of Tables</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Each table:</strong> Has its own memtable<br/>
+                                    <strong>100 tables:</strong> = 100x memory requirement<br/>
+                                    <strong>Problem:</strong> Memory fragmentation<br/>
+                                    <strong>Recommendation:</strong> <50 tables per node<br/>
+                                    <strong>Alternative:</strong> Use larger nodes<br/>
+                                    <strong>Anti-pattern:</strong> One table per user (bad!)
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">5️⃣</div>
+                                <h4 style="color: var(--light-cyan);">5. Tune Flush Writers</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>memtable_flush_writers:</strong> Parallel flush threads<br/>
+                                    <strong>Default:</strong> 2 threads<br/>
+                                    <strong>High write load:</strong> Increase to 4-8<br/>
+                                    <strong>Benefit:</strong> Faster flush = less memory pressure<br/>
+                                    <strong>Trade-off:</strong> More disk I/O concurrency<br/>
+                                    <strong>Monitor:</strong> Flush queue depth
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">6️⃣</div>
+                                <h4 style="color: var(--accent-teal);">6. Test Memtable Size Changes</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem; line-height: 1.8;">
+                                    <strong>Don't assume:</strong> Bigger is always better<br/>
+                                    <strong>Benchmark:</strong> Test different sizes<br/>
+                                    <strong>Measure:</strong> Latency, flush freq, GC pauses<br/>
+                                    <strong>Sweet spot:</strong> Different per workload<br/>
+                                    <strong>Load test:</strong> Simulate production traffic<br/>
+                                    <strong>Monitor:</strong> P99 latency under load
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up" style="margin-top: 2rem; border-left-color: var(--error-red);">
+                            <h4><i class="fas fa-exclamation-triangle"></i> 🚨 Common Mistakes</h4>
+                            <ul style="color: var(--text-secondary); line-height: 1.8; margin-top: 1rem;">
+                                <li><strong>❌ Memtables too large:</strong> GC pauses kill performance (use off-heap!)</li>
+                                <li><strong>❌ Too many tables:</strong> Each has memtable = memory explosion</li>
+                                <li><strong>❌ Ignoring GC pauses:</strong> >500ms = major problem</li>
+                                <li><strong>❌ Not monitoring flush frequency:</strong> Too frequent = I/O storm</li>
+                                <li><strong>❌ Heap-based with >16GB heap:</strong> Use off-heap instead!</li>
+                                <li><strong>❌ Assuming defaults are optimal:</strong> Tune for your workload!</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Interview Q&A -->
+                    <section id="interview" data-aos="fade-up">
+                        <h2>💼 Interview Questions & Answers</h2>
+
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">1</div>
+                                <div class="question-text">Explain what a memtable is and why it's critical for Cassandra's write performance</div>
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                            </div>
+                            <div class="question-answer">
+                                <div>
+                                    <p><strong>Complete Answer:</strong></p>
+                                    <p>A memtable is Cassandra's in-memory write buffer - a sorted data structure that temporarily holds recent writes before they're flushed to disk as SSTables.</p>
+                                    
+                                    <p><strong>What is Memtable:</strong></p>
+                                    <ul>
+                                        <li><strong>Structure:</strong> Concurrent skip list (lock-free sorted tree)</li>
+                                        <li><strong>Location:</strong> JVM heap memory (or off-heap)</li>
+                                        <li><strong>Per-table:</strong> Each Cassandra table has its own memtable</li>
+                                        <li><strong>Size:</strong> Typically 64-128MB before flush</li>
+                                        <li><strong>Sorted:</strong> Maintains order by partition key → clustering key</li>
+                                        <li><strong>Volatile:</strong> Data lost on crash (protected by commit log)</li>
+                                    </ul>
+
+                                    <p><strong>Why Critical for Write Performance:</strong></p>
+                                    
+                                    <p><strong>1. RAM is 100,000x faster than disk:</strong></p>
+                                    <ul>
+                                        <li>RAM access: 100 nanoseconds = 0.0001ms</li>
+                                        <li>SSD access: 100 microseconds = 0.1ms (1,000x slower)</li>
+                                        <li>HDD access: 10 milliseconds (100,000x slower!)</li>
+                                        <li>Writing to memtable = writing to RAM = instant!</li>
+                                    </ul>
+
+                                    <p><strong>2. Batches writes to amortize disk I/O:</strong></p>
+                                    <ul>
+                                        <li>Instead of writing each mutation to disk individually</li>
+                                        <li>Accumulate many writes in memtable (64-128MB)</li>
+                                        <li>Flush all at once to SSTable</li>
+                                        <li>One big sequential write >> many small random writes</li>
+                                        <li>Reduces disk I/O overhead by 100-1000x!</li>
+                                    </ul>
+
+                                    <p><strong>3. Provides sorted structure:</strong></p>
+                                    <ul>
+                                        <li>Skip list maintains sort order automatically</li>
+                                        <li>When flushed, SSTable is already sorted</li>
+                                        <li>No need to sort on flush (would be slow!)</li>
+                                        <li>Makes range queries fast</li>
+                                    </ul>
+
+                                    <p><strong>Write Path Flow:</strong></p>
+                                    <ol>
+                                        <li>Write arrives at coordinator</li>
+                                        <li>Write to commit log (durability) - 1ms</li>
+                                        <li>Write to memtable (performance) - 0.1ms</li>
+                                        <li>Return SUCCESS to client - total ~3ms</li>
+                                        <li>Later: Flush memtable to SSTable (async)</li>
+                                    </ol>
+
+                                    <p><strong>Performance Impact:</strong></p>
+                                    <p>Without memtable: Every write = disk I/O = 10-50ms latency</p>
+                                    <p>With memtable: Every write = RAM access = 0.1ms latency</p>
+                                    <p>Result: 100-500x faster writes!</p>
+
+                                    <p><strong>Flush Process:</strong></p>
+                                    <ul>
+                                        <li>When memtable reaches 64-128MB threshold</li>
+                                        <li>Freeze current memtable (make read-only)</li>
+                                        <li>Create new empty memtable (1ms operation)</li>
+                                        <li>Flush frozen memtable to SSTable in background (2-5 seconds)</li>
+                                        <li>Writes never blocked - go to new memtable immediately!</li>
+                                    </ul>
+
+                                    <p><strong>Key Insight:</strong> The memtable is the foundation of Cassandra's write performance. By buffering writes in RAM and batching disk I/O, Cassandra achieves sub-5ms write latency even at 500,000 writes/second. This is what makes Cassandra suitable for write-heavy workloads like time-series data, logging, and real-time analytics!</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">2</div>
+                                <div class="question-text">Why does Cassandra use a skip list for memtable? Compare to other data structures.</div>
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                            </div>
+                            <div class="question-answer">
+                                <div>
+                                    <p><strong>Complete Answer:</strong></p>
+                                    <p>Cassandra uses a concurrent skip list for memtable because it provides O(log n) operations with lock-free concurrency - critical for high-throughput writes.</p>
+                                    
+                                    <p><strong>Skip List Basics:</strong></p>
+                                    <ul>
+                                        <li><strong>Structure:</strong> Multiple levels of sorted linked lists</li>
+                                        <li><strong>Bottom level:</strong> All elements in sorted order</li>
+                                        <li><strong>Higher levels:</strong> "Express lanes" that skip ahead</li>
+                                        <li><strong>Search:</strong> Start at top level, drop down when needed</li>
+                                        <li><strong>Probabilistic:</strong> Random promotion to higher levels</li>
+                                        <li><strong>Complexity:</strong> O(log n) average for insert, search, delete</li>
+                                    </ul>
+
+                                    <p><strong>Why Skip List vs Alternatives:</strong></p>
+
+                                    <p><strong>Skip List vs Red-Black Tree:</strong></p>
+                                    <ul>
+                                        <li><strong>Skip list advantage:</strong> Lock-free concurrent updates!</li>
+                                        <li>Red-black tree requires locking for rebalancing</li>
+                                        <li>Lock contention kills throughput at high concurrency</li>
+                                        <li><strong>Skip list:</strong> Use Compare-And-Swap (CAS) operations</li>
+                                        <li>Multiple threads can insert simultaneously without waiting</li>
+                                        <li>Throughput scales linearly with CPU cores</li>
+                                        <li><strong>Skip list advantage:</strong> Simpler implementation</li>
+                                        <li>No complex rotation/rebalancing logic</li>
+                                        <li>Easier to reason about correctness</li>
+                                    </ul>
+
+                                    <p><strong>Skip List vs Hash Table:</strong></p>
+                                    <ul>
+                                        <li><strong>Skip list:</strong> Maintains sorted order</li>
+                                        <li>Hash table: No inherent order</li>
+                                        <li><strong>Critical:</strong> Cassandra needs sort order for clustering keys</li>
+                                        <li>Range queries require sorted structure</li>
+                                        <li>SSTable flush requires sorted data</li>
+                                        <li><strong>Skip list:</strong> Range scan is O(log n + k)</li>
+                                        <li>Hash table: Range scan would be O(n)</li>
+                                    </ul>
+
+                                    <p><strong>Skip List vs B-tree:</strong></p>
+                                    <ul>
+                                        <li><strong>Skip list advantage:</strong> Better for in-memory</li>
+                                        <li>B-tree optimized for disk (minimize seeks)</li>
+                                        <li>In memory, simpler structure wins</li>
+                                        <li><strong>Skip list advantage:</strong> Lock-free possible</li>
+                                        <li>B-tree difficult to make lock-free (complex balancing)</li>
+                                        <li><strong>Skip list:</strong> Lower constant factors</li>
+                                        <li>Fewer pointer chases than B-tree</li>
+                                    </ul>
+
+                                    <p><strong>Lock-Free Concurrency Deep Dive:</strong></p>
+                                    <p>This is THE critical reason Cassandra uses skip list!</p>
+
+                                    <p><strong>Problem with locks:</strong></p>
+                                    <ul>
+                                        <li>Thread A acquires lock, inserts data</li>
+                                        <li>Threads B, C, D wait for lock</li>
+                                        <li>At high concurrency (100+ threads), massive contention</li>
+                                        <li>Throughput degrades as threads increase</li>
+                                    </ul>
+
+                                    <p><strong>Skip list lock-free approach:</strong></p>
+                                    <ul>
+                                        <li>Use atomic CAS (Compare-And-Swap) operations</li>
+                                        <li>Insert attempts: CAS(node.next, NULL, new_node)</li>
+                                        <li>If CAS fails (another thread inserted), retry</li>
+                                        <li>No waiting, no blocking</li>
+                                        <li>All threads make progress simultaneously</li>
+                                        <li>Throughput scales linearly with cores!</li>
+                                    </ul>
+
+                                    <p><strong>Real Performance Impact:</strong></p>
+                                    <p><strong>Benchmark: 16-core server, concurrent inserts:</strong></p>
+                                    <p>Red-black tree (locked): 50,000 inserts/sec (lock contention)</p>
+                                    <p>Skip list (lock-free): 400,000 inserts/sec (8x faster!)</p>
+                                    <p>Scaling: Skip list throughput increases with cores, locked structure plateaus</p>
+
+                                    <p><strong>Trade-offs:</strong></p>
+                                    <ul>
+                                        <li><strong>Skip list downside:</strong> Probabilistic (not guaranteed O(log n))</li>
+                                        <li>In practice: Very rare to degrade</li>
+                                        <li><strong>Skip list downside:</strong> Pointer overhead</li>
+                                        <li>Each node needs multiple next pointers (for levels)</li>
+                                        <li>~20-30 bytes overhead per entry</li>
+                                        <li>Acceptable for in-memory structure</li>
+                                    </ul>
+
+                                    <p><strong>Key Insight:</strong> The skip list's lock-free property is what enables Cassandra to handle 500,000 writes/second on a single node. Any locked data structure would become a bottleneck at that scale. The combination of O(log n) operations, sorted order, and lock-free concurrency makes skip list the perfect choice for memtable!</p>
+                                </div>
+                            </div>
+                        </div>
+
+                     
+        <div class="page-navigation">
+    <a href="commit-log.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Commit Log</div>
+        </div>
+    </a>
+    <a href="sstable.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">SSTable</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+  
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const size = Math.random() * 4 + 2;
+                const startX = Math.random() * 100;
+                const drift = (Math.random() - 0.5) * 100;
+                const duration = Math.random() * 10 + 15;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${startX}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                    --x-drift: ${drift}px;
+                `;
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        window.addEventListener('load', createParticles);
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        document.getElementById('mobileMenuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        window.addEventListener('scroll', () => {
+            document.getElementById('scrollTop').classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        function toggleAnswer(element) {
+            const answer = element.nextElementSibling;
+            const isActive = element.classList.contains('active');
+            
+            document.querySelectorAll('.question-header').forEach(header => {
+                header.classList.remove('active');
+                header.nextElementSibling.classList.remove('active');
+            });
+            
+            if (!isActive) {
+                element.classList.add('active');
+                answer.classList.add('active');
+            }
+        }
+        function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    </script>
+</body>
+</html>

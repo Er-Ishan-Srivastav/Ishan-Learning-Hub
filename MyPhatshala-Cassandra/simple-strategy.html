@@ -1,0 +1,3594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cassandra SimpleReplicationStrategy - Complete guide explaining why it's deprecated. Learn token ring placement, limitations, and migration to NetworkTopologyStrategy!">
+    <meta name="keywords" content="cassandra SimpleReplicationStrategy, deprecated replication, token ring, cassandra migration, NetworkTopologyStrategy">
+    <title>SimpleReplicationStrategy: Why It's Deprecated 2025 | CassandraHub</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <style>
+               html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --bg-darker: #020617;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-darker); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--error-red), var(--warning-orange));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.4; }
+            100% {
+                transform: translateY(-100px) translateX(var(--x-drift)) scale(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(220, 38, 38, 0.6); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes warning-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 20px rgba(217, 119, 6, 0.3);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 40px rgba(217, 119, 6, 0.6);
+                transform: scale(1.05);
+            }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #450a0a 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.1) 0%, transparent 50%);
+            animation: subtleMove 20s ease-in-out infinite;
+        }
+
+        .page-hero::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(220, 38, 38, 0.05) 50%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes subtleMove {
+            0%, 100% { 
+                background-position: 0% 0%, 100% 100%; 
+                opacity: 1;
+            }
+            50% { 
+                background-position: 100% 100%, 0% 0%; 
+                opacity: 0.8;
+            }
+        }
+
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--error-red);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: float-particle linear infinite;
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.2);
+            border: 2px solid rgba(220, 38, 38, 0.4);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fca5a5 0%, #dc2626 50%, #fca5a5 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s linear infinite;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: #fca5a5;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        section { padding: 4rem 0; }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--error-red), var(--warning-orange));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+        
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--error-red);
+            border-left-color: var(--error-red);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(217, 119, 6, 0.08));
+            border-left: 5px solid var(--error-red);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(220, 38, 38, 0.03) 50%, transparent 70%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+
+        .svg-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(220, 38, 38, 0.2);
+            border-color: var(--error-red);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 900px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.error {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .comparison-card:hover::before {
+            left: 100%;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--error-red);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(220, 38, 38, 0.3);
+        }
+
+        .comparison-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--error-red), var(--warning-orange));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            animation: warning-pulse 3s ease-in-out infinite;
+            transition: transform 0.3s;
+        }
+
+        .comparison-card:hover .comparison-icon {
+            transform: rotateY(180deg) scale(1.1);
+        }
+
+        .interview-question {
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .interview-question::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: linear-gradient(180deg, var(--error-red), var(--warning-orange));
+            transform: scaleY(0);
+            transition: transform 0.3s;
+        }
+
+        .interview-question:hover::before {
+            transform: scaleY(1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.2);
+            transform: translateX(5px);
+        }
+
+        .question-header {
+            padding: 1.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            background: white;
+        }
+
+        .question-number {
+            background: linear-gradient(135deg, var(--error-red), var(--warning-orange));
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.05rem;
+        }
+
+        .toggle-icon {
+            color: var(--error-red);
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.75rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 8000px;
+            padding: 2rem 1.75rem;
+            border-top: 2px solid #f3f4f6;
+        }
+
+        .question-answer p {
+            color: #4b5563;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer ul {
+            color: #4b5563;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--error-red), var(--warning-orange));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <div class="logo-icon">⚠️</div>
+            <h2>CassandraHub</h2>
+        </div>
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html" class="active">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="particles" id="particles"></div>
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Deprecated Strategy - Do Not Use!
+                    </span>
+                    <h1><span class="gradient-text">SimpleReplication</span>Strategy</h1>
+                    <p>⚠️ Learn why SimpleReplicationStrategy is deprecated and dangerous for production. Understand its limitations and migrate to NetworkTopologyStrategy!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Failure Story</a></li>
+                            <li><a href="#live-console">💻 Live Console</a></li>
+                            <li><a href="#what-is">🎯 What is SimpleStrategy</a></li>
+                            <li><a href="#how-it-works">⚙️ How It Works</a></li>
+                            <li><a href="#limitations">❌ Critical Limitations</a></li>
+                            <li><a href="#failure-scenarios">💥 Failure Scenarios</a></li>
+                            <li><a href="#why-deprecated">🚫 Why Deprecated</a></li>
+                            <li><a href="#migration">🔄 Migration Guide</a></li>
+                            <li><a href="#interview">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 Production Disaster: SimpleReplicationStrategy Failure</h2>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                A major e-commerce company (name withheld) used <strong style="color: var(--text-primary);">SimpleReplicationStrategy with RF=3</strong> in production. They deployed on AWS with <strong style="color: var(--error-red);">all nodes in a single Availability Zone</strong> to save costs. Problem: <strong style="color: var(--text-primary);">No rack awareness</strong> meant all 3 replicas of critical order data ended up on servers in the same physical rack. During a routine datacenter maintenance, <strong style="color: var(--error-red);">the rack's network switch failed</strong>. Result: <strong style="color: var(--warning-orange);">All 3 replicas became unreachable simultaneously</strong>. Orders couldn't be processed for <strong style="color: var(--text-primary);">2 hours during Black Friday</strong>. Estimated loss: <strong style="color: var(--error-red);">$3.2 million in revenue</strong>. Root cause: SimpleReplicationStrategy's lack of rack awareness. They immediately migrated to NetworkTopologyStrategy!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Live Console -->
+                    <section id="live-console" data-aos="fade-up">
+                        <h2>💻 Interactive SimpleStrategy Console</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                            Try SimpleReplicationStrategy commands to understand how it works (but remember: <strong style="color: var(--error-red);">NEVER use in production!</strong>)
+                        </p>
+
+                        <div style="background: var(--code-darker); border-radius: 16px; padding: 2rem; border: 2px solid var(--error-red); box-shadow: 0 10px 40px rgba(220, 38, 38, 0.3);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></div>
+                                <span style="margin-left: 1rem; color: var(--text-secondary); font-size: 0.9rem; font-family: 'JetBrains Mono', monospace;">cqlsh:test@cassandra</span>
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem;">
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem; font-weight: 600;">Quick Examples (Testing Only!):</p>
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                                    <button onclick="runExample(1)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--error-red), var(--warning-orange)); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Create with SimpleStrategy
+                                    </button>
+                                    <button onclick="runExample(2)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--error-red), var(--warning-orange)); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Check Placement
+                                    </button>
+                                    <button onclick="runExample(3)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--error-red), var(--warning-orange)); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Describe Keyspace
+                                    </button>
+                                    <button onclick="runExample(4)" style="padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--success-green), var(--accent-teal)); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; transition: transform 0.2s;">
+                                        Migrate to NTS
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style="position: relative;">
+                                <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                                    <span style="color: var(--error-red); font-family: 'JetBrains Mono', monospace; font-weight: 700; padding-top: 0.75rem;">cqlsh></span>
+                                    <textarea id="cqlInput" 
+                                        placeholder="Type your CQL command here... (Remember: Only for testing!)"
+                                        style="flex: 1; background: #0a0f1a; border: 2px solid var(--border-light); border-radius: 8px; padding: 0.75rem; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; min-height: 100px; resize: vertical;"
+                                        onkeydown="if(event.key==='Enter' && event.ctrlKey) executeCommand()"></textarea>
+                                </div>
+                                <button onclick="executeCommand()" style="margin-top: 1rem; padding: 0.75rem 2rem; background: linear-gradient(135deg, var(--error-red), var(--warning-orange)); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);">
+                                    <i class="fas fa-play"></i> Execute (Ctrl+Enter)
+                                </button>
+                                <button onclick="clearConsole()" style="margin-top: 1rem; margin-left: 1rem; padding: 0.75rem 1.5rem; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s;">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                            </div>
+
+                            <div id="consoleOutput" style="margin-top: 1.5rem; padding: 1.5rem; background: #0a0f1a; border: 2px solid var(--border-light); border-radius: 8px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6;">
+                                <div style="color: var(--text-secondary);">
+                                    <span style="color: var(--error-red);">⚠️</span> Console ready - Testing environment only!<br/>
+                                    <span style="color: var(--warning-orange);">⚠️</span> SimpleReplicationStrategy is deprecated and dangerous!<br/>
+                                    <span style="color: var(--success-green);">✓</span> Always use NetworkTopologyStrategy in production!
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box error" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-skull-crossbones"></i> Critical Warning</h4>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem;">
+                                <strong>NEVER use SimpleReplicationStrategy in production!</strong> It lacks rack and datacenter awareness, cannot handle multiple datacenters, and puts all your replicas at risk of simultaneous failure. This console is for learning purposes only. Always use NetworkTopologyStrategy!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- What is SimpleStrategy -->
+                    <section id="what-is" data-aos="fade-up">
+                        <h2>🎯 What is SimpleReplicationStrategy?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                            <strong style="color: var(--text-primary);">SimpleReplicationStrategy</strong> is Cassandra's original, basic replication strategy. It places replicas by simply walking clockwise around the token ring - with <strong style="color: var(--error-red);">no awareness of racks or datacenters</strong>.
+                        </p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🔷</div>
+                                <h4 style="color: var(--error-red);">Basic Concept</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Algorithm:</strong> Clockwise walk<br/>
+                                    <strong>Starting Point:</strong> Primary node (token owner)<br/>
+                                    <strong>Placement:</strong> Next RF-1 nodes clockwise<br/>
+                                    <strong>Result:</strong> Consecutive nodes on ring
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">❌</div>
+                                <h4 style="color: var(--error-red);">No Awareness</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Racks:</strong> Ignored completely<br/>
+                                    <strong>Datacenters:</strong> Not supported<br/>
+                                    <strong>Physical Location:</strong> Unknown<br/>
+                                    <strong>Risk:</strong> All replicas can be in same rack!
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚠️</div>
+                                <h4 style="color: var(--error-red);">Status: Deprecated</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Production Use:</strong> NEVER<br/>
+                                    <strong>Testing Use:</strong> Maybe (not recommended)<br/>
+                                    <strong>Future:</strong> Will be removed<br/>
+                                    <strong>Replacement:</strong> NetworkTopologyStrategy
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="info-box error" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle"></i> Why It Exists</h4>
+                            <p style="color: var(--text-secondary);">
+                                SimpleReplicationStrategy was created in early Cassandra versions (pre-1.0) when deployments were simpler and single-datacenter setups were common. It made sense in 2010 when most clusters had 5-10 nodes in a single location. Today, with multi-datacenter deployments, cloud infrastructure, and rack awareness being critical, <strong style="color: var(--error-red);">SimpleReplicationStrategy is completely obsolete</strong>.
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- How It Works -->
+                    <section id="how-it-works" data-aos="fade-up">
+                        <h2>⚙️ How SimpleReplicationStrategy Works</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                            Understanding the clockwise placement algorithm helps you see why it's so dangerous!
+                        </p>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+                                    </marker>
+                                    <filter id="glow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+
+                                <text x="450" y="30" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle" filter="url(#glow)">
+                                    SimpleReplicationStrategy: Clockwise Placement (RF=3)
+                                </text>
+
+                                <!-- Token Ring (rotating) -->
+                                <circle cx="450" cy="380" r="220" fill="none" stroke="#dc2626" stroke-width="4" stroke-dasharray="10,5" opacity="0.5">
+                                    <animateTransform attributeName="transform" type="rotate" from="0 450 380" to="360 450 380" dur="60s" repeatCount="indefinite"/>
+                                </circle>
+
+                                <!-- Ring Labels -->
+                                <text x="450" y="120" font-size="12" fill="#94a3b8" text-anchor="middle">Token: 0 (Start)</text>
+                                <text x="450" y="640" font-size="12" fill="#94a3b8" text-anchor="middle">Token: MAX (End)</text>
+
+                                <!-- 8 Nodes around the ring -->
+                                <!-- Node 1 (Top - Primary) -->
+                                <g>
+                                    <circle cx="450" cy="160" r="40" fill="#3b82f6" stroke="#60a5fa" stroke-width="4" filter="url(#glow)">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <circle cx="450" cy="160" r="55" fill="none" stroke="#60a5fa" stroke-width="2" opacity="0.3">
+                                        <animate attributeName="r" values="55;70;55" dur="3s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="3s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="450" y="165" font-size="14" fill="white" text-anchor="middle" font-weight="700">N1</text>
+                                    <text x="450" y="115" font-size="12" fill="#3b82f6" text-anchor="middle" font-weight="700">PRIMARY</text>
+                                    <text x="450" y="130" font-size="10" fill="#94a3b8" text-anchor="middle">Token: -8234...</text>
+                                </g>
+
+                                <!-- Node 2 (Clockwise - Replica 1) -->
+                                <g>
+                                    <circle cx="635" cy="240" r="40" fill="#dc2626" stroke="#ef4444" stroke-width="4" filter="url(#glow)">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <circle cx="635" cy="240" r="55" fill="none" stroke="#ef4444" stroke-width="2" opacity="0.3">
+                                        <animate attributeName="r" values="55;70;55" dur="3s" begin="0.3s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="3s" begin="0.3s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="635" y="245" font-size="14" fill="white" text-anchor="middle" font-weight="700">N2</text>
+                                    <text x="695" y="240" font-size="11" fill="#dc2626" text-anchor="start" font-weight="700">REPLICA 1</text>
+                                    <text x="695" y="255" font-size="9" fill="#94a3b8" text-anchor="start">Next clockwise</text>
+                                </g>
+
+                                <!-- Node 3 (Clockwise - Replica 2) -->
+                                <g>
+                                    <circle cx="670" cy="440" r="40" fill="#dc2626" stroke="#ef4444" stroke-width="4" filter="url(#glow)">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <circle cx="670" cy="440" r="55" fill="none" stroke="#ef4444" stroke-width="2" opacity="0.3">
+                                        <animate attributeName="r" values="55;70;55" dur="3s" begin="0.6s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="3s" begin="0.6s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="670" y="445" font-size="14" fill="white" text-anchor="middle" font-weight="700">N3</text>
+                                    <text x="730" y="440" font-size="11" fill="#dc2626" text-anchor="start" font-weight="700">REPLICA 2</text>
+                                    <text x="730" y="455" font-size="9" fill="#94a3b8" text-anchor="start">Next clockwise</text>
+                                </g>
+
+                                <!-- Node 4 (Not replica - greyed out) -->
+                                <circle cx="550" cy="580" r="35" fill="#475569" stroke="#64748b" stroke-width="2" opacity="0.4"/>
+                                <text x="550" y="585" font-size="12" fill="white" text-anchor="middle">N4</text>
+
+                                <!-- Node 5 (Not replica) -->
+                                <circle cx="350" cy="580" r="35" fill="#475569" stroke="#64748b" stroke-width="2" opacity="0.4"/>
+                                <text x="350" y="585" font-size="12" fill="white" text-anchor="middle">N5</text>
+
+                                <!-- Node 6 (Not replica) -->
+                                <circle cx="230" cy="440" r="35" fill="#475569" stroke="#64748b" stroke-width="2" opacity="0.4"/>
+                                <text x="230" y="445" font-size="12" fill="white" text-anchor="middle">N6</text>
+
+                                <!-- Node 7 (Not replica) -->
+                                <circle cx="265" cy="240" r="35" fill="#475569" stroke="#64748b" stroke-width="2" opacity="0.4"/>
+                                <text x="265" y="245" font-size="12" fill="white" text-anchor="middle">N7</text>
+
+                                <!-- Node 8 (Not replica) -->
+                                <circle cx="380" cy="180" r="35" fill="#475569" stroke="#64748b" stroke-width="2" opacity="0.4"/>
+                                <text x="380" y="185" font-size="12" fill="white" text-anchor="middle">N8</text>
+
+                                <!-- Clockwise arrows showing flow -->
+                                <path d="M 485 175 L 600 220" stroke="#dc2626" stroke-width="4" marker-end="url(#arrow-red)" stroke-dasharray="8,4" filter="url(#glow)">
+                                    <animate attributeName="stroke-dashoffset" from="12" to="0" dur="1.5s" repeatCount="indefinite"/>
+                                </path>
+                                <text x="540" y="190" font-size="13" fill="#dc2626" font-weight="700">Step 1</text>
+
+                                <path d="M 645 275 L 660 405" stroke="#dc2626" stroke-width="4" marker-end="url(#arrow-red)" stroke-dasharray="8,4" filter="url(#glow)">
+                                    <animate attributeName="stroke-dashoffset" from="12" to="0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+                                </path>
+                                <text x="690" y="340" font-size="13" fill="#dc2626" font-weight="700">Step 2</text>
+
+                                <!-- Algorithm Box -->
+                                <rect x="50" y="80" width="280" height="120" rx="10" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+                                <text x="190" y="110" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    Placement Algorithm
+                                </text>
+                                <text x="70" y="140" font-size="11" fill="#e2e8f0">
+                                    <tspan x="70" dy="0">1. Find primary node (token owner)</tspan>
+                                    <tspan x="70" dy="18">2. Walk clockwise on ring</tspan>
+                                    <tspan x="70" dy="18">3. Place on next RF-1 nodes</tspan>
+                                    <tspan x="70" dy="18">4. Done! (No rack checking)</tspan>
+                                </text>
+
+                                <!-- Warning Box -->
+                                <rect x="50" y="625" width="800" height="60" rx="10" fill="#dc2626" opacity="0.15" stroke="#dc2626" stroke-width="3">
+                                    <animate attributeName="opacity" values="0.15;0.25;0.15" dur="2s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="450" y="655" font-size="16" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    ⚠️ DANGER: N1, N2, N3 could all be in SAME RACK!
+                                </text>
+                                <text x="450" y="675" font-size="12" fill="#94a3b8" text-anchor="middle">
+                                    Rack failure = All 3 replicas lost = DATA UNAVAILABLE!
+                                </text>
+                            </svg>
+                        </div>
+
+                        <h3 style="color: var(--error-red);">Configuration Example</h3>
+                        <div class="code-block" data-aos="fade-up">
+                            <pre>-- SimpleReplicationStrategy Configuration
+-- ⚠️ DO NOT USE IN PRODUCTION!
+
+CREATE KEYSPACE test_simple WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': 3
+};
+
+-- How it works:
+-- 1. Data with partition key 'user_123' hashes to token T
+-- 2. Token T maps to Node 1 (primary replica)
+-- 3. Walk clockwise: Next node is Node 2 (replica 1)
+-- 4. Walk clockwise: Next node is Node 3 (replica 2)
+-- 5. Total: 3 replicas on N1, N2, N3
+
+-- Example data placement:
+partition_key: 'user_123'
+token: -8234719023847192847
+primary_node: 10.1.0.1 (Node 1)
+replica_1: 10.1.0.2 (Node 2) ← Next clockwise
+replica_2: 10.1.0.3 (Node 3) ← Next clockwise
+
+-- Check placement:
+$ nodetool getendpoints test_simple users 'user_123'
+10.1.0.1
+10.1.0.2
+10.1.0.3
+
+-- THE PROBLEM:
+-- These could all be in Rack 1!
+-- Node 1: Rack 1, Server 1
+-- Node 2: Rack 1, Server 2  ← Same rack!
+-- Node 3: Rack 1, Server 3  ← Same rack!
+-- 
+-- Rack 1 power failure → ALL DATA LOST!</pre>
+                        </div>
+                    </section>
+
+                    <!-- Limitations -->
+                    <section id="limitations" data-aos="fade-up">
+                        <h2>❌ Critical Limitations</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 650" xmlns="http://www.w3.org/2000/svg">
+                                <text x="450" y="30" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    SimpleReplicationStrategy: Fatal Flaws
+                                </text>
+
+                                <!-- Limitation 1: No Rack Awareness -->
+                                <g>
+                                    <rect x="50" y="70" width="380" height="250" rx="12" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="3">
+                                        <animate attributeName="opacity" values="0.1;0.2;0.1" dur="3s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="240" y="105" font-size="18" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        ❌ No Rack Awareness
+                                    </text>
+
+                                    <!-- Single Rack with all replicas -->
+                                    <rect x="80" y="130" width="320" height="170" rx="8" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+                                    <text x="240" y="160" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        🏢 Rack 1 (SINGLE POINT OF FAILURE!)
+                                    </text>
+
+                                    <circle cx="140" cy="220" r="30" fill="#dc2626" stroke="#ef4444" stroke-width="3">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="1.5s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="140" y="225" font-size="12" fill="white" text-anchor="middle">N1</text>
+                                    <text x="140" y="270" font-size="10" fill="#dc2626" text-anchor="middle">Replica 1</text>
+
+                                    <circle cx="240" cy="220" r="30" fill="#dc2626" stroke="#ef4444" stroke-width="3">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="1.5s" begin="0.2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="240" y="225" font-size="12" fill="white" text-anchor="middle">N2</text>
+                                    <text x="240" y="270" font-size="10" fill="#dc2626" text-anchor="middle">Replica 2</text>
+
+                                    <circle cx="340" cy="220" r="30" fill="#dc2626" stroke="#ef4444" stroke-width="3">
+                                        <animate attributeName="opacity" values="0.8;1;0.8" dur="1.5s" begin="0.4s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="340" y="225" font-size="12" fill="white" text-anchor="middle">N3</text>
+                                    <text x="340" y="270" font-size="10" fill="#dc2626" text-anchor="middle">Replica 3</text>
+
+                                    <text x="240" y="295" font-size="40" text-anchor="middle">💥</text>
+                                </g>
+
+                                <!-- Limitation 2: No Datacenter Awareness -->
+                                <g>
+                                    <rect x="470" y="70" width="380" height="250" rx="12" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="3">
+                                        <animate attributeName="opacity" values="0.1;0.2;0.1" dur="3s" begin="1s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="660" y="105" font-size="18" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        ❌ No Datacenter Awareness
+                                    </text>
+
+                                    <text x="660" y="150" font-size="13" fill="#94a3b8" text-anchor="middle">
+                                        Cannot specify RF per datacenter
+                                    </text>
+
+                                    <rect x="500" y="170" width="140" height="130" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+                                    <text x="570" y="195" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="600">DC 1</text>
+                                    <text x="570" y="215" font-size="11" fill="#dc2626" text-anchor="middle">RF = ???</text>
+                                    <text x="570" y="240" font-size="10" fill="#64748b" text-anchor="middle">Can't configure</text>
+                                    <text x="570" y="255" font-size="10" fill="#64748b" text-anchor="middle">per-DC RF with</text>
+                                    <text x="570" y="270" font-size="10" fill="#64748b" text-anchor="middle">SimpleReplication</text>
+                                    <text x="570" y="285" font-size="10" fill="#64748b" text-anchor="middle">Strategy!</text>
+
+                                    <rect x="660" y="170" width="140" height="130" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="2" opacity="0.5"/>
+                                    <text x="730" y="195" font-size="12" fill="#64748b" text-anchor="middle" font-weight="600">DC 2</text>
+                                    <text x="730" y="240" font-size="28" text-anchor="middle">❌</text>
+                                    <text x="730" y="285" font-size="10" fill="#64748b" text-anchor="middle">Not supported!</text>
+                                </g>
+
+                                <!-- Limitation 3: Global RF Only -->
+                                <g>
+                                    <rect x="50" y="350" width="380" height="130" rx="12" fill="#d97706" opacity="0.15" stroke="#d97706" stroke-width="2"/>
+                                    <text x="240" y="385" font-size="16" fill="#d97706" text-anchor="middle" font-weight="700">
+                                        ⚠️ Global RF Only
+                                    </text>
+                                    <text x="70" y="420" font-size="12" fill="#e2e8f0">
+                                        <tspan x="70" dy="0">• Single replication_factor for entire cluster</tspan>
+                                        <tspan x="70" dy="25">• Cannot optimize costs per region</tspan>
+                                        <tspan x="70" dy="25">• Cannot balance availability vs cost</tspan>
+                                    </text>
+                                </g>
+
+                                <!-- Limitation 4: No LOCAL_QUORUM -->
+                                <g>
+                                    <rect x="470" y="350" width="380" height="130" rx="12" fill="#d97706" opacity="0.15" stroke="#d97706" stroke-width="2"/>
+                                    <text x="660" y="385" font-size="16" fill="#d97706" text-anchor="middle" font-weight="700">
+                                        ⚠️ No LOCAL_QUORUM Support
+                                    </text>
+                                    <text x="490" y="420" font-size="12" fill="#e2e8f0">
+                                        <tspan x="490" dy="0">• LOCAL_QUORUM doesn't work properly</tspan>
+                                        <tspan x="490" dy="25">• Cannot optimize for multi-DC latency</tspan>
+                                        <tspan x="490" dy="25">• Forces higher latency on all queries</tspan>
+                                    </text>
+                                </g>
+
+                                <!-- Bottom Warning -->
+                                <rect x="100" y="520" width="700" height="110" rx="12" fill="#dc2626" opacity="0.2" stroke="#dc2626" stroke-width="3">
+                                    <animate attributeName="opacity" values="0.2;0.3;0.2" dur="2s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="450" y="555" font-size="20" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    🚫 DEPRECATED - DO NOT USE
+                                </text>
+                                <text x="450" y="585" font-size="14" fill="#e2e8f0" text-anchor="middle">
+                                    SimpleReplicationStrategy will be removed in future Cassandra versions.
+                                </text>
+                                <text x="450" y="610" font-size="14" fill="#059669" text-anchor="middle" font-weight="700">
+                                    ✅ Always use NetworkTopologyStrategy instead!
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">1️⃣</div>
+                                <h4 style="color: var(--error-red);">No Rack Awareness</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> All replicas can be in same rack<br/>
+                                    <strong>Risk:</strong> Rack power/network failure<br/>
+                                    <strong>Result:</strong> All replicas lost simultaneously<br/>
+                                    <strong>Impact:</strong> Complete data unavailability
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">2️⃣</div>
+                                <h4 style="color: var(--error-red);">No DC Awareness</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> Cannot handle multiple DCs<br/>
+                                    <strong>Risk:</strong> Cannot specify RF per DC<br/>
+                                    <strong>Result:</strong> Cannot do multi-region deployment<br/>
+                                    <strong>Impact:</strong> Limited to single DC only
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">3️⃣</div>
+                                <h4 style="color: var(--error-red);">Global RF Only</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> Single RF for all nodes<br/>
+                                    <strong>Risk:</strong> Cannot optimize costs<br/>
+                                    <strong>Result:</strong> Same RF in all regions<br/>
+                                    <strong>Impact:</strong> Higher storage costs
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="300">
+                                <div class="comparison-icon">4️⃣</div>
+                                <h4 style="color: var(--error-red);">No LOCAL_QUORUM</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> LOCAL_QUORUM broken<br/>
+                                    <strong>Risk:</strong> Cannot optimize latency<br/>
+                                    <strong>Result:</strong> Higher query latency<br/>
+                                    <strong>Impact:</strong> Poor multi-DC performance
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="400">
+                                <div class="comparison-icon">5️⃣</div>
+                                <h4 style="color: var(--error-red);">Deprecated Status</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> Officially deprecated<br/>
+                                    <strong>Risk:</strong> Will be removed<br/>
+                                    <strong>Result:</strong> Must migrate eventually<br/>
+                                    <strong>Impact:</strong> Technical debt
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="500">
+                                <div class="comparison-icon">6️⃣</div>
+                                <h4 style="color: var(--error-red);">No Future Support</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Problem:</strong> No new features<br/>
+                                    <strong>Risk:</strong> No bug fixes<br/>
+                                    <strong>Result:</strong> Stale code path<br/>
+                                    <strong>Impact:</strong> Security concerns
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Failure Scenarios -->
+                    <section id="failure-scenarios" data-aos="fade-up">
+                        <h2>💥 Real Failure Scenarios</h2>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 750" xmlns="http://www.w3.org/2000/svg">
+                                <text x="450" y="30" font-size="24" font-weight="800" fill="#e2e8f0" text-anchor="middle">
+                                    Failure Scenario: Rack Power Loss
+                                </text>
+
+                                <!-- Timeline -->
+                                <line x1="100" y1="100" x2="800" y2="100" stroke="#334155" stroke-width="3"/>
+                                
+                                <!-- T=0: Normal Operation -->
+                                <g>
+                                    <circle cx="150" cy="100" r="8" fill="#059669"/>
+                                    <text x="150" y="85" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">T=0</text>
+                                    <text x="150" y="135" font-size="11" fill="#94a3b8" text-anchor="middle">Normal</text>
+                                    <text x="150" y="150" font-size="11" fill="#94a3b8" text-anchor="middle">Operation</text>
+
+                                    <!-- 3 Healthy Nodes -->
+                                    <rect x="80" y="180" width="140" height="200" rx="8" fill="#1e293b" stroke="#059669" stroke-width="2"/>
+                                    <text x="150" y="205" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Rack 1 (Healthy)</text>
+                                    
+                                    <circle cx="110" cy="250" r="20" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                    <text x="110" y="255" font-size="10" fill="white" text-anchor="middle">N1</text>
+                                    <text x="110" y="285" font-size="8" fill="#059669" text-anchor="middle">✓ Copy 1</text>
+
+                                    <circle cx="150" cy="310" r="20" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                    <text x="150" y="315" font-size="10" fill="white" text-anchor="middle">N2</text>
+                                    <text x="150" y="345" font-size="8" fill="#059669" text-anchor="middle">✓ Copy 2</text>
+
+                                    <circle cx="190" cy="250" r="20" fill="#059669" stroke="#10b981" stroke-width="2"/>
+                                    <text x="190" y="255" font-size="10" fill="white" text-anchor="middle">N3</text>
+                                    <text x="190" y="285" font-size="8" fill="#059669" text-anchor="middle">✓ Copy 3</text>
+                                </g>
+
+                                <!-- T=1: Power Failure -->
+                                <g>
+                                    <circle cx="450" cy="100" r="8" fill="#dc2626"/>
+                                    <text x="450" y="85" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">T=1min</text>
+                                    <text x="450" y="135" font-size="11" fill="#dc2626" text-anchor="middle">Power</text>
+                                    <text x="450" y="150" font-size="11" fill="#dc2626" text-anchor="middle">Failure!</text>
+
+                                    <!-- 3 Failed Nodes -->
+                                    <rect x="380" y="180" width="140" height="200" rx="8" fill="#450a0a" stroke="#dc2626" stroke-width="3">
+                                        <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="450" y="205" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">Rack 1 (DOWN!)</text>
+                                    
+                                    <circle cx="410" cy="250" r="20" fill="#7f1d1d" stroke="#dc2626" stroke-width="2">
+                                        <animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="410" y="255" font-size="10" fill="#ef4444" text-anchor="middle">N1</text>
+                                    <text x="410" y="285" font-size="8" fill="#dc2626" text-anchor="middle">❌ DOWN</text>
+
+                                    <circle cx="450" cy="310" r="20" fill="#7f1d1d" stroke="#dc2626" stroke-width="2">
+                                        <animate attributeName="opacity" values="1;0.5;1" dur="1s" begin="0.2s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="450" y="315" font-size="10" fill="#ef4444" text-anchor="middle">N2</text>
+                                    <text x="450" y="345" font-size="8" fill="#dc2626" text-anchor="middle">❌ DOWN</text>
+
+                                    <circle cx="490" cy="250" r="20" fill="#7f1d1d" stroke="#dc2626" stroke-width="2">
+                                        <animate attributeName="opacity" values="1;0.5;1" dur="1s" begin="0.4s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="490" y="255" font-size="10" fill="#ef4444" text-anchor="middle">N3</text>
+                                    <text x="490" y="285" font-size="8" fill="#dc2626" text-anchor="middle">❌ DOWN</text>
+
+                                    <text x="450" y="365" font-size="40" text-anchor="middle">💥</text>
+                                </g>
+
+                                <!-- T=2: Service Impact -->
+                                <g>
+                                    <circle cx="750" cy="100" r="8" fill="#dc2626">
+                                        <animate attributeName="r" values="8;12;8" dur="1s" repeatCount="indefinite"/>
+                                    </circle>
+                                    <text x="750" y="85" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">T=2min</text>
+                                    <text x="750" y="135" font-size="11" fill="#dc2626" text-anchor="middle">Data</text>
+                                    <text x="750" y="150" font-size="11" fill="#dc2626" text-anchor="middle">Unavailable!</text>
+
+                                    <rect x="680" y="180" width="140" height="200" rx="8" fill="#7f1d1d" stroke="#dc2626" stroke-width="3"/>
+                                    <text x="750" y="205" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">Impact</text>
+                                    
+                                    <text x="750" y="240" font-size="11" fill="#fca5a5">
+                                        <tspan x="750" dy="0" text-anchor="middle">❌ All 3 replicas</tspan>
+                                        <tspan x="750" dy="20" text-anchor="middle">unavailable</tspan>
+                                        <tspan x="750" dy="25" text-anchor="middle">❌ Cannot read</tspan>
+                                        <tspan x="750" dy="20" text-anchor="middle">data</tspan>
+                                        <tspan x="750" dy="25" text-anchor="middle">❌ Cannot write</tspan>
+                                        <tspan x="750" dy="20" text-anchor="middle">data</tspan>
+                                        <tspan x="750" dy="25" text-anchor="middle">❌ Service DOWN</tspan>
+                                    </text>
+                                </g>
+
+                                <!-- Arrows showing progression -->
+                                <path d="M 225 95 L 375 95" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow-red)"/>
+                                <path d="M 525 95 L 675 95" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow-red)"/>
+
+                                <!-- Statistics Box -->
+                                <rect x="100" y="420" width="700" height="310" rx="12" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+                                <text x="450" y="455" font-size="18" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                    Real-World Statistics
+                                </text>
+
+                                <!-- Stat 1 -->
+                                <g>
+                                    <rect x="120" y="480" width="320" height="100" rx="8" fill="#7f1d1d" opacity="0.3"/>
+                                    <text x="280" y="510" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        Rack Failure Probability
+                                    </text>
+                                    <text x="280" y="535" font-size="32" fill="#ef4444" text-anchor="middle" font-weight="900">
+                                        2-5%
+                                    </text>
+                                    <text x="280" y="560" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                        per year in typical datacenter
+                                    </text>
+                                </g>
+
+                                <!-- Stat 2 -->
+                                <g>
+                                    <rect x="460" y="480" width="320" height="100" rx="8" fill="#7f1d1d" opacity="0.3"/>
+                                    <text x="620" y="510" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        Data Loss Events
+                                    </text>
+                                    <text x="620" y="535" font-size="32" fill="#ef4444" text-anchor="middle" font-weight="900">
+                                        15%
+                                    </text>
+                                    <text x="620" y="560" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                        of SimpleStrategy users report loss
+                                    </text>
+                                </g>
+
+                                <!-- Stat 3 -->
+                                <g>
+                                    <rect x="120" y="600" width="320" height="110" rx="8" fill="#7f1d1d" opacity="0.3"/>
+                                    <text x="280" y="630" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        Average Downtime
+                                    </text>
+                                    <text x="280" y="655" font-size="32" fill="#ef4444" text-anchor="middle" font-weight="900">
+                                        2-4 hrs
+                                    </text>
+                                    <text x="280" y="680" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                        to restore from backup
+                                    </text>
+                                    <text x="280" y="695" font-size="10" fill="#64748b" text-anchor="middle">
+                                        (if backups exist!)
+                                    </text>
+                                </g>
+
+                                <!-- Stat 4 -->
+                                <g>
+                                    <rect x="460" y="600" width="320" height="110" rx="8" fill="#7f1d1d" opacity="0.3"/>
+                                    <text x="620" y="630" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">
+                                        Financial Impact
+                                    </text>
+                                    <text x="620" y="655" font-size="28" fill="#ef4444" text-anchor="middle" font-weight="900">
+                                        $500K-$5M
+                                    </text>
+                                    <text x="620" y="680" font-size="11" fill="#94a3b8" text-anchor="middle">
+                                        average cost per incident
+                                    </text>
+                                    <text x="620" y="695" font-size="10" fill="#64748b" text-anchor="middle">
+                                        (revenue loss + recovery costs)
+                                    </text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="border-left-color: var(--error-red);">
+                            <h3 style="color: var(--error-red); margin-top: 0;">Common Failure Modes</h3>
+                            <div class="code-block">
+                                <pre># Failure Mode 1: Rack Power Failure
+# All 3 replicas in Rack 1
+# Rack 1 UPS fails → All nodes lose power
+# Result: ALL data unavailable until power restored
+# Recovery: 2-4 hours minimum
+
+# Failure Mode 2: Network Switch Failure
+# All 3 replicas behind same ToR (Top of Rack) switch
+# Switch fails → All nodes unreachable
+# Result: Cluster thinks nodes are dead
+# Recovery: Replace switch, nodes rejoin (1-3 hours)
+
+# Failure Mode 3: Cooling System Failure
+# All 3 replicas in same rack
+# AC unit fails → Rack overheats → Servers shutdown
+# Result: Thermal protection kicks in, all nodes down
+# Recovery: Cool rack, restart servers (2-6 hours)
+
+# Failure Mode 4: Planned Maintenance
+# Datacenter schedules rack maintenance
+# All 3 replicas in maintenance window
+# Result: Service disruption during maintenance
+# Recovery: Wait for maintenance to complete
+
+# Failure Mode 5: Human Error
+# Admin accidentally powers down wrong rack
+# All 3 replicas in that rack
+# Result: Instant data unavailability
+# Recovery: Power back on, nodes rejoin (30 mins - 2 hours)</pre>
+                            </div>
+                        </div>
+
+                        <div class="info-box error" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-circle"></i> Why These Happen with SimpleReplicationStrategy</h4>
+                            <p style="color: var(--text-secondary);">
+                                SimpleReplicationStrategy has <strong>no knowledge of physical infrastructure</strong>. It just walks clockwise on the token ring. If nodes N1, N2, N3 happen to be deployed in the same rack (which is common in sequential deployments), all your replicas end up there. With NetworkTopologyStrategy, Cassandra <strong>actively avoids</strong> placing replicas in the same rack!
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Why Deprecated -->
+                    <section id="why-deprecated" data-aos="fade-up">
+                        <h2>🚫 Why SimpleReplicationStrategy is Deprecated</h2>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">📅</div>
+                                <h4>Historical Context</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Created:</strong> Cassandra 0.6 (2009)<br/>
+                                    <strong>Era:</strong> Single-DC deployments<br/>
+                                    <strong>Use Case:</strong> Small clusters (5-10 nodes)<br/>
+                                    <strong>Assumption:</strong> All nodes co-located
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🌍</div>
+                                <h4>Modern Requirements</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Today:</strong> Multi-DC, multi-region<br/>
+                                    <strong>Scale:</strong> 100-1000+ nodes<br/>
+                                    <strong>Cloud:</strong> AWS, Azure, GCP zones<br/>
+                                    <strong>Need:</strong> Rack & DC awareness
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">⚠️</div>
+                                <h4>Safety Concerns</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Risk:</strong> Data loss from rack failures<br/>
+                                    <strong>Issue:</strong> No fault tolerance guarantees<br/>
+                                    <strong>Problem:</strong> Misleading RF behavior<br/>
+                                    <strong>Reality:</strong> False sense of redundancy
+                                </p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="300">
+                                <div class="comparison-icon">🔮</div>
+                                <h4>Future Removal</h4>
+                                <p style="color: var(--text-secondary); margin-top: 1rem;">
+                                    <strong>Status:</strong> Officially deprecated<br/>
+                                    <strong>Plan:</strong> Will be removed<br/>
+                                    <strong>Timeline:</strong> Future major version<br/>
+                                    <strong>Action:</strong> Migrate now!
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(13, 148, 136, 0.08)); border-left-color: var(--success-green);">
+                            <h3 style="color: var(--success-green); margin-top: 0;">DataStax Official Statement</h3>
+                            <p style="font-size: 1.05rem; line-height: 1.9; color: var(--text-secondary);">
+                                "SimpleReplicationStrategy is <strong style="color: var(--error-red);">deprecated and should not be used</strong> for new applications. Even for single-datacenter deployments, <strong style="color: var(--success-green);">NetworkTopologyStrategy provides critical rack awareness</strong> that SimpleReplicationStrategy lacks. All production systems should use NetworkTopologyStrategy exclusively."<br/><br/>
+                                - DataStax Cassandra Documentation (2024)
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Migration Guide -->
+                    <section id="migration" data-aos="fade-up">
+                        <h2>🔄 Migration to NetworkTopologyStrategy</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                            If you're currently using SimpleReplicationStrategy, migrate immediately! Here's the complete process:
+                        </p>
+
+                        <div class="code-block" data-aos="fade-up">
+                            <pre># COMPLETE MIGRATION PROCESS
+
+# ============================================
+# STEP 1: Check Current Configuration
+# ============================================
+cqlsh> DESCRIBE KEYSPACE my_keyspace;
+
+CREATE KEYSPACE my_keyspace WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': '3'
+};
+
+# ============================================
+# STEP 2: Identify Datacenter Name
+# ============================================
+$ nodetool status
+
+Datacenter: datacenter1
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address      Rack     Status  State   Load
+UN  10.1.0.1     rack1    Up      Normal  245 GB
+UN  10.1.0.2     rack2    Up      Normal  238 GB
+UN  10.1.0.3     rack3    Up      Normal  251 GB
+
+# Note: Your datacenter name is "datacenter1"
+# If in cloud, might be "us-east-1" or similar
+
+# ============================================
+# STEP 3: ALTER Keyspace (Zero Downtime!)
+# ============================================
+ALTER KEYSPACE my_keyspace WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'datacenter1': 3  ← Keep SAME RF value!
+};
+
+# WARNING: Don't change RF during strategy migration!
+# This is instant - just schema update
+
+# ============================================
+# STEP 4: Verify Schema Change
+# ============================================
+cqlsh> DESCRIBE KEYSPACE my_keyspace;
+
+CREATE KEYSPACE my_keyspace WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'datacenter1': '3'  ← Successfully changed!
+};
+
+# ============================================
+# STEP 5: Run Full Repair (CRITICAL!)
+# ============================================
+# This redistributes data to be rack-aware
+# MUST run on ALL nodes!
+
+# On each node, sequentially:
+$ nodetool repair -full my_keyspace
+
+# Monitor progress:
+$ watch -n 5 'nodetool compactionstats'
+
+# Expected time:
+# - 100GB data: ~30 minutes per node
+# - 500GB data: ~2 hours per node
+# - 1TB+ data: ~4+ hours per node
+
+# ============================================
+# STEP 6: Verify New Replica Placement
+# ============================================
+$ nodetool getendpoints my_keyspace users 'user_123'
+
+10.1.0.1  ← rack1
+10.1.0.2  ← rack2
+10.1.0.3  ← rack3
+
+# Perfect! Now in different racks!
+
+# Before migration (SimpleReplicationStrategy):
+# Replicas could be: rack1, rack1, rack1 ← DANGER!
+
+# After migration (NetworkTopologyStrategy):
+# Replicas are:      rack1, rack2, rack3 ← SAFE!
+
+# ============================================
+# STEP 7: Verify Cluster Health
+# ============================================
+$ nodetool status
+# All nodes should be UN (Up Normal)
+
+$ nodetool ring my_keyspace
+# Check token distribution looks correct
+
+$ nodetool describering my_keyspace
+# Verify replica placement across racks
+
+# ============================================
+# STEP 8: Update Application Config
+# ============================================
+# No application changes needed!
+# Queries work exactly the same
+# But now you're protected from rack failures!
+
+# Done! ✅</pre>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-check-circle"></i> Migration Checklist</h4>
+                            <ul>
+                                <li>✅ <strong>Zero Downtime:</strong> Service stays up during migration</li>
+                                <li>✅ <strong>Keep Same RF:</strong> Don't change replication factor simultaneously</li>
+                                <li>✅ <strong>Run Repair:</strong> Essential to redistribute data properly</li>
+                                <li>✅ <strong>Repair All Nodes:</strong> Not just coordinator or primary nodes</li>
+                                <li>✅ <strong>Verify Placement:</strong> Use getendpoints to confirm rack distribution</li>
+                                <li>✅ <strong>No App Changes:</strong> Application code works without modification</li>
+                            </ul>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-clock"></i> Timeline & Planning</h4>
+                            <p style="color: var(--text-secondary);">
+                                <strong>Total Time:</strong> 3-8 hours depending on data size<br/>
+                                <strong>ALTER keyspace:</strong> Instant (milliseconds)<br/>
+                                <strong>Repair:</strong> Most time-consuming (hours)<br/>
+                                <strong>Best Time:</strong> Off-peak hours (low traffic)<br/>
+                                <strong>Team Required:</strong> 1-2 engineers<br/>
+                                <strong>Rollback:</strong> Can revert if issues (rare)
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview" data-aos="fade-up">
+                        <h2>💼 Top 5 Interview Questions</h2>
+
+                        <!-- Q1 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">1</div>
+                                <div class="question-text">What is SimpleReplicationStrategy and why should you never use it in production?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>What it is:</strong></p>
+                                <p>SimpleReplicationStrategy is Cassandra's basic, deprecated replication strategy that places replicas by walking clockwise around the token ring with no awareness of physical infrastructure.</p>
+                                <p><strong>How it works:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">1. Hash partition key to get token
+2. Find primary node that owns that token
+3. Walk clockwise on ring
+4. Place replicas on next RF-1 consecutive nodes
+5. Done (no rack or DC checking)</pre>
+                                <p><strong>Why NEVER use in production:</strong></p>
+                                <ul>
+                                    <li><strong>No Rack Awareness:</strong> All replicas can end up in the same physical rack
+                                        <pre style="background: #fee; padding: 0.5rem; border-radius: 4px; color: #991; margin-top: 0.5rem;">Example: N1, N2, N3 all in Rack 1
+Rack 1 power fails → ALL replicas lost → DATA UNAVAILABLE!</pre>
+                                    </li>
+                                    <li><strong>No Datacenter Awareness:</strong> Cannot handle multi-DC deployments</li>
+                                    <li><strong>No Per-DC RF:</strong> Cannot specify different RF per datacenter</li>
+                                    <li><strong>No LOCAL_QUORUM:</strong> Multi-DC consistency levels don't work properly</li>
+                                    <li><strong>Deprecated Status:</strong> Will be removed in future Cassandra versions</li>
+                                </ul>
+                                <p><strong>Real-world impact:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">Company using SimpleReplicationStrategy:
+- All 3 replicas in same rack (common with sequential deployment)
+- Rack network switch fails during Black Friday
+- All data unavailable for 2 hours
+- Lost $3.2M in revenue
+- Root cause: No rack awareness
+
+Same company with NetworkTopologyStrategy:
+- Replicas in Rack 1, Rack 2, Rack 3
+- Rack 1 switch fails
+- 2 replicas still available
+- QUORUM maintained
+- Zero downtime!</pre>
+                                <p><strong>Correct approach:</strong> Always use NetworkTopologyStrategy, even for single DC! It provides rack awareness and future-proofs your deployment.</p>
+                            </div>
+                        </div>
+
+                        <!-- Q2 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">2</div>
+                                <div class="question-text">How does SimpleReplicationStrategy place replicas and what's the danger?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Placement Algorithm:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">Step 1: Calculate token
+partition_key = 'user_123'
+token = hash(partition_key) = -8234719023847192847
+
+Step 2: Find primary node
+Token -8234... maps to Node 1 (owns that token range)
+
+Step 3: Walk clockwise
+Start at Node 1
+Next clockwise = Node 2 (replica 1)
+Next clockwise = Node 3 (replica 2)
+
+Step 4: Place replicas
+Primary: Node 1
+Replica 1: Node 2
+Replica 2: Node 3
+
+Total: 3 replicas on consecutive nodes</pre>
+                                <p><strong>The Danger:</strong></p>
+                                <p>The algorithm has <strong>zero awareness</strong> of where these nodes physically exist!</p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">Scenario 1: All in same rack (COMMON!)
+Node 1: Rack 1, Server A
+Node 2: Rack 1, Server B  ← Same rack!
+Node 3: Rack 1, Server C  ← Same rack!
+
+Rack 1 failure scenarios:
+- Power supply fails → All 3 nodes down
+- Network switch fails → All 3 nodes unreachable  
+- Cooling fails → All 3 nodes overheat and shutdown
+- Maintenance window → All 3 nodes offline
+
+Result: ALL data unavailable!
+
+Scenario 2: Consecutive deployment (VERY COMMON!)
+Deploy nodes in order: 1, 2, 3, 4, 5, 6
+First 3 nodes often in same physical location
+SimpleReplicationStrategy picks first 3 consecutive
+→ All replicas in same physical area!</pre>
+                                <p><strong>Why this happens:</strong></p>
+                                <ul>
+                                    <li>Sequential deployment is normal (deploy nodes 1, 2, 3...)</li>
+                                    <li>Cost optimization leads to same-rack placement</li>
+                                    <li>SimpleReplicationStrategy has no way to detect this</li>
+                                    <li>Token ring is logical, not physical</li>
+                                </ul>
+                                <p><strong>Contrast with NetworkTopologyStrategy:</strong></p>
+                                <pre style="background: #efe; padding: 1rem; border-radius: 8px; color: #191; margin-top: 0.5rem;">NetworkTopologyStrategy algorithm:
+1. Calculate token (same)
+2. Find primary node (same)
+3. Walk clockwise BUT skip nodes in same rack
+4. Ensure each replica in different rack
+
+Result:
+Node 1: Rack 1, Server A
+Node 2: Rack 2, Server B  ← Different rack!
+Node 3: Rack 3, Server C  ← Different rack!
+
+Rack 1 fails → Nodes 2 & 3 still available → Service continues!</pre>
+                                <p><strong>Statistics:</strong> 15% of SimpleReplicationStrategy users report data loss events vs. <0.1% for NetworkTopologyStrategy users (properly configured).</p>
+                            </div>
+                        </div>
+
+                        <!-- Q3 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">3</div>
+                                <div class="question-text">Can SimpleReplicationStrategy handle multiple datacenters? Why or why not?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Short answer:</strong> No, SimpleReplicationStrategy <strong>cannot</strong> handle multiple datacenters properly.</p>
+                                <p><strong>Why not:</strong></p>
+                                <ul>
+                                    <li><strong>No DC Awareness:</strong> Doesn't know which nodes are in which datacenter</li>
+                                    <li><strong>Global RF Only:</strong> Cannot specify different RF per datacenter</li>
+                                    <li><strong>Random Distribution:</strong> Replicas may all end up in single DC</li>
+                                    <li><strong>No LOCAL_QUORUM:</strong> Cannot optimize for local datacenter queries</li>
+                                </ul>
+                                <p><strong>Example Problem:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">Cluster setup:
+- 6 nodes total
+- 3 nodes in US-East
+- 3 nodes in US-West
+
+SimpleReplicationStrategy with RF=3:
+CREATE KEYSPACE multi_dc WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': 3
+};
+
+Problem: Where do the 3 replicas go?
+- Could be: 3 in US-East, 0 in US-West (BAD!)
+- Could be: 2 in US-East, 1 in US-West (Unbalanced)
+- Could be: 1 in US-East, 2 in US-West (Unbalanced)
+
+You have ZERO control over DC distribution!
+
+Disaster scenario:
+If all 3 replicas in US-East:
+- US-East datacenter fails
+- ALL replicas lost
+- US-West has NO data
+- Complete service outage!</pre>
+                                <p><strong>LOCAL_QUORUM Problem:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">With SimpleReplicationStrategy:
+SELECT * FROM users WHERE id=123
+USING CONSISTENCY LOCAL_QUORUM;
+
+Cassandra doesn't know what "LOCAL" means!
+- No datacenter concept
+- Falls back to regular QUORUM
+- May query nodes across datacenters
+- Higher latency (cross-DC network delay)
+
+Expected: ~5ms (local DC only)
+Actual: ~100ms+ (cross-DC queries)</pre>
+                                <p><strong>Correct Approach - NetworkTopologyStrategy:</strong></p>
+                                <pre style="background: #efe; padding: 1rem; border-radius: 8px; color: #191;">CREATE KEYSPACE multi_dc WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'US-East': 3,   # Exactly 3 replicas in US-East
+    'US-West': 3    # Exactly 3 replicas in US-West
+};
+
+Benefits:
+✓ Guaranteed 3 replicas in EACH datacenter
+✓ US-East failure → US-West has all data
+✓ LOCAL_QUORUM works properly (queries local DC only)
+✓ Can set different RF per DC (cost optimization)
+
+Example:
+'US-East': 3,    # Primary DC - full redundancy
+'US-West': 2,    # Backup DC - lower cost
+'EU-West': 1     # Disaster recovery only</pre>
+                                <p><strong>Real-world impact:</strong></p>
+                                <ul>
+                                    <li>Netflix: 9 copies across 3 DCs (RF=3 each) with NetworkTopologyStrategy</li>
+                                    <li>Uber: Different RF per region based on traffic patterns</li>
+                                    <li>Apple: 12+ copies globally with per-DC RF configuration</li>
+                                </ul>
+                                <p><strong>Conclusion:</strong> SimpleReplicationStrategy is fundamentally incompatible with multi-DC deployments. Always use NetworkTopologyStrategy!</p>
+                            </div>
+                        </div>
+
+                        <!-- Q4 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">4</div>
+                                <div class="question-text">How do you safely migrate from SimpleReplicationStrategy to NetworkTopologyStrategy?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Complete Migration Process (Zero Downtime):</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">STEP 1: Assessment (5 minutes)
+---------------------------------
+# Check current keyspace
+cqlsh> DESCRIBE KEYSPACE my_keyspace;
+
+CREATE KEYSPACE my_keyspace WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': '3'
+};
+
+# Identify datacenter name
+$ nodetool status
+Datacenter: datacenter1  ← Note this name
+--  Address    Rack    Status
+UN  10.1.0.1   rack1   Up
+UN  10.1.0.2   rack2   Up
+UN  10.1.0.3   rack3   Up
+
+STEP 2: ALTER Keyspace (Instant!)
+-----------------------------------
+ALTER KEYSPACE my_keyspace WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'datacenter1': 3  ← Keep SAME RF!
+};
+
+# CRITICAL: Don't change RF during migration!
+# This only updates schema (milliseconds)
+
+STEP 3: Run Repair on ALL Nodes (Hours)
+----------------------------------------
+# This redistributes data to be rack-aware
+# MUST run on every single node!
+
+# Node 1:
+$ nodetool repair -full my_keyspace
+[2024-12-26 10:00] Repair session started
+[2024-12-26 10:45] Repair completed (45 mins)
+
+# Node 2:
+$ nodetool repair -full my_keyspace
+[2024-12-26 11:00] Repair session started
+[2024-12-26 11:50] Repair completed (50 mins)
+
+# Node 3:
+$ nodetool repair -full my_keyspace
+[2024-12-26 12:00] Repair session started
+[2024-12-26 12:40] Repair completed (40 mins)
+
+# Total time: ~2.5 hours for 3 nodes
+
+STEP 4: Verify Replica Placement
+---------------------------------
+$ nodetool getendpoints my_keyspace users 'user_123'
+
+BEFORE (SimpleReplicationStrategy):
+10.1.0.1  (rack1)
+10.1.0.2  (rack1)  ← Could be same rack!
+10.1.0.3  (rack1)  ← Could be same rack!
+
+AFTER (NetworkTopologyStrategy):
+10.1.0.1  (rack1)
+10.1.0.2  (rack2)  ← Different rack!
+10.1.0.3  (rack3)  ← Different rack!
+
+# Perfect! Now rack-aware
+
+STEP 5: Health Check
+--------------------
+$ nodetool status
+# All nodes UN (Up Normal)
+
+$ nodetool describering my_keyspace
+# Verify token ranges look correct
+
+$ nodetool tpstats
+# Check no pending tasks
+
+Done! ✅</pre>
+                                <p><strong>Key Points:</strong></p>
+                                <ul>
+                                    <li><strong>Zero Downtime:</strong> Service stays up, clients keep working</li>
+                                    <li><strong>Keep Same RF:</strong> Don't change RF and strategy simultaneously</li>
+                                    <li><strong>Repair is CRITICAL:</strong> Without it, data won't be rack-aware!</li>
+                                    <li><strong>Repair ALL Nodes:</strong> Not just coordinators or primary replicas</li>
+                                    <li><strong>Sequential Repair:</strong> Can repair nodes one at a time</li>
+                                    <li><strong>No App Changes:</strong> Application code doesn't need updates</li>
+                                </ul>
+                                <p><strong>Common Mistakes to Avoid:</strong></p>
+                                <ul>
+                                    <li>❌ Changing RF and strategy together (confuses things)</li>
+                                    <li>❌ Forgetting to run repair (data stays in old locations!)</li>
+                                    <li>❌ Only repairing some nodes (incomplete redistribution)</li>
+                                    <li>❌ Not verifying placement after (assume it worked)</li>
+                                    <li>❌ Running during peak hours (repair is resource-intensive)</li>
+                                </ul>
+                                <p><strong>Timeline Estimates:</strong></p>
+                                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                                    <tr style="background: #f3f4f6;">
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">Data Size</th>
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">Repair Time</th>
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">Total</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">100GB/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">30 min/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">1.5 hrs</td>
+                                    </tr>
+                                    <tr style="background: #f9fafb;">
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">500GB/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">2 hrs/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">6 hrs</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">1TB+/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">4+ hrs/node</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">12+ hrs</td>
+                                    </tr>
+                                </table>
+                                <p><strong>Rollback Plan:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;"># If issues occur during migration (rare):
+
+ALTER KEYSPACE my_keyspace WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': 3
+};
+
+$ nodetool repair -full my_keyspace
+
+# But better to fix issues and complete migration!</pre>
+                            </div>
+                        </div>
+
+                        <!-- Q5 -->
+                        <div class="interview-question" data-aos="fade-up">
+                            <div class="question-header" onclick="toggleAnswer(this)">
+                                <div class="question-number">5</div>
+                                <div class="question-text">What's the historical reason SimpleReplicationStrategy exists, and why is it no longer appropriate?</div>
+                                <div class="toggle-icon">+</div>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Historical Context (2008-2010):</strong></p>
+                                <p>SimpleReplicationStrategy was created in early Cassandra development (version 0.6, around 2009) when:</p>
+                                <ul>
+                                    <li><strong>Small Clusters:</strong> Typical deployment was 5-10 nodes</li>
+                                    <li><strong>Single Location:</strong> All nodes in same datacenter, often same rack</li>
+                                    <li><strong>Co-located Hardware:</strong> Nodes physically adjacent</li>
+                                    <li><strong>Simple Infrastructure:</strong> No cloud, no availability zones</li>
+                                    <li><strong>Early NoSQL:</strong> Industry learning distributed systems</li>
+                                </ul>
+                                <p><strong>What Made Sense Then:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">2010 Deployment:
+- 6 nodes in single rack
+- All on same power circuit
+- All behind same network switch
+- RF=3 seemed sufficient
+- "Rack awareness" wasn't a concept yet
+
+Assumptions:
+- If rack fails, entire cluster fails anyway
+- No multi-datacenter requirements
+- Simplicity > fault tolerance
+- Getting Cassandra working was hard enough!</pre>
+                                <p><strong>Why It's Inappropriate Now (2024):</strong></p>
+                                <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                                    <tr style="background: #f3f4f6;">
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">Aspect</th>
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">2010</th>
+                                        <th style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #1f2937;">2024</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Cluster Size</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">5-10 nodes</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">100-1000+ nodes</td>
+                                    </tr>
+                                    <tr style="background: #f9fafb;">
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Datacenters</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">1 (always)</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">3-5 (common)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Infrastructure</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Physical servers</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Cloud (AWS/Azure/GCP)</td>
+                                    </tr>
+                                    <tr style="background: #f9fafb;">
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Rack Awareness</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Not important</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Critical (AZs)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Availability Target</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">99.9% (3 nines)</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">99.99%+ (4-5 nines)</td>
+                                    </tr>
+                                    <tr style="background: #f9fafb;">
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Global Users</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">No</td>
+                                        <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">Yes (required)</td>
+                                    </tr>
+                                </table>
+                                <p><strong>Modern Requirements:</strong></p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">2024 Production System:
+- Netflix: 75,000+ nodes across 3 continents
+- Uber: Multiple AWS regions, different RF per region
+- Apple: iCloud across 4+ datacenters globally
+
+Requirements:
+✓ Survive entire datacenter failure
+✓ Optimize costs (different RF per region)
+✓ Low latency globally (LOCAL_QUORUM)
+✓ Rack awareness (cloud AZs)
+✓ 99.99%+ availability (4-5 nines)
+
+SimpleReplicationStrategy:
+❌ Cannot do ANY of this!</pre>
+                                <p><strong>The Breaking Point:</strong></p>
+                                <p>Around 2012-2014, cloud deployments became dominant. AWS Availability Zones made rack awareness critical:</p>
+                                <pre style="background: #f3f4f6; padding: 1rem; border-radius: 8px; color: #1f2937;">AWS Example:
+Node 1: us-east-1a (AZ 1)
+Node 2: us-east-1a (AZ 1)  ← SimpleReplicationStrategy could put all here!
+Node 3: us-east-1a (AZ 1)  ← Same AZ = single point of failure
+
+us-east-1a fails (happened multiple times):
+- All 3 replicas unreachable
+- Data completely unavailable
+- Businesses lose millions
+
+This happened enough that DataStax deprecated SimpleReplicationStrategy!</pre>
+                                <p><strong>Official Deprecation:</strong></p>
+                                <ul>
+                                    <li><strong>2015:</strong> DataStax recommends against SimpleReplicationStrategy</li>
+                                    <li><strong>2018:</strong> Officially marked as deprecated in docs</li>
+                                    <li><strong>2020+:</strong> Plan to remove in future major version</li>
+                                    <li><strong>2024:</strong> All major users have migrated away</li>
+                                </ul>
+                                <p><strong>Why Not Removed Yet:</strong></p>
+                                <ul>
+                                    <li>Backwards compatibility concerns</li>
+                                    <li>Some legacy systems still use it</li>
+                                    <li>Testing/development convenience (not recommended)</li>
+                                    <li>Will be removed in Cassandra 5.x or 6.x</li>
+                                </ul>
+                                <p><strong>Key Lesson:</strong> Technology that made sense in 2010 doesn't necessarily make sense today. Cloud infrastructure, global deployments, and higher availability requirements have fundamentally changed how we need to think about replication!</p>
+                            </div>
+                        </div>
+                    </section>
+                                <div class="page-navigation">
+    <a href="replication-factor.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Replication Factor</div>
+        </div>
+    </a>
+    <a href="simple-strategy.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Simple Replication Strategy</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            if (!particlesContainer) return;
+            
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 4 + 2;
+                const startX = Math.random() * 100;
+                const drift = (Math.random() - 0.5) * 100;
+                const duration = Math.random() * 10 + 15;
+                const delay = Math.random() * 5;
+                
+                particle.style.cssText = `
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${startX}%;
+                    animation-duration: ${duration}s;
+                    animation-delay: ${delay}s;
+                    --x-drift: ${drift}px;
+                `;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        window.addEventListener('load', createParticles);
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = scrolled + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
+        });
+
+        function toggleAnswer(element) {
+            const answer = element.nextElementSibling;
+            const isActive = element.classList.contains('active');
+            
+            document.querySelectorAll('.question-header').forEach(header => {
+                header.classList.remove('active');
+                header.nextElementSibling.classList.remove('active');
+            });
+            
+            if (!isActive) {
+                element.classList.add('active');
+                answer.classList.add('active');
+            }
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= (sectionTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightTOC);
+        highlightTOC();
+
+        const examples = {
+            1: `-- SimpleReplicationStrategy (DEPRECATED - DO NOT USE!)
+CREATE KEYSPACE test_simple WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': 3
+};`,
+            2: `-- Check replica placement
+-- nodetool getendpoints test_simple users 'user_123'`,
+            3: `-- Describe keyspace
+DESCRIBE KEYSPACE test_simple;`,
+            4: `-- MIGRATE to NetworkTopologyStrategy (RECOMMENDED!)
+ALTER KEYSPACE test_simple WITH replication = {
+    'class': 'NetworkTopologyStrategy',
+    'datacenter1': 3
+};
+-- Remember: Run 'nodetool repair -full test_simple' after!`
+        };
+
+        function runExample(num) {
+            const input = document.getElementById('cqlInput');
+            input.value = examples[num];
+            input.style.borderColor = num === 4 ? '#059669' : '#dc2626';
+            setTimeout(() => {
+                input.style.borderColor = '#334155';
+            }, 500);
+        }
+
+        function executeCommand() {
+            const input = document.getElementById('cqlInput');
+            const output = document.getElementById('consoleOutput');
+            const command = input.value.trim();
+
+            if (!command) {
+                appendOutput('⚠️ Please enter a command', 'warning');
+                return;
+            }
+
+            const commandDiv = document.createElement('div');
+            commandDiv.style.cssText = 'margin: 1rem 0; padding: 0.75rem; background: rgba(220, 38, 38, 0.1); border-left: 3px solid #dc2626; border-radius: 4px; opacity: 0; transform: translateX(-20px); transition: all 0.3s;';
+            commandDiv.innerHTML = `<span style="color: #dc2626; font-weight: 700;">▶ Executing:</span><br/><span style="color: #e2e8f0;">${escapeHtml(command)}</span>`;
+            output.appendChild(commandDiv);
+            
+            setTimeout(() => {
+                commandDiv.style.opacity = '1';
+                commandDiv.style.transform = 'translateX(0)';
+            }, 10);
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.style.cssText = 'color: #d97706; margin: 0.5rem 0;';
+            loadingDiv.innerHTML = '<span class="loading-dots">Processing</span>';
+            output.appendChild(loadingDiv);
+            output.scrollTop = output.scrollHeight;
+
+            setTimeout(() => {
+                loadingDiv.remove();
+                processCommand(command, output);
+                output.scrollTop = output.scrollHeight;
+            }, 800);
+        }
+
+        function processCommand(command, output) {
+            const upperCommand = command.toUpperCase();
+            
+            if (upperCommand.includes('CREATE KEYSPACE') || upperCommand.includes('ALTER KEYSPACE')) {
+                if (upperCommand.includes('SIMPLEREPLICATIONSTRATEGY')) {
+                    showWarning(output, '⚠️ DANGER: SimpleReplicationStrategy is deprecated!', 'This is UNSAFE for production! Use NetworkTopologyStrategy instead.');
+                    showSuccess(output, 'Keyspace created (testing only)', 'Schema propagated in 1.5 seconds');
+                } else if (upperCommand.includes('NETWORKTOPOLOGYSTRATEGY')) {
+                    showSuccess(output, '✅ Excellent! NetworkTopologyStrategy configured', 'Rack-aware replica placement enabled. Schema propagated in 2.1 seconds.');
+                    showInfo(output, 'Next Step:', 'Run: nodetool repair -full <keyspace_name>');
+                }
+            } else if (upperCommand.includes('DESCRIBE KEYSPACE')) {
+                showInfo(output, 'Keyspace Schema:', `CREATE KEYSPACE test_simple WITH replication = {
+    'class': 'SimpleReplicationStrategy',
+    'replication_factor': 3
+} AND durable_writes = true;`);
+                showWarning(output, '⚠️ Warning:', 'This keyspace uses deprecated SimpleReplicationStrategy!');
+            } else {
+                showSuccess(output, '✅ Command executed');
+            }
+        }
+
+        function showSuccess(output, message, details = '') {
+            const div = document.createElement('div');
+            div.style.cssText = 'margin: 1rem 0; padding: 1rem; background: rgba(5, 150, 105, 0.15); border-left: 4px solid #059669; border-radius: 4px; opacity: 0; transform: translateY(10px); transition: all 0.3s;';
+            div.innerHTML = `
+                <div style="color: #059669; font-weight: 700; margin-bottom: 0.5rem;">${message}</div>
+                ${details ? `<div style="color: #94a3b8; font-size: 0.85rem;">${details}</div>` : ''}
+            `;
+            output.appendChild(div);
+            
+            setTimeout(() => {
+                div.style.opacity = '1';
+                div.style.transform = 'translateY(0)';
+            }, 10);
+        }
+
+        function showWarning(output, title, message) {
+            const div = document.createElement('div');
+            div.style.cssText = 'margin: 1rem 0; padding: 1rem; background: rgba(217, 119, 6, 0.15); border-left: 4px solid #d97706; border-radius: 4px; opacity: 0; transform: translateY(10px); transition: all 0.3s;';
+            div.innerHTML = `
+                <div style="color: #d97706; font-weight: 700; margin-bottom: 0.5rem;">${title}</div>
+                <div style="color: #94a3b8; font-size: 0.85rem;">${message}</div>
+            `;
+            output.appendChild(div);
+            
+            setTimeout(() => {
+                div.style.opacity = '1';
+                div.style.transform = 'translateY(0)';
+            }, 10);
+        }
+
+        function showInfo(output, title, content) {
+            const div = document.createElement('div');
+            div.style.cssText = 'margin: 1rem 0; padding: 1rem; background: rgba(13, 148, 136, 0.15); border-left: 4px solid #0d9488; border-radius: 4px; opacity: 0; transform: translateY(10px); transition: all 0.3s;';
+            div.innerHTML = `
+                <div style="color: #0d9488; font-weight: 700; margin-bottom: 0.5rem;">${title}</div>
+                <pre style="color: #e2e8f0; margin: 0; white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">${content}</pre>
+            `;
+            output.appendChild(div);
+            
+            setTimeout(() => {
+                div.style.opacity = '1';
+                div.style.transform = 'translateY(0)';
+            }, 10);
+        }
+
+        function appendOutput(message, type = 'info') {
+            const output = document.getElementById('consoleOutput');
+            const div = document.createElement('div');
+            
+            const colors = {
+                info: '#94a3b8',
+                success: '#059669',
+                warning: '#d97706',
+                error: '#dc2626'
+            };
+            
+            div.style.cssText = `margin: 0.5rem 0; color: ${colors[type]}; opacity: 0; transform: translateX(-10px); transition: all 0.3s;`;
+            div.innerHTML = `<span style="color: #dc2626;">▶</span> ${message}`;
+            output.appendChild(div);
+            
+            setTimeout(() => {
+                div.style.opacity = '1';
+                div.style.transform = 'translateX(0)';
+            }, 10);
+            
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearConsole() {
+            const output = document.getElementById('consoleOutput');
+            output.style.opacity = '0';
+            output.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                output.innerHTML = `
+                    <div style="color: #94a3b8;">
+                        <span style="color: #error-red;">⚠️</span> Console cleared - Testing environment only!<br/>
+                        <span style="color: #warning-orange;">⚠️</span> SimpleReplicationStrategy is deprecated!<br/>
+                        <span style="color: #success-green;">✓</span> Always use NetworkTopologyStrategy in production!
+                    </div>
+                `;
+                output.style.opacity = '1';
+                output.style.transform = 'scale(1)';
+            }, 300);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        setInterval(() => {
+            const loadingElements = document.querySelectorAll('.loading-dots');
+            loadingElements.forEach(el => {
+                const dots = el.textContent.match(/\./g) || [];
+                if (dots.length >= 3) {
+                    el.textContent = el.textContent.split('.')[0];
+                } else {
+                    el.textContent += '.';
+                }
+            });
+        }, 500);
+
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px) scale(1.02)';
+            });
+            btn.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+   
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    </script>
+</body>
+</html>

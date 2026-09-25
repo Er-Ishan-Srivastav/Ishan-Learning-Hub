@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master MongoDB Replica Sets - Learn about high availability, automatic failover, and data replication through interactive examples and real-world scenarios">
+    <title>MongoDB Replica Sets - Components & Architecture | myPathshala</title>
+    
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Your existing stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+    
+    <style>
+        /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+        :root {
+            --primary-green: #00ED64;
+            --dark-green: #00684A;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --soft-gray: #F9FAFB;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--code-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-green);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 237, 100, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-green);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-green);
+            border-left-color: var(--primary-green);
+            padding-left: 1.25rem;
+        }
+
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        /* ========================================
+           STORY BOX - Real-World Scenarios
+           ======================================== */
+        .story-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            border-left: 4px solid #3B82F6;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .story-box::before {
+            content: '📖';
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-character {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .story-content {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .story-problem {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--error-red);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+
+        .story-solution {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--success-green);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+
+        /* ========================================
+           ANIMATED WORKFLOW DIAGRAM
+           ======================================== */
+        .workflow-animation {
+            background: var(--code-bg);
+            border-radius: 16px;
+            padding: 3rem 2rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            position: relative;
+            overflow: visible;
+        }
+
+        .workflow-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+        }
+
+        .replica-visual {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .node {
+            width: 140px;
+            height: 140px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .node:hover {
+            transform: translateY(-10px) scale(1.05);
+        }
+
+        .node-primary {
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            box-shadow: 0 10px 40px rgba(0, 237, 100, 0.4);
+            animation: pulse-primary 2s infinite;
+        }
+
+        @keyframes pulse-primary {
+            0%, 100% { box-shadow: 0 10px 40px rgba(0, 237, 100, 0.4); }
+            50% { box-shadow: 0 10px 60px rgba(0, 237, 100, 0.6); }
+        }
+
+        .node-secondary {
+            background: linear-gradient(135deg, var(--info-blue), #2563EB);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .node-arbiter {
+            background: linear-gradient(135deg, var(--text-muted), #475569);
+            box-shadow: 0 8px 30px rgba(100, 116, 139, 0.3);
+        }
+
+        .node-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .node-label {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .node-status {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.8);
+            margin-top: 0.25rem;
+        }
+
+        .data-flow {
+            position: absolute;
+            height: 3px;
+            background: var(--primary-green);
+            animation: flow 2s infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes flow {
+            0% { transform: scaleX(0); transform-origin: left; }
+            50% { transform: scaleX(1); transform-origin: left; }
+            51% { transform: scaleX(1); transform-origin: right; }
+            100% { transform: scaleX(0); transform-origin: right; }
+        }
+
+        .data-packet {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            position: absolute;
+            animation: moveData 3s infinite;
+            box-shadow: 0 0 20px var(--primary-green);
+        }
+
+        @keyframes moveData {
+            0% { left: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; opacity: 0; }
+        }
+
+        /* ========================================
+           INTERACTIVE QUERY PLAYGROUND
+           ======================================== */
+        .query-playground {
+            background: var(--code-darker);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 2rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .playground-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--dark-green));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .playground-title {
+            color: var(--primary-green);
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .run-btn {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .run-btn:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 237, 100, 0.3);
+        }
+
+        .query-input {
+            width: 100%;
+            background: var(--code-bg);
+            color: var(--text-primary);
+            border: none;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        .query-input:focus {
+            outline: none;
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .query-output {
+            background: var(--bg-darker);
+            padding: 1.5rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .output-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .query-output pre {
+            background: var(--code-bg);
+            color: var(--success-green);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        /* ========================================
+           SCENARIO CARDS
+           ======================================== */
+        .scenario-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            margin: 2rem 0;
+            border: 2px solid transparent;
+        }
+
+        .scenario-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(0, 237, 100, 0.2);
+            border-color: var(--primary-green);
+        }
+
+        .scenario-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .scenario-card h4 {
+            color: var(--deep-navy);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .scenario-challenge {
+            background: rgba(239, 68, 68, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid var(--error-red);
+        }
+
+        .scenario-challenge strong {
+            color: var(--error-red);
+        }
+
+        .scenario-solution {
+            background: rgba(16, 185, 129, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid var(--success-green);
+        }
+
+        .scenario-solution strong {
+            color: var(--success-green);
+        }
+
+        .scenario-example {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .scenario-example pre {
+            margin: 0;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        /* ========================================
+           COMPARISON VISUAL
+           ======================================== */
+        .comparison-visual {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 2rem;
+            align-items: center;
+            margin: 2rem 0;
+            padding: 2rem;
+            background: var(--code-bg);
+            border-radius: 16px;
+        }
+
+        .comparison-box {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .comparison-box h5 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .comparison-box.before {
+            border-left: 4px solid var(--error-red);
+        }
+
+        .comparison-box.after {
+            border-left: 4px solid var(--success-green);
+        }
+
+        .comparison-box ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .comparison-box li {
+            padding: 0.5rem 0;
+            color: #374151;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .comparison-arrow {
+            font-size: 3rem;
+            color: var(--primary-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        /* ========================================
+           STEP-BY-STEP TUTORIAL
+           ======================================== */
+        .step-tutorial {
+            margin: 2rem 0;
+        }
+
+        .step {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--border-light);
+            transition: all 0.3s;
+            opacity: 0.6;
+        }
+
+        .step.active {
+            border-left-color: var(--primary-green);
+            opacity: 1;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.2);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .step-content {
+            padding-left: 66px;
+        }
+
+        .step-visual {
+            width: 100%;
+            height: 200px;
+            background: var(--code-darker);
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-code {
+            background: var(--code-darker);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .step-code pre {
+            margin: 0;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        /* ========================================
+           METRICS CARD
+           ======================================== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .metric-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.2);
+        }
+
+        .metric-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* ========================================
+           CODE EXAMPLE WITH COPY
+           ======================================== */
+        .code-example {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 0;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .code-header {
+            padding: 1rem 1.5rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-bottom: 1px solid var(--border-light);
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-title {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+        }
+
+        .copy-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid rgba(51, 65, 85, 0.8);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(51, 65, 85, 0.8);
+            color: var(--primary-green);
+            border-color: var(--primary-green);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success-green);
+            border-color: var(--success-green);
+        }
+
+        .code-body {
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .code-body pre {
+            margin: 0;
+            color: #E2E8F0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* ========================================
+           NOTE BOXES
+           ======================================== */
+        .note-box {
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+            border-left: 4px solid;
+            background: var(--code-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .note-box.info {
+            border-left-color: var(--info-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .note-box.success {
+            border-left-color: var(--success-green);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .note-box.warning {
+            border-left-color: var(--warning-orange);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .note-box.tip {
+            border-left-color: var(--primary-green);
+            background: rgba(0, 237, 100, 0.1);
+        }
+
+        .note-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        /* ========================================
+           INTERVIEW QUESTIONS
+           ======================================== */
+        .interview-question {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 4px 16px rgba(0, 237, 100, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            transition: background 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(0, 237, 100, 0.03);
+        }
+
+        .question-number {
+            background: var(--primary-green);
+            color: var(--code-darker);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 500;
+            color: #1F2937;
+            font-size: 1rem;
+        }
+
+        .toggle-icon {
+            color: var(--primary-green);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 3000px;
+            padding: 0 1.5rem 1.5rem 1.5rem;
+            border-top: 1px solid #F3F4F6;
+        }
+
+        .question-answer p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1F2937;
+        }
+
+        .question-answer ul {
+            color: #374151;
+            margin-left: 1.5rem;
+        }
+
+        /* ========================================
+           NAVIGATION BUTTONS
+           ======================================== */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.2);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ========================================
+           SCROLL TO TOP
+           ======================================== */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN
+           ======================================== */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+
+            .comparison-visual {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison-arrow {
+                transform: rotate(90deg);
+            }
+
+            .replica-visual {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .node {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- YOUR SIDEBAR NAVIGATION HERE -->
+    <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed">🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger" >💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica" class="active">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                        <li><a href="practical-example.html" data-page="practical-ex">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html" data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html" data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat">📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>    
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Page Hero -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content">
+                    <span class="hero-badge">
+                        <i class="fas fa-sync-alt"></i>
+                        Section 3: MongoDB Architecture
+                    </span>
+                    <h1>🔁 Replica Sets</h1>
+                    <p>Master High Availability & Data Replication - Learn how MongoDB ensures your data is always available through interactive examples and real-world scenarios</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html">Home</a>
+                <span class="separator">›</span>
+                <a href="index.html">Section 3: Architecture</a>
+                <span class="separator">›</span>
+                <span class="current">Replica Sets</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <!-- Table of Contents (Floating) -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#story" class="nav-btn" style="color: white;">Real Story</a></li>
+                            <li><a href="#what-is" class="nav-btn" style="color: white;">What is Replica Set?</a></li>
+                            <li><a href="#components" class="nav-btn" style="color: white;">Components</a></li>
+                            <li><a href="#how-it-works" class="nav-btn" style="color: white;">How It Works</a></li>
+                            <li><a href="#failover" class="nav-btn" style="color: white;">Automatic Failover</a></li>
+                            <li><a href="#setup" class="nav-btn" style="color: white;">Setup Tutorial</a></li>
+                            <li><a href="#scenarios" class="nav-btn" style="color: white;">Real Scenarios</a></li>
+                            <li><a href="#best-practices" class="nav-btn" style="color: white;">Best Practices</a></li>
+                            <li><a href="#interview" class="nav-btn" style="color: white;">Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    
+                    <!-- SECTION 1: REAL-WORLD STORY -->
+                    <section id="story">
+                        <h2>📖 Meet Sarah - The E-commerce Developer</h2>
+                        
+                        <div class="story-box">
+                            <div class="story-character">
+                                👩‍💻 Sarah's Challenge
+                            </div>
+                            <div class="story-content">
+                                <p>Sarah runs a successful e-commerce platform with 10,000 daily orders. One Friday night at 9 PM (peak shopping time), her single database server crashed due to a hardware failure. 💥</p>
+                                
+                                <div class="story-problem">
+                                    ❌ <strong>The Disaster:</strong>
+                                    <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                                        <li>Website went completely down</li>
+                                        <li>Lost $50,000 in sales during 2-hour outage</li>
+                                        <li>1,000+ angry customers on social media</li>
+                                        <li>Took 2 hours to restore from backup</li>
+                                        <li>Lost trust of premium customers</li>
+                                    </ul>
+                                </div>
+                                
+                                <p style="margin: 1.5rem 0 1rem;">Sarah knew she needed a solution that would keep her platform running even if servers failed. That's when she discovered <strong>MongoDB Replica Sets</strong>.</p>
+                                
+                                <div class="story-solution">
+                                    ✅ <strong>The Solution: Replica Sets</strong>
+                                    <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+                                        <li>Setup 3 MongoDB servers (1 Primary + 2 Secondary)</li>
+                                        <li>Automatic data replication to all servers</li>
+                                        <li>When primary fails, secondary automatically promoted</li>
+                                        <li>Failover time: Less than 10 seconds!</li>
+                                        <li>Zero data loss, zero downtime</li>
+                                    </ul>
+                                </div>
+                                
+                                <p style="margin-top: 1.5rem; font-weight: 600; color: var(--primary-green);">
+                                    🎉 Result: 3 months later, her server crashed again - but customers didn't even notice! The replica set automatically switched to a healthy server in 8 seconds.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 2: WHAT IS REPLICA SET -->
+                    <section id="what-is">
+                        <h2>🤔 What is a Replica Set?</h2>
+                        
+                        <div class="note-box success">
+                            <div class="note-title">📚 Simple Definition</div>
+                            <p>A <strong>Replica Set</strong> is a group of MongoDB servers that maintain the same data. Think of it like having multiple copies of your notebook - if one gets lost, you still have the others!</p>
+                        </div>
+
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-icon">🔄</div>
+                                <div class="metric-value">3+</div>
+                                <div class="metric-label">Minimum Nodes</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">⚡</div>
+                                <div class="metric-value">&lt;10s</div>
+                                <div class="metric-label">Failover Time</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">🎯</div>
+                                <div class="metric-value">99.99%</div>
+                                <div class="metric-label">Availability</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon">📊</div>
+                                <div class="metric-value">50</div>
+                                <div class="metric-label">Max Members</div>
+                            </div>
+                        </div>
+
+                        <h3>🎯 Key Benefits</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+                            <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--success-green);">
+                                <strong style="color: var(--success-green);">✓ High Availability</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">Automatic failover in seconds</p>
+                            </div>
+                            <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--success-green);">
+                                <strong style="color: var(--success-green);">✓ Data Redundancy</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">Multiple copies prevent data loss</p>
+                            </div>
+                            <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--success-green);">
+                                <strong style="color: var(--success-green);">✓ Read Scalability</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">Distribute reads across secondaries</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 3: ANIMATED COMPONENTS VISUALIZATION -->
+                    <section id="components">
+                        <h2>🏗️ Replica Set Components</h2>
+                        
+                        <div class="workflow-animation">
+                            <div class="workflow-title">Live Replica Set Architecture</div>
+                            <div class="replica-visual">
+                                <div class="node node-primary" onclick="showNodeInfo('primary')">
+                                    <div class="node-icon">👑</div>
+                                    <div class="node-label">PRIMARY</div>
+                                    <div class="node-status">Read + Write</div>
+                                </div>
+                                <div class="node node-secondary" onclick="showNodeInfo('secondary1')">
+                                    <div class="node-icon">📋</div>
+                                    <div class="node-label">SECONDARY</div>
+                                    <div class="node-status">Read Only</div>
+                                </div>
+                                <div class="node node-secondary" onclick="showNodeInfo('secondary2')">
+                                    <div class="node-icon">📋</div>
+                                    <div class="node-label">SECONDARY</div>
+                                    <div class="node-status">Read Only</div>
+                                </div>
+                                <div class="node node-arbiter" onclick="showNodeInfo('arbiter')">
+                                    <div class="node-icon">⚖️</div>
+                                    <div class="node-label">ARBITER</div>
+                                    <div class="node-status">Voting Only</div>
+                                </div>
+                            </div>
+                            <div id="nodeInfoBox" style="margin-top: 2rem; padding: 1.5rem; background: rgba(0, 237, 100, 0.1); border-radius: 8px; display: none;">
+                                <strong style="color: var(--primary-green);">Node Information:</strong>
+                                <p id="nodeInfoText" style="margin: 0.5rem 0 0 0; color: var(--text-secondary);"></p>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+                            <div style="background: linear-gradient(135deg, var(--primary-green), var(--dark-green)); padding: 1.5rem; border-radius: 12px; color: white;">
+                                <h4 style="color: white; margin-bottom: 0.5rem;">👑 Primary Node</h4>
+                                <p style="margin: 0; opacity: 0.9;">Receives all write operations. Only one primary at a time. Replicates data to secondaries.</p>
+                            </div>
+                            <div style="background: linear-gradient(135deg, var(--info-blue), #2563EB); padding: 1.5rem; border-radius: 12px; color: white;">
+                                <h4 style="color: white; margin-bottom: 0.5rem;">📋 Secondary Node</h4>
+                                <p style="margin: 0; opacity: 0.9;">Maintains copy of data. Can serve read operations. Can become primary during failover.</p>
+                            </div>
+                            <div style="background: linear-gradient(135deg, var(--text-muted), #475569); padding: 1.5rem; border-radius: 12px; color: white;">
+                                <h4 style="color: white; margin-bottom: 0.5rem;">⚖️ Arbiter Node</h4>
+                                <p style="margin: 0; opacity: 0.9;">Lightweight node. Participates in elections. Does not hold data. Used for tie-breaking votes.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 4: HOW REPLICATION WORKS -->
+                    <section id="how-it-works">
+                        <h2>⚙️ How Replication Works</h2>
+                        
+                        <div class="step-tutorial">
+                            <div class="step active">
+                                <div class="step-header">
+                                    <div class="step-number">1</div>
+                                    <div class="step-title">Client Writes to Primary</div>
+                                </div>
+                                <div class="step-content">
+                                    <p style="color: var(--text-secondary);">All write operations (insert, update, delete) must go through the PRIMARY node.</p>
+                                    <div class="step-code">
+                                        <pre>db.orders.insertOne({
+  orderId: "ORD-12345",
+  customer: "John Doe",
+  total: 599.99
+})</pre>
+                                    </div>
+                                    <p style="color: var(--text-secondary); margin-top: 1rem;">📝 This write is recorded in the primary's <strong>oplog</strong> (operations log).</p>
+                                </div>
+                            </div>
+
+                            <div class="step">
+                                <div class="step-header">
+                                    <div class="step-number">2</div>
+                                    <div class="step-title">Oplog Replication</div>
+                                </div>
+                                <div class="step-content">
+                                    <p style="color: var(--text-secondary);">Secondary nodes continuously pull operations from the primary's oplog and apply them.</p>
+                                    <div class="note-box info">
+                                        <div class="note-title">📚 What is Oplog?</div>
+                                        <p><strong>Oplog</strong> (operations log) is a special capped collection that stores all write operations in order. It's like a journal of everything that happened to your data.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="step">
+                                <div class="step-header">
+                                    <div class="step-number">3</div>
+                                    <div class="step-title">Secondaries Apply Changes</div>
+                                </div>
+                                <div class="step-content">
+                                    <p style="color: var(--text-secondary);">Each secondary independently applies the operations from the oplog to maintain an identical copy.</p>
+                                    <div class="step-code">
+                                        <pre>// Automatic replication - no code needed!
+// Secondary nodes sync continuously
+Replication Lag: ~100-500ms (typical)</pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="step">
+                                <div class="step-header">
+                                    <div class="step-number">4</div>
+                                    <div class="step-title">Heartbeat & Health Check</div>
+                                </div>
+                                <div class="step-content">
+                                    <p style="color: var(--text-secondary);">Every 2 seconds, members send heartbeats to each other to check if everyone is healthy.</p>
+                                    <div class="metrics-grid">
+                                        <div class="metric-card">
+                                            <div class="metric-icon">💓</div>
+                                            <div class="metric-value">2s</div>
+                                            <div class="metric-label">Heartbeat Interval</div>
+                                        </div>
+                                        <div class="metric-card">
+                                            <div class="metric-icon">⏱️</div>
+                                            <div class="metric-value">10s</div>
+                                            <div class="metric-label">Timeout</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 5: AUTOMATIC FAILOVER -->
+                    <section id="failover">
+                        <h2>🚨 Automatic Failover Process</h2>
+                        
+                        <div class="note-box warning">
+                            <div class="note-title">⚡ Lightning-Fast Recovery</div>
+                            <p>When the primary fails, MongoDB automatically elects a new primary in typically 10-12 seconds. Your application reconnects automatically!</p>
+                        </div>
+
+                        <div class="scenario-card">
+                            <div class="scenario-icon">💥</div>
+                            <h4>Failover Scenario Simulation</h4>
+                            
+                            <div class="scenario-challenge">
+                                <strong>Step 1: Primary Crashes</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: black;">At 2:00 PM, the primary server experiences a hardware failure and goes offline.</p>
+                            </div>
+                            
+                            <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid var(--warning-orange);">
+                                <strong style="color: var(--warning-orange);">Step 2: Detection (2s)</strong>
+                                <p style="margin: 0.5rem 0 0 0;color: black">Secondaries notice missed heartbeats after 2 seconds.</p>
+                            </div>
+                            
+                            <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid var(--info-blue);">
+                                <strong style="color: var(--info-blue);">Step 3: Election (5-8s)</strong>
+                                <p style="margin: 0.5rem 0 0 0;color: black">Remaining members vote for a new primary. The most up-to-date secondary wins.</p>
+                            </div>
+                            
+                            <div class="scenario-solution">
+                                <strong>Step 4: New Primary (10s total)</strong>
+                                <p style="margin: 0.5rem 0 0 0;color: black">A secondary is elected as new primary and starts accepting writes. Your app reconnects automatically!</p>
+                            </div>
+                            
+                            <div class="scenario-example">
+                                <pre>// Timeline Visualization
+00:00 - Primary Online     [👑 ✓] [📋 ✓] [📋 ✓]
+00:02 - Primary Crashes    [👑 ✗] [📋 ✓] [📋 ✓]
+00:04 - Detection          [👑 ✗] [📋 ?] [📋 ?]
+00:10 - New Primary!       [📋 ✓] [👑 ✓] [📋 ✓]
+
+Total Downtime: ~10 seconds
+Data Loss: ZERO ✅</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 6: INTERACTIVE SETUP TUTORIAL -->
+                    <section id="setup">
+                        <h2>🛠️ Setup Your First Replica Set</h2>
+                        
+                        <div class="note-box tip">
+                            <div class="note-title">💡 Beginner-Friendly Tutorial</div>
+                            <p>Follow these steps to create a 3-node replica set on your local machine. We'll simulate production environment!</p>
+                        </div>
+
+                        <h3>Step 1: Start MongoDB Instances</h3>
+                        <div class="code-example">
+                            <div class="code-header">
+                                <div class="code-title">Terminal - Start 3 MongoDB Processes</div>
+                                <button class="copy-btn" onclick="copyCode(this, 'code1')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div class="code-body">
+                                <pre id="code1"># Terminal 1 - Start node on port 27017
+mongod --replSet myReplicaSet --port 27017 --dbpath /data/db1
+
+# Terminal 2 - Start node on port 27018
+mongod --replSet myReplicaSet --port 27018 --dbpath /data/db2
+
+# Terminal 3 - Start node on port 27019
+mongod --replSet myReplicaSet --port 27019 --dbpath /data/db3</pre>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-top: 2rem;">Step 2: Initialize Replica Set</h3>
+                        <div class="code-example">
+                            <div class="code-header">
+                                <div class="code-title">mongosh - Initialize Configuration</div>
+                                <button class="copy-btn" onclick="copyCode(this, 'code2')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div class="code-body">
+                                <pre id="code2"># Connect to any node
+mongosh --port 27017
+
+# Initialize replica set
+rs.initiate({
+  _id: "myReplicaSet",
+  members: [
+    { _id: 0, host: "localhost:27017" },
+    { _id: 1, host: "localhost:27018" },
+    { _id: 2, host: "localhost:27019" }
+  ]
+})</pre>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-top: 2rem;">Step 3: Verify Status</h3>
+                        <div class="query-playground">
+                            <div class="playground-header">
+                                <div class="playground-title">
+                                    🔥 Try it Live - Check Replica Set Status
+                                </div>
+                                <button class="run-btn" onclick="runReplicaQuery()">
+                                    ▶ Run Query
+                                </button>
+                            </div>
+                            <textarea class="query-input" id="replicaQuery" placeholder="Enter your query...">rs.status()</textarea>
+                            <div class="query-output">
+                                <div class="output-label">📊 Output:</div>
+                                <pre id="replicaOutput">Click "Run Query" to see replica set status...</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 7: REAL-WORLD SCENARIOS -->
+                    <section id="scenarios">
+                        <h2>🌍 Real-World Scenarios</h2>
+                        
+                        <div style="display: grid; gap: 2rem; margin: 2rem 0;">
+                            
+                            <!-- Scenario 1 -->
+                            <div class="scenario-card">
+                                <div class="scenario-icon">🛒</div>
+                                <h4>E-Commerce Platform</h4>
+                                <div class="scenario-challenge" style="color: black">
+                                    <strong>Challenge:</strong> 10,000 concurrent users during flash sale. Can't afford downtime or data loss.
+                                </div>
+                                <div class="scenario-solution"  style="color: black">
+                                    <strong>Solution:</strong> 5-node replica set (1 primary + 4 secondaries) across 3 availability zones. Read preference set to "nearest" for faster reads.
+                                </div>
+                                <div class="scenario-example"  style="color: black">
+                                    <pre>// Connection String
+mongodb://node1,node2,node3,node4,node5/?replicaSet=ecommerceRS
+
+// Read Preference
+db.products.find().readPref("nearest")</pre>
+                                </div>
+                                <p style="margin-top: 1rem; color: var(--text-secondary);"><strong>Result:</strong> 99.99% uptime. Zero downtime during Black Friday sale. Handled 50K orders/minute.</p>
+                            </div>
+
+                            <!-- Scenario 2 -->
+                            <div class="scenario-card">
+                                <div class="scenario-icon">📱</div>
+                                <h4>Social Media App</h4>
+                                <div class="scenario-challenge"  style="color: black">
+                                    <strong>Challenge:</strong> Global users need low latency. Must handle millions of posts/day.
+                                </div>
+                                <div class="scenario-solution"  style="color: black">
+                                    <strong>Solution:</strong> Geographically distributed replica set - nodes in US, Europe, Asia. Write to primary in US, read from nearest secondary.
+                                </div>
+                                <div class="scenario-example"  style="color: black">
+                                    <pre>// Geo-Distributed Setup
+Primary: us-east-1 (Virginia)
+Secondary: eu-west-1 (Ireland)  
+Secondary: ap-south-1 (Mumbai)
+
+// Users read from nearest location
+Response Time: 50-100ms (global average)</pre>
+                                </div>
+                            </div>
+
+                            <!-- Scenario 3 -->
+                            <div class="scenario-card">
+                                <div class="scenario-icon">🏦</div>
+                                <h4>Banking Application</h4>
+                                <div class="scenario-challenge"  style="color: black">
+                                    <strong>Challenge:</strong> Must ensure strong consistency. Zero data loss acceptable.
+                                </div>
+                                <div class="scenario-solution"  style="color: black">
+                                    <strong>Solution:</strong> Write concern "majority" - write only acknowledged after majority of nodes confirm.
+                                </div>
+                                <div class="scenario-example"  style="color: black">
+                                    <pre>// Strong Consistency
+db.transactions.insertOne(
+  { 
+    from: "ACC1", 
+    to: "ACC2", 
+    amount: 10000 
+  },
+  { writeConcern: { w: "majority" } }
+)
+
+// Ensures data safe on majority before success</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 8: BEST PRACTICES -->
+                    <section id="best-practices">
+                        <h2>✨ Best Practices & Production Tips</h2>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+                            
+                            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05)); border: 2px solid var(--success-green); border-radius: 12px; padding: 1.5rem;">
+                                <h4 style="color: var(--success-green); margin-bottom: 1rem;">✅ DO's</h4>
+                                <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                                    <li>Use odd number of nodes (3, 5, 7)</li>
+                                    <li>Distribute nodes across availability zones</li>
+                                    <li>Monitor replication lag</li>
+                                    <li>Set appropriate write concerns</li>
+                                    <li>Use majority read concern for critical reads</li>
+                                    <li>Regular backup of all nodes</li>
+                                </ul>
+                            </div>
+
+                            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05)); border: 2px solid var(--error-red); border-radius: 12px; padding: 1.5rem;">
+                                <h4 style="color: var(--error-red); margin-bottom: 1rem;">❌ DON'Ts</h4>
+                                <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                                    <li>Don't use even number of voting nodes</li>
+                                    <li>Don't put all nodes in same datacenter</li>
+                                    <li>Don't ignore replication lag warnings</li>
+                                    <li>Don't use secondaries for critical reads without read concern</li>
+                                    <li>Don't skip monitoring and alerts</li>
+                                </ul>
+                            </div>
+
+                            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05)); border: 2px solid var(--warning-orange); border-radius: 12px; padding: 1.5rem;">
+                                <h4 style="color: var(--warning-orange); margin-bottom: 1rem;">⚠️ Common Pitfalls</h4>
+                                <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                                    <li>Network latency between nodes > 50ms</li>
+                                    <li>Insufficient oplog size</li>
+                                    <li>Not planning for growth</li>
+                                    <li>Ignoring priority and votes configuration</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-top: 2rem;">📊 Recommended Configurations</h3>
+                        <div style="overflow-x: auto; margin: 1.5rem 0;">
+                            <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: var(--code-bg); border-radius: 12px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: linear-gradient(135deg, var(--code-darker), var(--dark-green));">
+                                        <th style="padding: 1rem; text-align: left; color: white;">Use Case</th>
+                                        <th style="padding: 1rem; text-align: left; color: white;">Configuration</th>
+                                        <th style="padding: 1rem; text-align: left; color: white;">Write Concern</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid var(--border-light);">
+                                        <td style="padding: 1rem; color: var(--text-secondary);">Small App/Startup</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">3 nodes (1P + 2S)</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">w: 1</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-light);">
+                                        <td style="padding: 1rem; color: var(--text-secondary);">Production App</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">5 nodes (1P + 4S)</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">w: "majority"</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--border-light);">
+                                        <td style="padding: 1rem; color: var(--text-secondary);">Critical/Financial</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">7 nodes (1P + 6S)</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">w: "majority", j: true</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">Global App</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">5 nodes across 3 regions</td>
+                                        <td style="padding: 1rem; color: var(--text-secondary);">w: "majority"</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- SECTION 9: INTERVIEW QUESTIONS -->
+                    <section id="interview">
+                        <h2>❓ Interview Questions & Answers</h2>
+                        
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q1</span>
+                                <span class="question-text">What is a Replica Set in MongoDB? How does it ensure high availability?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>A <strong>Replica Set</strong> is a group of MongoDB instances that maintain the same dataset. It consists of:</p>
+                                <ul>
+                                    <li><strong>Primary Node:</strong> Receives all write operations</li>
+                                    <li><strong>Secondary Nodes:</strong> Maintain copies of primary's data through replication</li>
+                                    <li><strong>Arbiter (Optional):</strong> Participates in elections but doesn't hold data</li>
+                                </ul>
+                                <p><strong>High Availability Mechanism:</strong></p>
+                                <ul>
+                                    <li>Automatic failover: If primary fails, secondaries elect a new primary (typically 10-12 seconds)</li>
+                                    <li>Data redundancy: Multiple copies prevent data loss</li>
+                                    <li>Continuous replication: Secondaries sync data asynchronously</li>
+                                    <li>Self-healing: Failed nodes automatically rejoin when recovered</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q2</span>
+                                <span class="question-text">Explain the automatic failover process in MongoDB Replica Sets.</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Failover Process (Step-by-Step):</strong></p>
+                                <ol style="margin-left: 1.5rem;">
+                                    <li><strong>Detection (2s):</strong> Secondaries detect primary failure through missed heartbeats (sent every 2 seconds)</li>
+                                    <li><strong>Election Initiation (1-2s):</strong> Secondaries that can see a majority of members call for an election</li>
+                                    <li><strong>Voting (5-8s):</strong> Members vote for the most up-to-date secondary. A candidate needs majority votes to win</li>
+                                    <li><strong>New Primary (Total ~10s):</strong> Winning secondary becomes primary and starts accepting writes</li>
+                                    <li><strong>Application Reconnection:</strong> MongoDB drivers automatically reconnect to the new primary</li>
+                                </ol>
+                                <p><strong>Key Points:</strong></p>
+                                <ul>
+                                    <li>Total downtime: 10-12 seconds (typical)</li>
+                                    <li>No data loss if using appropriate write concerns</li>
+                                    <li>Completely automatic - no manual intervention needed</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q3</span>
+                                <span class="question-text">What is the purpose of an Arbiter in a Replica Set?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>An <strong>Arbiter</strong> is a lightweight member of a replica set with these characteristics:</p>
+                                <ul>
+                                    <li><strong>Does not hold data:</strong> Only participates in elections</li>
+                                    <li><strong>Voting only:</strong> Provides a vote in elections to maintain odd number of voters</li>
+                                    <li><strong>Low resource usage:</strong> Minimal CPU/memory/disk requirements</li>
+                                    <li><strong>Tie-breaker:</strong> Prevents split-brain scenarios in 2-node setups</li>
+                                </ul>
+                                <p><strong>When to use:</strong></p>
+                                <ul>
+                                    <li>When you have even number of data-bearing nodes (e.g., 2 or 4)</li>
+                                    <li>To maintain odd number of voters without the cost of full secondary</li>
+                                    <li>Example: 2 data nodes + 1 arbiter = 3 voters (odd number)</li>
+                                </ul>
+                                <p><strong>Best Practice:</strong> For production, prefer using actual secondaries instead of arbiters when possible for better redundancy.</p>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q4</span>
+                                <span class="question-text">What is replication lag and how do you monitor it?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Replication Lag:</strong> The time delay between when data is written to primary and when it's replicated to secondaries.</p>
+                                <p><strong>Typical Values:</strong></p>
+                                <ul>
+                                    <li>Normal: 100-500ms</li>
+                                    <li>Warning: > 1 second</li>
+                                    <li>Critical: > 10 seconds</li>
+                                </ul>
+                                <p><strong>Monitoring Methods:</strong></p>
+                                <ol style="margin-left: 1.5rem;">
+                                    <li><strong>rs.status():</strong> Check "optimeDate" difference between primary and secondaries</li>
+                                    <li><strong>rs.printReplicationInfo():</strong> Shows oplog size and coverage</li>
+                                    <li><strong>rs.printSecondaryReplicationInfo():</strong> Detailed lag info for each secondary</li>
+                                    <li><strong>MongoDB Atlas:</strong> Built-in monitoring dashboards</li>
+                                    <li><strong>Third-party tools:</strong> Datadog, New Relic, Prometheus</li>
+                                </ol>
+                                <p><strong>Causes of High Lag:</strong></p>
+                                <ul>
+                                    <li>Network latency between nodes</li>
+                                    <li>Heavy write load on primary</li>
+                                    <li>Slow disk I/O on secondaries</li>
+                                    <li>Secondary handling too many reads</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q5</span>
+                                <span class="question-text">Explain Write Concerns and Read Preferences in Replica Sets.</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Write Concern:</strong> Level of acknowledgment requested from MongoDB for write operations.</p>
+                                <p><strong>Common Write Concerns:</strong></p>
+                                <ul>
+                                    <li><strong>w: 1</strong> - Acknowledged by primary only (fastest, less safe)</li>
+                                    <li><strong>w: "majority"</strong> - Acknowledged by majority of nodes (recommended for production)</li>
+                                    <li><strong>w: &lt;number&gt;</strong> - Acknowledged by specific number of nodes</li>
+                                    <li><strong>j: true</strong> - Wait for journal commit (durability)</li>
+                                </ul>
+                                <div style="background: var(--code-bg); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                    <pre>// Example
+db.orders.insertOne(
+  { orderId: 123, total: 599 },
+  { writeConcern: { w: "majority", j: true, wtimeout: 5000 } }
+)</pre>
+                                </div>
+                                <p><strong>Read Preference:</strong> Where to route read operations.</p>
+                                <ul>
+                                    <li><strong>primary</strong> - Read from primary only (default, most consistent)</li>
+                                    <li><strong>primaryPreferred</strong> - Primary if available, else secondary</li>
+                                    <li><strong>secondary</strong> - Read from secondary only</li>
+                                    <li><strong>secondaryPreferred</strong> - Secondary if available, else primary</li>
+                                    <li><strong>nearest</strong> - Read from nearest node (lowest latency)</li>
+                                </ul>
+                                <div style="background: var(--code-bg); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                    <pre>// Example
+db.products.find().readPref("secondary")</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q6</span>
+                                <span class="question-text">What is the minimum recommended number of nodes for a production Replica Set?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Minimum: 3 nodes</strong> (1 Primary + 2 Secondaries)</p>
+                                <p><strong>Why 3?</strong></p>
+                                <ul>
+                                    <li><strong>Majority for elections:</strong> Need majority (2 out of 3) to elect new primary</li>
+                                    <li><strong>Fault tolerance:</strong> Can survive 1 node failure and still maintain quorum</li>
+                                    <li><strong>Data redundancy:</strong> 3 copies of data protect against loss</li>
+                                    <li><strong>Odd number:</strong> Prevents split-brain scenarios</li>
+                                </ul>
+                                <p><strong>Production Recommendations:</strong></p>
+                                <ul>
+                                    <li><strong>Startup/Small:</strong> 3 nodes</li>
+                                    <li><strong>Medium/Production:</strong> 5 nodes (can survive 2 failures)</li>
+                                    <li><strong>Critical/Enterprise:</strong> 7 nodes across multiple regions</li>
+                                </ul>
+                                <p><strong>Important:</strong> Always use odd number of voting members (3, 5, 7) to ensure clear majority in elections.</p>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q7</span>
+                                <span class="question-text">How would you troubleshoot a Replica Set where a secondary is stuck in RECOVERING state?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Common Causes & Solutions:</strong></p>
+                                <ol style="margin-left: 1.5rem;">
+                                    <li><strong>Check Oplog Coverage:</strong>
+                                        <ul>
+                                            <li>Use <code>rs.printReplicationInfo()</code> on primary</li>
+                                            <li>If secondary is behind oplog window, it needs initial sync</li>
+                                            <li>Solution: Increase oplog size or resync from backup</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Network Issues:</strong>
+                                        <ul>
+                                            <li>Check connectivity between secondary and primary</li>
+                                            <li>Verify firewall rules and network latency</li>
+                                            <li>Check for packet loss or timeouts</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Disk Space:</strong>
+                                        <ul>
+                                            <li>Check if secondary has sufficient disk space</li>
+                                            <li>Monitor I/O performance</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Resource Constraints:</strong>
+                                        <ul>
+                                            <li>Check CPU/Memory usage</li>
+                                            <li>Look for long-running operations</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                                <p><strong>Troubleshooting Steps:</strong></p>
+                                <div style="background: var(--code-bg); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                    <pre># 1. Check status
+rs.status()
+
+# 2. Check logs
+db.adminCommand({getLog: "global"})
+
+# 3. Check replication info
+rs.printSecondaryReplicationInfo()
+
+# 4. If needed, resync
+# Stop secondary, delete data, restart
+# It will automatically perform initial sync</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="read-write-path.html" class="nav-button prev">
+                            <span class="nav-icon">←</span>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Read/Write Path</div>
+                            </div>
+                        </a>
+                        <a href="mongodb-ecosystem.html" class="nav-button next">
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Ecosystem Tools</div>
+                            </div>
+                            <span class="nav-icon">→</span>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Your existing scripts -->
+    <script src="app.js" onerror="this.remove()"></script>
+    <script src="learning-tracker.js" onerror="this.remove()"></script>
+
+    <script>
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Active TOC Link Highlighting
+        const tocLinks = document.querySelectorAll('.toc-link');
+        const sections = document.querySelectorAll('section[id]');
+
+        function highlightTOC() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').slice(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightTOC);
+
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        // Interview Question Toggle
+        function toggleQuestion(header) {
+            const answer = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            // Close all other answers
+            document.querySelectorAll('.question-answer').forEach(ans => {
+                if (ans !== answer) {
+                    ans.classList.remove('active');
+                    ans.previousElementSibling.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.toggle-icon').forEach(ic => {
+                if (ic !== icon && ic.textContent === '▲') {
+                    ic.textContent = '▼';
+                }
+            });
+            
+            // Toggle current
+            if (answer.classList.contains('active')) {
+                answer.classList.remove('active');
+                header.classList.remove('active');
+                icon.textContent = '▼';
+            } else {
+                answer.classList.add('active');
+                header.classList.add('active');
+                icon.textContent = '▲';
+            }
+        }
+
+        // Node Info Display
+        function showNodeInfo(nodeType) {
+            const infoBox = document.getElementById('nodeInfoBox');
+            const infoText = document.getElementById('nodeInfoText');
+            
+            const nodeInfo = {
+                primary: '👑 PRIMARY NODE: The leader of the replica set. Receives all write operations and replicates them to secondaries. Only one primary can exist at a time.',
+                secondary1: '📋 SECONDARY NODE #1: Maintains an exact copy of the primary\'s data. Can serve read operations (if configured). Eligible to become primary during elections.',
+                secondary2: '📋 SECONDARY NODE #2: Another secondary that replicates data from primary. Provides redundancy and can take over if primary fails.',
+                arbiter: '⚖️ ARBITER: Lightweight node that participates in elections but doesn\'t hold data. Used to maintain odd number of voters.'
+            };
+            
+            infoText.textContent = nodeInfo[nodeType];
+            infoBox.style.display = 'block';
+            
+            setTimeout(() => {
+                infoBox.style.display = 'none';
+            }, 5000);
+        }
+
+        // Interactive Query Playground
+        function runReplicaQuery() {
+            const output = document.getElementById('replicaOutput');
+            const query = document.getElementById('replicaQuery').value.trim();
+            
+            // Simulate query execution
+            output.innerHTML = '<span style="color: var(--warning-orange);">⏳ Executing query...</span>';
+            
+            setTimeout(() => {
+                if (query === 'rs.status()') {
+                    output.innerHTML = `{
+  "set": "myReplicaSet",
+  "date": "2025-12-05T10:30:00.000Z",
+  "myState": 1,
+  "members": [
+    {
+      "_id": 0,
+      "name": "localhost:27017",
+      "health": 1,
+      "state": 1,
+      "stateStr": "PRIMARY",
+      "uptime": 3600,
+      "optime": { "ts": "7456789123456", "t": 2 },
+      "optimeDurable": { "ts": "7456789123456", "t": 2 },
+      "lastHeartbeat": "2025-12-05T10:29:58.000Z",
+      "pingMs": 0
+    },
+    {
+      "_id": 1,
+      "name": "localhost:27018",
+      "health": 1,
+      "state": 2,
+      "stateStr": "SECONDARY",
+      "uptime": 3600,
+      "optime": { "ts": "7456789123455", "t": 2 },
+      "optimeDurable": { "ts": "7456789123455", "t": 2 },
+      "lastHeartbeat": "2025-12-05T10:29:58.000Z",
+      "pingMs": 1,
+      "syncSourceHost": "localhost:27017"
+    },
+    {
+      "_id": 2,
+      "name": "localhost:27019",
+      "health": 1,
+      "state": 2,
+      "stateStr": "SECONDARY",
+      "uptime": 3600,
+      "optime": { "ts": "7456789123455", "t": 2 },
+      "optimeDurable": { "ts": "7456789123455", "t": 2 },
+      "lastHeartbeat": "2025-12-05T10:29:58.000Z",
+      "pingMs": 1,
+      "syncSourceHost": "localhost:27017"
+    }
+  ],
+  "ok": 1
+}
+
+<span style="color: var(--success-green);">✅ All nodes healthy! Replica set is operational.</span>`;
+                } else if (query === 'rs.conf()' || query === 'rs.config()') {
+                    output.innerHTML = `{
+  "_id": "myReplicaSet",
+  "version": 1,
+  "members": [
+    { "_id": 0, "host": "localhost:27017", "priority": 1 },
+    { "_id": 1, "host": "localhost:27018", "priority": 1 },
+    { "_id": 2, "host": "localhost:27019", "priority": 1 }
+  ]
+}`;
+                } else {
+                    output.innerHTML = '<span style="color: var(--error-red);">Try rs.status() or rs.conf()</span>';
+                }
+            },
+            1500);
+        }
+
+        // Copy Code Function
+    function copyCode(button, codeId) {
+        const code = document.getElementById(codeId).textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                button.classList.remove('copied');
+            }, 2000);
+        });
+    }
+
+    // Activate first step on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const steps = document.querySelectorAll('.step');
+        if (steps.length > 0) {
+            steps[0].classList.add('active');
+        }
+    });
+
+    console.log("%c🔁 Welcome to Replica Sets Tutorial! 🚀", "color: #00ED64; font-size: 18px; font-weight: bold;");
+    console.log("%cLearn how MongoDB achieves 99.99% uptime! 💪", "color: #00684A; font-size: 14px;");
+
+    </script>
+</body>
+</html>

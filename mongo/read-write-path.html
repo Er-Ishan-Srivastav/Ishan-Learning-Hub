@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Master MongoDB's Read and Write Path with real examples, animations, and practical scenarios">
+    <title>Read/Write Path - Complete Guide | myPathshala</title>
+    
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Your existing stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+    
+    <style>
+        /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+        :root {
+            --primary-teal: #14B8A6;
+            --dark-teal: #0F766E;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --soft-gray: #F9FAFB;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--soft-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-teal);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(20, 184, 166, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-teal), var(--dark-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 3vw, 2.5rem);
+            margin-bottom: 1.5rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-teal), var(--dark-teal));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Page Header */
+        .page-hero {
+            background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(20, 184, 166, 0.15);
+            border: 1px solid var(--primary-teal);
+            border-radius: 50px;
+            color: var(--primary-teal);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #5EEAD4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-teal);
+            border-left-color: var(--primary-teal);
+            padding-left: 1.25rem;
+        }
+
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        /* Interview Questions - White Cards */
+        .interview-question {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .interview-question:hover {
+            box-shadow: 0 4px 16px rgba(20, 184, 166, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            transition: background 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(20, 184, 166, 0.03);
+        }
+
+        .question-number {
+            background: var(--primary-teal);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .question-text {
+            flex: 1;
+            font-weight: 500;
+            color: #1F2937;
+            font-size: 1rem;
+        }
+
+        .toggle-icon {
+            color: var(--primary-teal);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+            font-weight: bold;
+        }
+
+        .question-header.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: white;
+        }
+
+        .question-answer.active {
+            max-height: 5000px;
+            padding: 1.5rem;
+            border-top: 1px solid #F3F4F6;
+        }
+
+        .question-answer p {
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer strong {
+            color: #1F2937;
+        }
+
+        .question-answer ul {
+            color: #374151;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .question-answer code {
+            background: #F3F4F6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+            color: #14B8A6;
+        }
+
+        /* Code blocks */
+        pre {
+            background: #1E293B;
+            color: #E2E8F0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #1F2937;
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-teal);
+            box-shadow: 0 10px 30px rgba(20, 184, 166, 0.1);
+            transform: translateY(-2px);
+            color: #1F2937;
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-teal);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1F2937;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-teal);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(20, 184, 166, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-teal);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(20, 184, 166, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed">🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path" class="active">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                        <li><a href="practical-example.html" data-page="practical-ex">📑 Practical Example</a></li>
+                    </ul>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html" data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html" data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat">📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Page Hero -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content">
+                    <span class="hero-badge">
+                        <i class="fas fa-sync-alt"></i>
+                        Section 3: MongoDB Architecture
+                    </span>
+                    <h1>🔄 Read/Write Path: Data Journey Through MongoDB</h1>
+                    <p>Understanding how data flows from your application through MongoDB's layers to disk and back</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html">Home</a>
+                <span class="separator">›</span>
+                <a href="index.html">Section 3: Architecture</a>
+                <span class="separator">›</span>
+                <span class="current">Read/Write Path</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <!-- Table of Contents (Floating) -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story" class="nav-btn" style="color: white;">The Restaurant Story</a></li>
+                            <li><a href="#write-path" class="nav-btn" style="color: white;">Write Path Detailed</a></li>
+                            <li><a href="#read-path" class="nav-btn" style="color: white;">Read Path Detailed</a></li>
+                            <li><a href="#write-concerns" class="nav-btn" style="color: white;">Write Concerns</a></li>
+                            <li><a href="#read-preferences" class="nav-btn" style="color: white;">Read Preferences</a></li>
+                            <li><a href="#optimizations" class="nav-btn" style="color: white;">Performance Optimizations</a></li>
+                            <li><a href="#interview-questions" class="nav-btn" style="color: white;">Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    
+                    <!-- Opening Story -->
+                    <section id="opening-story" style="margin-bottom: 4rem;">
+                        <div style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(20, 184, 166, 0.05)); border-left: 5px solid #14B8A6; border-radius: 12px; padding: 2.5rem; margin-bottom: 2rem;">
+                            <h2 style="color: #14B8A6; margin-bottom: 1.5rem;">📖 The Restaurant Kitchen Story</h2>
+                            <div style="color: #94A3B8; line-height: 1.9; font-size: 1.05rem;">
+                                <p style="margin-bottom: 1.5rem;">Imagine MongoDB as a restaurant kitchen. Let's see how orders (data) flow...</p>
+
+                                <!-- Write Path - Taking an Order -->
+                                <div style="background: white; border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #F59E0B;">
+                                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                        <div style="background: linear-gradient(135deg, #F59E0B, #D97706); color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0;">✍️</div>
+                                        <div>
+                                            <h3 style="color: #92400E; margin: 0;">Write Path: Taking an Order</h3>
+                                            <p style="color: #64748B; margin: 0.5rem 0 0 0;">Customer places order → Kitchen processes it</p>
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(245, 158, 11, 0.1); border-radius: 12px; padding: 1.5rem;">
+                                        <h4 style="color: #92400E; margin-bottom: 1rem;">The Journey:</h4>
+                                        <ol style="color: #374151; line-height: 1.9; margin-left: 1.5rem;">
+                                            <li><strong>Customer orders</strong> (Application sends write request)</li>
+                                            <li><strong>Waiter writes it on notepad</strong> (WiredTiger Cache - RAM)</li>
+                                            <li><strong>Kitchen log book updated</strong> (Journal - for safety)</li>
+                                            <li><strong>Every minute, notepad → recipe book</strong> (Checkpoint to disk)</li>
+                                            <li><strong>Receipt given to customer</strong> (Acknowledgment sent)</li>
+                                        </ol>
+                                        <p style="color: #374151; margin-top: 1rem;">
+                                            <strong style="color: #F59E0B;">Result:</strong> Order recorded instantly (1ms), fully saved every 60s!
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Read Path - Serving Food -->
+                                <div style="background: white; border-radius: 16px; padding: 2rem; border: 3px solid #14B8A6;">
+                                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                        <div style="background: linear-gradient(135deg, #14B8A6, #0F766E); color: white; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; flex-shrink: 0;">📖</div>
+                                        <div>
+                                            <h3 style="color: #0F766E; margin: 0;">Read Path: Serving Food</h3>
+                                            <p style="color: #64748B; margin: 0.5rem 0 0 0;">Customer wants to know order status</p>
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(20, 184, 166, 0.1); border-radius: 12px; padding: 1.5rem;">
+                                        <h4 style="color: #0F766E; margin-bottom: 1rem;">The Journey:</h4>
+                                        <ol style="color: #374151; line-height: 1.9; margin-left: 1.5rem;">
+                                            <li><strong>Customer asks about order</strong> (Application sends read request)</li>
+                                            <li><strong>Check waiter's notepad first</strong> (WiredTiger Cache - super fast!)</li>
+                                            <li><strong>If not on notepad → check recipe book</strong> (Read from disk - slower)</li>
+                                            <li><strong>Copy to notepad for next time</strong> (Cache it)</li>
+                                            <li><strong>Tell customer</strong> (Return data)</li>
+                                        </ol>
+                                        <p style="color: #374151; margin-top: 1rem;">
+                                            <strong style="color: #14B8A6;">Result:</strong> Notepad (cache) = instant (100μs), Recipe book (disk) = slower (10ms)
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Key Insight -->
+                                <div style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(20, 184, 166, 0.05)); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #14B8A6;">
+                                    <h4 style="color: #0F766E; text-align: center; margin-bottom: 1.5rem;">💡 The Key Insight</h4>
+                                    <p style="color: #374151; text-align: center; margin: 0; line-height: 1.8; font-size: 1.1rem;">
+                                        <strong>Cache (Notepad) = Fast but temporary</strong><br/>
+                                        <strong>Disk (Recipe Book) = Slower but permanent</strong><br/>
+                                        <span style="color: #14B8A6;">MongoDB balances speed and durability! 🎯</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Write Path Detailed Animation -->
+                    <section id="write-path" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">✍️ Write Path: Complete Flow</h2>
+                            
+                            <svg viewBox="0 0 1100 750" style="width: 100%; height: auto;">
+                                <defs>
+                                    <marker id="arrow1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#14B8A6"/>
+                                    </marker>
+                                    <filter id="glow1">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                
+                                <rect width="1100" height="750" fill="#F9FAFB"/>
+                                
+                                <!-- Step 1: Application -->
+                                <g id="app">
+                                    <rect x="50" y="50" width="200" height="100" fill="#3B82F6" rx="8">
+                                        <animate attributeName="opacity" values="0;1;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="150" y="90" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        Application
+                                        <animate attributeName="opacity" values="0;1;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="150" y="115" text-anchor="middle" fill="white" font-size="13">
+                                        db.users.insert()
+                                        <animate attributeName="opacity" values="0;1;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow 1 -->
+                                <path d="M 150 150 L 150 220" stroke="#14B8A6" stroke-width="3" marker-end="url(#arrow1)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;200,0" dur="12s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;1;0;0;0;0" dur="12s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 2: MongoDB Driver -->
+                                <g id="driver">
+                                    <rect x="50" y="220" width="200" height="100" fill="#8B5CF6" rx="8">
+                                        <animate attributeName="opacity" values="0;0;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="150" y="260" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        MongoDB Driver
+                                        <animate attributeName="opacity" values="0;0;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="150" y="285" text-anchor="middle" fill="white" font-size="13">
+                                        Connection pooling
+                                        <animate attributeName="opacity" values="0;0;1;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow 2 -->
+                                <path d="M 250 270 L 340 270" stroke="#14B8A6" stroke-width="3" marker-end="url(#arrow1)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;200,0" dur="12s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;1;0;0;0" dur="12s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 3: mongod Process -->
+                                <g id="mongod">
+                                    <rect x="340" y="220" width="200" height="100" fill="#10B981" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="440" y="260" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        mongod Process
+                                        <animate attributeName="opacity" values="0;0;0;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="440" y="285" text-anchor="middle" fill="white" font-size="13">
+                                        Query parser
+                                        <animate attributeName="opacity" values="0;0;0;1;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow 3 to Cache -->
+                                <path d="M 440 320 L 440 400" stroke="#14B8A6" stroke-width="3" marker-end="url(#arrow1)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;0,200;200,0" dur="12s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;1;0;0" dur="12s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 4: WiredTiger Cache -->
+                                <g id="cache">
+                                    <rect x="340" y="400" width="200" height="120" fill="#8B5CF6" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;0;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="440" y="435" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        WiredTiger Cache
+                                        <animate attributeName="opacity" values="0;0;0;0;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="440" y="460" text-anchor="middle" fill="white" font-size="13">
+                                        In-Memory (RAM)
+                                        <animate attributeName="opacity" values="0;0;0;0;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="440" y="485" text-anchor="middle" fill="white" font-size="12">
+                                        ⚡ 1ms write time
+                                        <animate attributeName="opacity" values="0;0;0;0;1;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow to Journal -->
+                                <path d="M 540 460 L 650 460" stroke="#F59E0B" stroke-width="3" marker-end="url(#arrow1)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;0,200;0,200;200,0" dur="12s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;1;0" dur="12s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 5: Journal -->
+                                <g id="journal">
+                                    <rect x="650" y="400" width="200" height="120" fill="#F59E0B" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="750" y="435" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        Journal (WAL)
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="750" y="460" text-anchor="middle" fill="white" font-size="13">
+                                        Write-Ahead Log
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="750" y="485" text-anchor="middle" fill="white" font-size="12">
+                                        Sync every 50ms
+                                        <animate attributeName="opacity" values="0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Arrow to Checkpoint -->
+                                <path d="M 750 520 L 750 600" stroke="#10B981" stroke-width="3" marker-end="url(#arrow1)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;0,200;0,200;0,200;200,0" dur="12s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- Step 6: Data Files -->
+                                <g id="datafiles">
+                                    <rect x="650" y="600" width="200" height="100" fill="#6366F1" rx="8">
+                                        <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="750" y="640" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                        Data Files (.wt)
+                                        <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                    <text x="750" y="665" text-anchor="middle" fill="white" font-size="13">
+                                        Checkpoint every 60s
+                                        <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="12s" repeatCount="indefinite"/>
+                                    </text>
+                                </g>
+                                
+                                <!-- Timeline -->
+                                <line x1="50" y1="720" x2="1050" y2="720" stroke="#CBD5E1" stroke-width="2"/>
+                                
+                                <circle cx="150" cy="720" r="6" fill="#3B82F6"/>
+                                <text x="150" y="745" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">0ms</text>
+                                
+                                <circle cx="350" cy="720" r="6" fill="#8B5CF6"/>
+                                <text x="350" y="745" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">~0.5ms</text>
+                                
+                                <circle cx="550" cy="720" r="6" fill="#10B981"/>
+                                <text x="550" y="745" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">~1ms</text>
+                                
+                                <circle cx="750" cy="720" r="6" fill="#F59E0B"/>
+                                <text x="750" y="745" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">50ms</text>
+                                
+                                <circle cx="950" cy="720" r="6" fill="#6366F1"/>
+                                <text x="950" y="745" text-anchor="middle" font-size="12" fill="#374151" font-weight="600">60 seconds</text>
+                            </svg>
+
+                            <div style="background: rgba(20, 184, 166, 0.1); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #14B8A6;">
+                                <h4 style="color: #0F766E; margin-bottom: 1rem;">📝 Write Path Timeline:</h4>
+                                <ul style="color: #374151; line-height: 2; margin: 0;">
+                                    <li><strong>0ms:</strong> Application issues insert/update command</li>
+                                    <li><strong>~0.5ms:</strong> MongoDB driver sends request to mongod</li>
+                                    <li><strong>~1ms:</strong> mongod writes to WiredTiger Cache (RAM) - <strong>Write acknowledged here! ⚡</strong></li>
+                                    <li><strong>50ms:</strong> Journal synced to disk (crash safety guaranteed)</li>
+                                    <li><strong>60s:</strong> Checkpoint flushes cache to .wt data files (durable on disk)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Read Path Detailed Animation -->
+                    <section id="read-path" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">📖 Read Path: Complete Flow</h2>
+                            
+                            <svg viewBox="0 0 1100 650" style="width: 100%; height: auto;">
+                                <defs>
+                                    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#10B981"/>
+                                    </marker>
+                                    <marker id="arrow3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6" fill="#EF4444"/>
+                                    </marker>
+                                </defs>
+                                
+                                <rect width="1100" height="650" fill="#F9FAFB"/>
+                                
+                                <!-- Application -->
+                                <rect x="50" y="50" width="200" height="100" fill="#3B82F6" rx="8">
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="150" y="90" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                    Application
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="150" y="115" text-anchor="middle" fill="white" font-size="13">
+                                    db.users.findOne()
+                                    <animate attributeName="opacity" values="0;1;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Arrow to mongod -->
+                                <path d="M 250 100 L 380 100" stroke="#10B981" stroke-width="3" marker-end="url(#arrow2)">
+                                    <animate attributeName="stroke-dasharray" values="0,300;300,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;1;0;0;0;0;0" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- mongod -->
+                                <rect x="380" y="50" width="200" height="100" fill="#10B981" rx="8">
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="480" y="90" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                    mongod Process
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="480" y="115" text-anchor="middle" fill="white" font-size="13">
+                                    Query router
+                                    <animate attributeName="opacity" values="0;0;1;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Arrow to Cache -->
+                                <path d="M 480 150 L 480 250" stroke="#10B981" stroke-width="3" marker-end="url(#arrow2)">
+                                    <animate attributeName="stroke-dasharray" values="0,200;0,200;200,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;1;0;0;0;0" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <!-- WiredTiger Cache -->
+                                <rect x="380" y="250" width="200" height="150" fill="#8B5CF6" rx="8">
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="480" y="290" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                    WiredTiger Cache
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="480" y="315" text-anchor="middle" fill="white" font-size="13">
+                                    Check RAM first
+                                    <animate attributeName="opacity" values="0;0;0;1;1;1;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Cache Hit -->
+                                <circle cx="480" cy="355" r="30" fill="#10B981">
+                                    <animate attributeName="opacity" values="0;0;0;0;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="480" y="363" text-anchor="middle" fill="white" font-size="24" font-weight="bold">
+                                    ✓
+                                    <animate attributeName="opacity" values="0;0;0;0;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Cache Miss -->
+                                <circle cx="480" cy="355" r="30" fill="#EF4444">
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </circle>
+                                <text x="480" y="363" text-anchor="middle" fill="white" font-size="24" font-weight="bold">
+                                    ✗
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Cache Hit Path -->
+                                <path d="M 380 325 L 150 325 L 150 200" stroke="#10B981" stroke-width="3" marker-end="url(#arrow2)">
+                                    <animate attributeName="stroke-dasharray" values="0,600;0,600;0,600;0,600;600,0;0,0;0,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <text x="265" y="310" text-anchor="middle" fill="#10B981" font-size="14" font-weight="bold">
+                                    CACHE HIT (~100μs)
+                                    <animate attributeName="opacity" values="0;0;0;0;1;0;0" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Cache Miss Path to Disk -->
+                                <path d="M 580 325 L 780 325" stroke="#EF4444" stroke-width="3" marker-end="url(#arrow3)">
+                                    <animate attributeName="stroke-dasharray" values="0,300;0,300;0,300;0,300;0,300;0,300;300,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <text x="680" y="310" text-anchor="middle" fill="#EF4444" font-size="14" font-weight="bold">
+                                    CACHE MISS
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Data Files -->
+                                <rect x="780" y="250" width="200" height="150" fill="#6366F1" rx="8">
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </rect>
+                                <text x="880" y="290" text-anchor="middle" fill="white" font-size="18" font-weight="bold">
+                                    Data Files (.wt)
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="880" y="315" text-anchor="middle" fill="white" font-size="13">
+                                    Read from disk
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                <text x="880" y="340" text-anchor="middle" fill="white" font-size="12">
+                                    🐢 10-50ms
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Return from disk -->
+                                <path d="M 880 400 L 880 480 L 480 480 L 480 400" stroke="#6366F1" stroke-width="3" marker-end="url(#arrow2)">
+                                    <animate attributeName="stroke-dasharray" values="0,900;0,900;0,900;0,900;0,900;0,900;900,0" dur="10s" repeatCount="indefinite"/>
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </path>
+                                
+                                <text x="680" y="500" text-anchor="middle" fill="#6366F1" font-size="13" font-weight="600">
+                                    Load to cache, then return
+                                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="10s" repeatCount="indefinite"/>
+                                </text>
+                                
+                                <!-- Performance box -->
+                                <rect x="100" y="530" width="900" height="90" fill="white" rx="8" stroke="#CBD5E1" stroke-width="2"/>
+                                <text x="550" y="560" text-anchor="middle" font-size="16" fill="#374151" font-weight="bold">⚡ Read Performance Comparison</text>
+                                
+                                <rect x="150" y="575" width="380" height="35" fill="#F0FDF4" rx="6" stroke="#10B981" stroke-width="2"/>
+                                <text x="170" y="598" font-size="14" fill="#065F46" font-weight="600">✓ Cache Hit: ~100 microseconds (0.1ms)</text>
+                                
+                                <rect x="570" y="575" width="380" height="35" fill="#FEF3C7" rx="6" stroke="#F59E0B" stroke-width="2"/>
+                                <text x="590" y="598" font-size="14" fill="#92400E" font-weight="600">✗ Cache Miss: ~10-50 milliseconds (100-500x slower)</text>
+                            </svg>
+
+                            <div style="background: rgba(16, 185, 129, 0.1); border-radius: 12px; padding: 2rem; margin-top: 2rem; border: 2px solid #10B981;">
+                                <h4 style="color: #065F46; margin-bottom: 1rem;">📖 Read Path Logic:</h4>
+                                <ul style="color: #374151; line-height: 2; margin: 0;">
+                                    <li><strong>Step 1:</strong> Application sends find/findOne query</li>
+                                    <li><strong>Step 2:</strong> mongod checks WiredTiger Cache first (RAM)</li>
+                                    <li><strong>Step 3a (Cache Hit):</strong> Data found → Return immediately (~100μs) ⚡</li>
+                                    <li><strong>Step 3b (Cache Miss):</strong> Not in cache → Read from .wt files on disk (~10-50ms) 🐢</li>
+                                    <li><strong>Step 4:</strong> If from disk → Load into cache for future reads</li>
+                                    <li><strong>Goal:</strong> Keep cache hit ratio >90% for best performance!</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Write Concerns -->
+                    <section id="write-concerns" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">⚙️ Write Concerns: Durability Levels</h2>
+                            
+                            <div style="background: rgba(20, 184, 166, 0.1); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; border: 2px solid #14B8A6;">
+                                <p style="color: #374151; text-align: center; font-size: 1.1rem; line-height: 1.8; margin: 0;">
+                                    Write concern controls <strong style="color: #0F766E;">when MongoDB acknowledges a write</strong> -<br/>
+                                    Trade-off between <strong style="color: #0F766E;">speed</strong> vs <strong style="color: #0F766E;">durability</strong>
+                                </p>
+                            </div>
+
+                            <div style="display: grid; gap: 1.5rem;">
+                                <!-- w: 0 -->
+                                <div style="background: #FEE2E2; border-left: 5px solid #EF4444; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #991B1B; margin-bottom: 0.5rem;">w: 0 (Unacknowledged)</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Fire-and-forget, no acknowledgment</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Speed:</strong> ⚡ Fastest (~0.1ms)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Durability:</strong> ⚠️ No guarantee</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Logs, analytics where loss is acceptable</p>
+                                </div>
+
+                                <!-- w: 1 -->
+                                <div style="background: #FEF3C7; border-left: 5px solid #F59E0B; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #92400E; margin-bottom: 0.5rem;">w: 1 (Default - Acknowledged)</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Acknowledged when written to primary's cache</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Speed:</strong> ⚡ Fast (~1ms)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Durability:</strong> ✅ Good (journal ensures recovery)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Most applications, balanced approach</p>
+                                </div>
+
+                                <!-- w: majority -->
+                                <div style="background: #F0FDF4; border-left: 5px solid #10B981; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #065F46; margin-bottom: 0.5rem;">w: "majority" (Replica Set)</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Acknowledged when written to majority of nodes</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Speed:</strong> 🐢 Slower (~10-50ms)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Durability:</strong> ✅ Excellent (survives node failures)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Critical data (banking, healthcare)</p>
+                                </div>
+
+                                <!-- j: true -->
+                                <div style="background: #EFF6FF; border-left: 5px solid #3B82F6; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #1E40AF; margin-bottom: 0.5rem;">j: true (Journaled)</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Acknowledged when written to journal on disk</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Speed:</strong> 🐢 Slower (~50ms)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Durability:</strong> ✅ Excellent (crash-safe)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Single node with high durability needs</p>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 2rem;">
+                                <h4 style="color: #374151; margin-bottom: 1rem;">💡 Configuration Example:</h4>
+                                <pre>// Fast, default
+db.users.insertOne(doc, { writeConcern: { w: 1 } })
+
+// Highly durable, slower
+db.transactions.insertOne(doc, { 
+  writeConcern: { w: "majority", j: true } 
+})</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Read Preferences -->
+                    <section id="read-preferences" style="margin-bottom: 4rem;">
+                        <div style="background: white; border-radius: 16px; padding: 2.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
+                            <h2 style="color: #001E2B; margin-bottom: 2rem; text-align: center;">📚 Read Preferences: Where to Read</h2>
+                            
+                            <div style="background: rgba(59, 130, 246, 0.1); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; border: 2px solid #3B82F6;">
+                                <p style="color: #374151; text-align: center; font-size: 1.1rem; line-height: 1.8; margin: 0;">
+                                    Read preference determines <strong style="color: #1E40AF;">which replica set member</strong> handles read operations -<br/>
+                                    Trade-off between <strong style="color: #1E40AF;">consistency</strong> vs <strong style="color: #1E40AF;">performance/availability</strong>
+                                </p>
+                            </div>
+
+                            <div style="display: grid; gap: 1.5rem;">
+                                <!-- primary -->
+                                <div style="background: #F0FDF4; border-left: 5px solid #10B981; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #065F46; margin-bottom: 0.5rem;">primary (Default)</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> All reads from primary node</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Consistency:</strong> ✅ Strongest (always latest data)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Performance:</strong> 🐢 Primary can be bottleneck</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Default for most applications</p>
+                                </div>
+
+                                <!-- primaryPreferred -->
+                                <div style="background: #DBEAFE; border-left: 5px solid #3B82F6; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #1E40AF; margin-bottom: 0.5rem;">primaryPreferred</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Primary if available, else secondary</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Consistency:</strong> ✅ Good (slight lag on failover)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Performance:</strong> ⚡ Better availability</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> High availability with consistency preference</p>
+                                </div>
+
+                                <!-- secondary -->
+                                <div style="background: #FEF3C7; border-left: 5px solid #F59E0B; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #92400E; margin-bottom: 0.5rem;">secondary</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> All reads from secondary nodes</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Consistency:</strong> ⚠️ Eventual (may be stale)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Performance:</strong> ⚡ Distributes read load</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Analytics, reporting, search (stale OK)</p>
+                                </div>
+
+                                <!-- secondaryPreferred -->
+                                <div style="background: #FEF3C7; border-left: 5px solid #F59E0B; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #92400E; margin-bottom: 0.5rem;">secondaryPreferred</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Secondary if available, else primary</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Consistency:</strong> ⚠️ Eventual (may be stale)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Performance:</strong> ⚡ Best read distribution</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Read-heavy apps, analytics dashboards</p>
+                                </div>
+
+                                <!-- nearest -->
+                                <div style="background: #F5F3FF; border-left: 5px solid #8B5CF6; padding: 1.5rem; border-radius: 8px;">
+                                    <h4 style="color: #5B21B6; margin-bottom: 0.5rem;">nearest</h4>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Behavior:</strong> Read from closest node (lowest latency)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Consistency:</strong> ⚠️ Eventual (may be stale)</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Performance:</strong> ⚡ Lowest latency</p>
+                                    <p style="color: #374151; margin: 0.5rem 0;"><strong>Use case:</strong> Geo-distributed apps, multi-region</p>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 2rem;">
+                                <h4 style="color: #374151; margin-bottom: 1rem;">💡 Configuration Example:</h4>
+                                <pre>// Read from primary (default)
+db.users.find().readPref("primary")
+
+// Read from secondaries (analytics)
+db.logs.find().readPref("secondary")
+
+// Read from nearest (geo-distributed)
+db.products.find().readPref("nearest")</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Performance Optimizations -->
+                    <section id="optimizations" style="margin-bottom: 4rem;">
+                        <h2 style="color: #14B8A6; margin-bottom: 2rem;">🚀 Performance Optimizations</h2>
+                        
+                        <div style="display: grid; gap: 2rem;">
+                            <!-- Indexes -->
+                            <div style="background: white; border-radius: 12px; padding: 2rem; border-left: 5px solid #10B981;">
+                                <h3 style="color: #065F46; margin-bottom: 1rem;">📇 1. Indexes</h3>
+                                <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                    Without index: Collection scan (slow) 🐢<br/>
+                                    With index: Direct lookup (fast) ⚡
+                                </p>
+                                <pre>// Create index on email field
+db.users.createIndex({ email: 1 })
+
+// Query now uses index
+db.users.find({ email: "john@example.com" })
+// ~0.1ms instead of 100ms!</pre>
+                            </div>
+
+                            <!-- Connection Pooling -->
+                            <div style="background: white; border-radius: 12px; padding: 2rem; border-left: 5px solid #3B82F6;">
+                                <h3 style="color: #1E40AF; margin-bottom: 1rem;">🔌 2. Connection Pooling</h3>
+                                <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                    Reuse connections instead of creating new ones for each request
+                                </p>
+                                <pre>// Connection pool configuration
+const client = new MongoClient(uri, {
+  maxPoolSize: 100,  // Max connections
+  minPoolSize: 10    // Min connections
+});</pre>
+                            </div>
+
+                            <!-- Projection -->
+                            <div style="background: white; border-radius: 12px; padding: 2rem; border-left: 5px solid #F59E0B;">
+                                <h3 style="color: #92400E; margin-bottom: 1rem;">🎯 3. Projection (Select Only Needed Fields)</h3>
+                                <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                    Don't fetch entire document if you only need specific fields
+                                </p>
+                                <pre>// Bad: Fetch entire document
+db.users.find({ age: { $gt: 25 } })
+
+// Good: Fetch only name and email
+db.users.find(
+  { age: { $gt: 25 } },
+  { name: 1, email: 1, _id: 0 }
+)</pre>
+                            </div>
+
+                            <!-- Batch Operations -->
+                            <div style="background: white; border-radius: 12px; padding: 2rem; border-left: 5px solid #8B5CF6;">
+                                <h3 style="color: #5B21B6; margin-bottom: 1rem;">📦 4. Batch Operations</h3>
+                                <p style="color: #374151; line-height: 1.8; margin-bottom: 1rem;">
+                                    Insert multiple documents in one call instead of many individual calls
+                                </p>
+                                <pre>// Bad: 1000 individual inserts
+for (let i = 0; i < 1000; i++) {
+  db.users.insertOne(docs[i])  // 1000ms
+}
+
+// Good: One bulk insert
+db.users.insertMany(docs)  // 10ms!</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview-questions">
+                        <h2>❓ Interview Questions & Answers</h2>
+                        
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q1</span>
+                                <span class="question-text">Explain the complete write path in MongoDB from application to disk.</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Write Path Flow:</strong></p>
+                                <ol>
+                                    <li><strong>Application (0ms):</strong> Issues insert/update command via MongoDB driver</li>
+                                    <li><strong>MongoDB Driver (~0.5ms):</strong> Sends request to mongod process over network</li>
+                                    <li><strong>mongod Process (~1ms):</strong> Parses query and routes to storage engine</li>
+                                    <li><strong>WiredTiger Cache (~1ms):</strong> Writes to in-memory cache (RAM) - <strong>Write acknowledged here!</strong></li>
+                                    <li><strong>Journal (~50ms):</strong> Operation logged to write-ahead log (WAL) on disk for crash recovery</li>
+                                    <li><strong>Checkpoint (~60 seconds):</strong> Dirty pages flushed from cache to .wt data files on disk</li>
+                                </ol>
+                                <p><strong>Key Points:</strong></p>
+                                <ul>
+                                    <li>Write is acknowledged after step 4 (~1ms) for speed</li>
+                                    <li>Journal ensures durability - on crash, replay journal to recover uncommitted writes</li>
+                                    <li>Checkpoint creates consistent snapshot every 60 seconds</li>
+                                    <li>Trade-off: Speed (cache) vs Durability (journal + checkpoints)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q2</span>
+                                <span class="question-text">What is the difference between a cache hit and cache miss in the read path?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Cache Hit (Fast ⚡):</strong></p>
+                                <ul>
+                                    <li>Data found in WiredTiger Cache (RAM)</li>
+                                    <li>Return immediately without disk access</li>
+                                    <li>Latency: ~100 microseconds (0.1ms)</li>
+                                    <li>Example: Reading a user profile that was recently accessed</li>
+                                </ul>
+                                <p><strong>Cache Miss (Slower 🐢):</strong></p>
+                                <ul>
+                                    <li>Data NOT in cache → must read from disk (.wt files)</li>
+                                    <li>After reading from disk, load into cache for future reads</li>
+                                    <li>Latency: ~10-50 milliseconds (100-500x slower than cache hit)</li>
+                                    <li>Example: Reading a document that hasn't been accessed in hours</li>
+                                </ul>
+                                <p><strong>Why Cache Hit Ratio Matters:</strong></p>
+                                <ul>
+                                    <li>Goal: Keep cache hit ratio >90%</li>
+                                    <li>90% hit rate = 10x faster average reads than 50% hit rate</li>
+                                    <li>Increase cache size (more RAM) to improve hit ratio</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q3</span>
+                                <span class="question-text">What is write concern? Explain w:1 vs w:"majority".</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>Write concern controls when MongoDB acknowledges a write operation. It's a trade-off between speed and durability.</p>
+                                <p><strong>w: 1 (Default - Acknowledged):</strong></p>
+                                <ul>
+                                    <li><strong>Behavior:</strong> Acknowledged when written to primary node's cache</li>
+                                    <li><strong>Speed:</strong> Fast (~1ms)</li>
+                                    <li><strong>Durability:</strong> Good - journal ensures recovery on crash</li>
+                                    <li><strong>Risk:</strong> If primary fails before replicating, write could be lost</li>
+                                    <li><strong>Use case:</strong> Most applications, balanced approach</li>
+                                </ul>
+                                <p><strong>w: "majority" (Replica Set):</strong></p>
+                                <ul>
+                                    <li><strong>Behavior:</strong> Acknowledged when written to majority of nodes (e.g., 2 out of 3)</li>
+                                    <li><strong>Speed:</strong> Slower (~10-50ms depending on network)</li>
+                                    <li><strong>Durability:</strong> Excellent - survives single node failures</li>
+                                    <li><strong>Risk:</strong> Very low - write is durable even if primary fails</li>
+                                    <li><strong>Use case:</strong> Critical data (banking, healthcare, financial transactions)</li>
+                                </ul>
+                                <p><strong>Example Configuration:</strong></p>
+                                <pre>// Fast, default
+db.users.insertOne(doc, { writeConcern: { w: 1 } })
+
+// Highly durable, slower
+db.transactions.insertOne(doc, { 
+  writeConcern: { w: "majority", j: true } 
+})</pre>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q4</span>
+                                <span class="question-text">Explain read preferences and when to use "secondary" vs "primary".</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>Read preference determines which replica set member handles read operations. Trade-off between consistency and performance.</p>
+                                <p><strong>primary (Default):</strong></p>
+                                <ul>
+                                    <li><strong>Behavior:</strong> All reads from primary node</li>
+                                    <li><strong>Consistency:</strong> Strongest - always latest data</li>
+                                    <li><strong>Performance:</strong> Primary can become bottleneck</li>
+                                    <li><strong>Use case:</strong> When you need guaranteed latest data (user profile updates, inventory)</li>
+                                </ul>
+                                <p><strong>secondary:</strong></p>
+                                <ul>
+                                    <li><strong>Behavior:</strong> All reads from secondary nodes</li>
+                                    <li><strong>Consistency:</strong> Eventual - may be stale (lag 0-few seconds)</li>
+                                    <li><strong>Performance:</strong> Distributes read load across secondaries</li>
+                                    <li><strong>Use case:</strong> Analytics, reporting, search, dashboards (where stale data is acceptable)</li>
+                                </ul>
+                                <p><strong>When to use secondary:</strong></p>
+                                <ul>
+                                    <li>Read-heavy workloads that don't need latest data</li>
+                                    <li>Reporting and analytics queries</li>
+                                    <li>Search functionality</li>
+                                    <li>Background batch processing</li>
+                                </ul>
+                                <p><strong>When to use primary:</strong></p>
+                                <ul>
+                                    <li>Transactional data requiring latest state</li>
+                                    <li>Read-your-own-writes scenarios</li>
+                                    <li>Critical operations (money transfers, inventory checks)</li>
+                                </ul>
+                                <p><strong>Example:</strong></p>
+                                <pre>// Primary for critical reads
+db.inventory.findOne({ sku: "ABC123" }).readPref("primary")
+
+// Secondary for analytics
+db.orders.aggregate([...]).readPref("secondary")</pre>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q5</span>
+                                <span class="question-text">How does MongoDB ensure data durability in the write path?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p>MongoDB uses multiple mechanisms to ensure data durability:</p>
+                                <p><strong>1. Journal (Write-Ahead Log):</strong></p>
+                                <ul>
+                                    <li>All write operations logged to journal before applying</li>
+                                    <li>Journal synced to disk every 50ms (configurable)</li>
+                                    <li>On crash: Replay journal entries to recover uncommitted writes</li>
+                                    <li>Location: <code>dbPath/journal/</code> directory</li>
+                                </ul>
+                                <p><strong>2. Checkpoints:</strong></p>
+                                <ul>
+                                    <li>Every 60 seconds, flush WiredTiger cache to disk</li>
+                                    <li>Creates consistent snapshot of all data</li>
+                                    <li>After checkpoint, journal entries before that point can be deleted</li>
+                                </ul>
+                                <p><strong>3. Replica Sets (w: "majority"):</strong></p>
+                                <ul>
+                                    <li>Write acknowledged only after majority of nodes have it</li>
+                                    <li>Survives single node failures</li>
+                                    <li>Example: 3-node cluster needs 2 nodes to acknowledge</li>
+                                </ul>
+                                <p><strong>Crash Recovery Process:</strong></p>
+                                <pre>1. MongoDB crashes at 10:30:45
+2. Last checkpoint: 10:30:00
+3. On restart:
+   - Load checkpoint (consistent state at 10:30:00)
+   - Replay journal (10:30:00 to 10:30:45)
+   - All committed writes recovered! ✅</pre>
+                                <p><strong>Trade-offs:</strong></p>
+                                <ul>
+                                    <li>More durability = Higher latency (journal sync, replication)</li>
+                                    <li>Less durability = Lower latency (cache-only writes)</li>
+                                    <li>Configure via writeConcern based on use case</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="interview-question">
+                            <div class="question-header" onclick="toggleQuestion(this)">
+                                <span class="question-number">Q6</span>
+                                <span class="question-text">What performance optimizations can you apply to MongoDB reads and writes?</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="question-answer">
+                                <p><strong>Answer:</strong></p>
+                                <p><strong>Read Optimizations:</strong></p>
+                                <ul>
+                                    <li><strong>Indexes:</strong> Create indexes on frequently queried fields
+                                        <pre>db.users.createIndex({ email: 1 })  // 100x faster lookups</pre>
+                                    </li>
+                                    <li><strong>Projections:</strong> Fetch only needed fields
+                                        <pre>db.users.find({}, { name: 1, email: 1 })  // Less data transferred</pre>
+                                    </li>
+                                    <li><strong>Covered Queries:</strong> Query + projection covered entirely by index (no document fetch)
+                                        <pre>db.users.createIndex({ email: 1, name: 1 })
+db.users.find({ email: "x" }, { name: 1, _id: 0 })  // Covered!</pre>
+                                    </li>
+                                    <li><strong>Increase Cache Size:</strong> More RAM = higher cache hit ratio
+                                        <pre>wiredTiger.cacheSizeGB: 16  // Larger cache</pre>
+                                    </li>
+                                    <li><strong>Read from Secondaries:</strong> Distribute load for analytics/reporting
+                                        <pre>db.logs.find().readPref("secondary")</pre>
+                                    </li>
+                                </ul>
+                                <p><strong>Write Optimizations:</strong></p>
+                                <ul>
+                                    <li><strong>Batch Operations:</strong> Insert many docs at once
+                                        <pre>db.users.insertMany(docs)  // 100x faster than individual inserts</pre>
+                                    </li>
+                                    <li><strong>Lower Write Concern:</strong> For non-critical writes
+                                        <pre>db.logs.insertOne(doc, { w: 1 })  // Faster than w: "majority"</pre>
+                                    </li>
+                                    <li><strong>Reduce Index Count:</strong> Each index slows writes
+                                        <pre>// Remove unused indexes
+db.users.dropIndex("oldIndex")</pre>
+                                    </li>
+                                    <li><strong>Connection Pooling:</strong> Reuse connections
+                                        <pre>const client = new MongoClient(uri, { maxPoolSize: 100 })</pre>
+                                    </li>
+                                </ul>
+                                <p><strong>General Optimizations:</strong></p>
+                                <ul>
+                                    <li><strong>Shard for Scale:</strong> Distribute data across servers</li>
+                                    <li><strong>Monitor Cache Hit Ratio:</strong> Keep >90%</li>
+                                    <li><strong>Use Profiler:</strong> Identify slow queries</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="wiredtiger.html" class="nav-button prev">
+                            <span class="nav-icon">←</span>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">WiredTiger Storage</div>
+                            </div>
+                        </a>
+                        <a href="replica-set-components.html" class="nav-button next">
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Replica Sets</div>
+                            </div>
+                            <span class="nav-icon">→</span>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Your existing scripts -->
+    <script src="app.js" onerror="this.remove()"></script>
+    <script src="learning-tracker.js" onerror="this.remove()"></script>
+
+    <script>
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Active TOC Link Highlighting
+        const tocLinks = document.querySelectorAll('.toc-link');
+        const sections = document.querySelectorAll('section[id]');
+
+        function highlightTOC() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').slice(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', highlightTOC);
+
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        // Interview Question Toggle
+        function toggleQuestion(header) {
+            const answer = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            // Close all other answers
+            document.querySelectorAll('.question-answer').forEach(ans => {
+                if (ans !== answer) {
+                    ans.classList.remove('active');
+                    ans.previousElementSibling.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.toggle-icon').forEach(ic => {
+                if (ic !== icon) {
+                    ic.textContent = '▼';
+                }
+            }); 
+            
+            // Toggle current answer
+            answer.classList.toggle('active');
+            header.classList.toggle('active');
+            icon.textContent = answer.classList.contains('active') ? '▲' : '▼';
+        }
+    </script>
+</body>
+</html>

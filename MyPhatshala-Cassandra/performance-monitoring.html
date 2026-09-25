@@ -1,0 +1,2951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Performance Monitoring in Cassandra - Track and optimize your cluster!">
+    <title>Performance Monitoring in Cassandra | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Performance Monitoring</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html" class="active">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-exclamation-triangle"></i>
+                       Performance Tuning
+                    </span>
+                    <h1>Performance Monitoring <span class="gradient-text">in Cassandra</span></h1>
+                    <p>Keep an eye on your database health! Performance monitoring helps you track how fast and stable Cassandra is running, so you can fix problems early and maintain smooth operations.</p>
+
+
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="performance-monitoring.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">Performance Monitoring</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#opening-story">📖 Rachel's Story</a></li>
+                            <li><a href="#fundamentals">📊 Fundamentals</a></li>
+                            <li><a href="#nodetool">🔧 nodetool Commands</a></li>
+                            <li><a href="#jmx-metrics">📡 JMX Metrics</a></li>
+                            <li><a href="#alerting">🚨 Alerting Rules</a></li>
+                            <li><a href="#dashboards">📊 Dashboards</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Rachel's Silent Performance Degradation</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Rachel's Cassandra cluster was "fine" - no alerts, no obvious errors. But users complained about slowness. She checked - P99 latency had crept from 10ms to 250ms over 3 months. Nobody noticed because there was no monitoring. By the time she investigated, 847 pending compactions, 15GB heap at 98%, and 200+ SSTables per table. A slow-motion disaster.</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">😱 The Silent Degradation</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">How It Started (Month 1):</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Initial state (nobody monitoring):</span>
+P99 latency: <span class="number">10</span>ms          <span class="comment">← Good!</span>
+Pending compactions: <span class="number">5</span>    <span class="comment">← Normal</span>
+Heap usage: <span class="number">60</span>%            <span class="comment">← Healthy</span>
+SSTable count: <span class="number">45</span>          <span class="comment">← Fine</span>
+
+<span class="comment">Everything looks fine... or does it?</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Slow Creep (Month 2):</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- What Rachel didn't see:</span>
+P99 latency: <span class="number">35</span>ms         <span class="comment">← Getting worse!</span>
+Pending compactions: <span class="number">45</span>   <span class="comment">← Growing!</span>
+Heap usage: <span class="number">75</span>%           <span class="comment">← Creeping up!</span>
+SSTable count: <span class="number">95</span>         <span class="comment">← Doubling!</span>
+
+<span class="comment">// But no alerts!</span>
+<span class="comment">// No monitoring!</span>
+<span class="comment">// Nobody noticed!</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Crisis (Month 3):</strong></p>
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- When users started complaining:</span>
+P99 latency: <span class="number">250</span>ms        <span class="comment">← DISASTER!</span>
+Pending compactions: <span class="number">847</span>  <span class="comment">← BACKLOG!</span>
+Heap usage: <span class="number">98</span>%           <span class="comment">← CRITICAL!</span>
+SSTable count: <span class="number">237</span>        <span class="comment">← OUT OF CONTROL!</span>
+GC pause max: <span class="number">15</span>,<span class="number">000</span>ms     <span class="comment">← 15 SECONDS!</span>
+
+<span class="comment">Users: "Why is everything so slow?"</span>
+<span class="comment">Rachel: "Let me check... OH NO!"</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Root Causes Nobody Caught:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Compaction Falling Behind:</strong> Write rate > compaction rate</li>
+                    <li><strong>Heap Leak:</strong> Slow memory leak over 3 months</li>
+                    <li><strong>SSTable Explosion:</strong> STCS with no size limit</li>
+                    <li><strong>GC Pauses Growing:</strong> From 100ms → 15 seconds</li>
+                    <li><strong>No Alerts:</strong> Everything just slowly got worse</li>
+                    <li><strong>No Baseline:</strong> Didn't know what "good" looked like</li>
+                </ol>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">The Painful Recovery:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>💰 <strong>Downtime:</strong> 6 hours maintenance window</li>
+                    <li>⚙️ <strong>Manual Compactions:</strong> Forced on all tables</li>
+                    <li>🔄 <strong>Heap Dump Analysis:</strong> Found memory leak in driver</li>
+                    <li>📉 <strong>Revenue Impact:</strong> $50K lost from slow performance</li>
+                    <li>😓 <strong>Team Stress:</strong> Weekend emergency work</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">✅ The Monitoring Solution</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">What Rachel Implemented:</strong></p>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: #059669;">1. Comprehensive Metrics Collection</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Prometheus + Grafana setup</span>
+<span class="comment">- JMX metrics export (every 15 seconds)</span>
+<span class="comment">- System metrics (CPU, disk, network)</span>
+<span class="comment">- Application metrics (latency, throughput)</span>
+<span class="comment">- Custom dashboards for each node</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: #059669;">2. Proactive Alerting</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Alert rules (catch problems early!):</span>
+<span class="comment">- P99 latency > 50ms (warn), > 100ms (critical)</span>
+<span class="comment">- Pending compactions > 20 (warn), > 50 (critical)</span>
+<span class="comment">- Heap usage > 80% (warn), > 90% (critical)</span>
+<span class="comment">- GC pause > 1s (critical)</span>
+<span class="comment">- SSTable count > 100 per table (warn)</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: #059669;">3. Baseline Tracking</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Establish "normal" for each metric</span>
+<span class="comment">- Historical graphs (30 days)</span>
+<span class="comment">- Trend analysis (detect slow degradation)</span>
+<span class="comment">- Anomaly detection (catch spikes)</span>
+                    </div>
+                </div>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>⚡ <strong>Early Detection:</strong> Caught issues in minutes, not months</li>
+                        <li>📊 <strong>P99 Latency:</strong> Stable at 8-12ms (instead of 250ms)</li>
+                        <li>🔔 <strong>Alert Fired:</strong> Week 2 - caught heap leak immediately</li>
+                        <li>💰 <strong>Zero Downtime:</strong> No more emergency maintenance</li>
+                        <li>😊 <strong>Users Happy:</strong> Consistent performance</li>
+                        <li>🎯 <strong>Proactive:</strong> Fix issues before users notice</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Rachel learned: What you don't monitor will eventually fail! 📈</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="fundamentals" data-aos="fade-up">
+    <h2>📊 Monitoring Fundamentals</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">What to monitor and why it matters!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 The Four Pillars of Monitoring</h3>
+        <div style="color: var(--text-secondary); line-height: 1.9;">
+            <ol style="line-height: 2;">
+                <li><strong>Latency:</strong> How fast are requests? (P50, P99, P999)</li>
+                <li><strong>Throughput:</strong> How many ops/sec? (reads, writes, total)</li>
+                <li><strong>Errors:</strong> What's failing? (timeouts, unavailable, errors)</li>
+                <li><strong>Saturation:</strong> How full are resources? (CPU, disk, memory)</li>
+            </ol>
+            <p style="margin-top: 1rem;"><strong>Remember:</strong> If you can't measure it, you can't improve it!</p>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Critical Metrics by Category</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">⚡</div>
+            <h3>Performance</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Read latency:</strong> P99 < 50ms</li>
+                <li><strong>Write latency:</strong> P99 < 20ms</li>
+                <li><strong>Throughput:</strong> ops/sec</li>
+                <li><strong>Timeouts:</strong> Should be 0%</li>
+                <li><strong>Unavailable errors:</strong> Track rate</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #10b981;">
+            <div class="comparison-icon">💾</div>
+            <h3>Resources</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>CPU usage:</strong> < 70%</li>
+                <li><strong>Heap usage:</strong> 60-80%</li>
+                <li><strong>Disk I/O:</strong> < 80%</li>
+                <li><strong>Network:</strong> < 70%</li>
+                <li><strong>Disk space:</strong> < 70% full</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #0d9488;">
+            <div class="comparison-icon">🔄</div>
+            <h3>Cassandra Internals</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Pending compactions:</strong> < 20</li>
+                <li><strong>SSTable count:</strong> < 100/table</li>
+                <li><strong>GC pause time:</strong> < 200ms</li>
+                <li><strong>Dropped messages:</strong> Track rate</li>
+                <li><strong>Hints:</strong> Should be minimal</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">📈</div>
+            <h3>Cluster Health</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Node status:</strong> All UP</li>
+                <li><strong>Gossip state:</strong> Consistent</li>
+                <li><strong>Schema agreement:</strong> All nodes</li>
+                <li><strong>Streaming:</strong> Track repairs</li>
+                <li><strong>Ownership:</strong> Balanced tokens</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Monitoring Levels</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">Level 1: Basic (Minimum)</h4>
+                <p style="color: var(--text-secondary);"><strong>What:</strong> Essential survival metrics</p>
+                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>Node up/down status</li>
+                    <li>CPU, memory, disk usage</li>
+                    <li>Basic throughput</li>
+                    <li>P99 latency</li>
+                </ul>
+                <p style="margin-top: 0.5rem;"><strong>Good for:</strong> Small deployments, getting started</p>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Level 2: Production (Recommended)</h4>
+                <p style="color: var(--text-secondary);"><strong>What:</strong> Comprehensive monitoring</p>
+                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>All Level 1 metrics</li>
+                    <li>Compaction metrics</li>
+                    <li>GC statistics</li>
+                    <li>SSTable counts</li>
+                    <li>Dropped messages</li>
+                    <li>Cache hit rates</li>
+                </ul>
+                <p style="margin-top: 0.5rem;"><strong>Good for:</strong> Production clusters, most use cases</p>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Level 3: Advanced (Enterprise)</h4>
+                <p style="color: var(--text-secondary);"><strong>What:</strong> Deep visibility</p>
+                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>All Level 2 metrics</li>
+                    <li>Per-table statistics</li>
+                    <li>Distributed tracing</li>
+                    <li>Anomaly detection</li>
+                    <li>Capacity forecasting</li>
+                    <li>SLA tracking</li>
+                </ul>
+                <p style="margin-top: 0.5rem;"><strong>Good for:</strong> Large scale, critical workloads</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="nodetool" data-aos="fade-up">
+    <h2>🔧 nodetool Monitoring Commands</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential commands for quick health checks!</p>
+
+    <h3 style="color: var(--accent-purple);">Quick Health Check</h3>
+
+    <div class="code-block">
+<span class="comment">####################################</span>
+<span class="comment"># 5-MINUTE HEALTH CHECK</span>
+<span class="comment">####################################</span>
+
+<span class="comment">-- 1. Cluster status</span>
+nodetool status
+<span class="comment">/*
+Datacenter: datacenter1
+Status=Up/Down, State=Normal/Leaving/Joining
+UN  192.168.1.10  156.48 GB  32  100.0%  abc123...
+UN  192.168.1.11  158.32 GB  32  100.0%  def456...
+UN  192.168.1.12  155.91 GB  32  100.0%  ghi789...
+
+✅ All nodes UN (Up Normal)
+✅ Balanced ownership (~33% each)
+✅ Similar data size
+*/</span>
+
+<span class="comment">-- 2. Compaction status</span>
+nodetool compactionstats
+<span class="comment">/*
+pending tasks: 12  ← Should be < 20
+SSTable count: 87  ← Should be < 100 per table
+
+⚠️ If pending > 50 → falling behind!
+*/</span>
+
+<span class="comment">-- 3. GC statistics</span>
+nodetool gcstats
+<span class="comment">/*
+Interval   Max GC   Total GC   Stdev    GC#
+600 sec    157 ms   487 ms     23 ms    12
+
+✅ Max < 200ms
+✅ Total < 500ms per interval
+*/</span>
+
+<span class="comment">-- 4. Thread pools</span>
+nodetool tpstats
+<span class="comment">/*
+Pool Name         Active  Pending  Blocked
+ReadStage         8       0        0  ← Should be 0
+MutationStage     4       0        0  ← Should be 0
+
+⚠️ Pending > 100 → bottleneck!
+*/</span>
+
+<span class="comment">-- 5. Dropped messages (CRITICAL!)</span>
+nodetool netstats | grep -i dropped
+<span class="comment">/*
+Dropped: 0  ← MUST be 0!
+
+❌ Any drops = serious problem!
+*/</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Detailed Metrics Commands</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Table Statistics</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Per-table metrics:</span>
+nodetool tablestats keyspace.tablename
+
+<span class="comment">/*
+Key metrics to watch:
+- Space used: Is it growing as expected?
+- SSTable count: Should be < 100
+- Bloom filter size: Grows with data
+- Read latency: P99 should be < 10ms
+- Write latency: P99 should be < 5ms
+*/</span>
+
+<span class="comment">-- Quick check all tables:</span>
+nodetool tablestats | grep -E <span class="string">"Table:|SSTable count:"</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">Resource Usage</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Memory usage:</span>
+nodetool info | grep -E <span class="string">"Heap|Off"</span>
+<span class="comment">/*
+Heap Memory (MB): 11245 / 16384  (69%)
+Off Heap Memory (MB): 87
+*/</span>
+
+<span class="comment">-- Cache statistics:</span>
+nodetool info | grep Cache
+<span class="comment">/*
+Row Cache: size 2048 MB, capacity 4096 MB, hit rate 0.89
+Key Cache: size 256 MB, capacity 512 MB, hit rate 0.95
+
+✅ High hit rates (> 80%)
+*/</span>
+
+<span class="comment">-- Data size per node:</span>
+nodetool status | awk '{print $<span class="number">6</span>}'
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Performance Metrics</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Latency histograms:</span>
+nodetool proxyhistograms
+
+<span class="comment">/*
+proxy histograms
+Percentile  Read Latency  Write Latency
+50%         1.23 ms       0.87 ms
+75%         2.45 ms       1.23 ms
+95%         8.76 ms       3.45 ms
+98%         15.2 ms       5.67 ms
+99%         28.4 ms       8.92 ms  ← Watch this!
+Min         0.42 ms       0.31 ms
+Max         247 ms        156 ms   ← Watch for spikes!
+*/</span>
+
+<span class="comment">-- Timeout statistics:</span>
+nodetool tablestats | grep -i timeout
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Monitoring Script</h3>
+
+    <div class="code-block">
+<span class="comment">-- health_check.sh (run every 5 minutes):</span>
+#!/bin/bash
+
+LOGFILE=<span class="string">"/var/log/cassandra/health.log"</span>
+ALERT_FILE=<span class="string">"/var/log/cassandra/alerts.log"</span>
+
+echo <span class="string">"=== $(date) ==="</span> >> $LOGFILE
+
+<span class="comment"># Check compaction</span>
+PENDING=$(nodetool compactionstats | grep <span class="string">"pending tasks"</span> | awk '{print $<span class="number">3</span>}')
+<span class="keyword">if</span> [ $PENDING -gt <span class="number">50</span> ]; <span class="keyword">then</span>
+  echo <span class="string">"ALERT: Pending compactions: $PENDING"</span> >> $ALERT_FILE
+<span class="keyword">fi</span>
+
+<span class="comment"># Check heap</span>
+HEAP=$(nodetool info | grep <span class="string">"Heap Memory"</span> | awk -F'[(/]' '{print $<span class="number">2</span>*<span class="number">100</span>/$<span class="number">3</span>}')
+<span class="keyword">if</span> (( $(echo <span class="string">"$HEAP > 90"</span> | bc -l) )); <span class="keyword">then</span>
+  echo <span class="string">"ALERT: Heap usage: $HEAP%"</span> >> $ALERT_FILE
+<span class="keyword">fi</span>
+
+<span class="comment"># Check GC</span>
+MAX_GC=$(nodetool gcstats | grep sec | awk '{print $<span class="number">2</span>}' | sed 's/ms//')
+<span class="keyword">if</span> (( $(echo <span class="string">"$MAX_GC > 1000"</span> | bc -l) )); <span class="keyword">then</span>
+  echo <span class="string">"ALERT: Max GC pause: ${MAX_GC}ms"</span> >> $ALERT_FILE
+<span class="keyword">fi</span>
+
+<span class="comment"># Check dropped messages</span>
+DROPPED=$(nodetool netstats | grep Dropped | awk '{sum+=$<span class="number">2</span>} END {print sum}')
+<span class="keyword">if</span> [ $DROPPED -gt <span class="number">0</span> ]; <span class="keyword">then</span>
+  echo <span class="string">"ALERT: Dropped messages: $DROPPED"</span> >> $ALERT_FILE
+<span class="keyword">fi</span>
+
+nodetool status >> $LOGFILE
+nodetool tpstats >> $LOGFILE
+    </div>
+</section>
+
+<section id="jmx-metrics" data-aos="fade-up">
+    <h2>📡 JMX Metrics Export</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Exporting metrics to monitoring systems!</p>
+
+    <h3 style="color: var(--accent-purple);">Prometheus + Grafana Setup</h3>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-left-color: #10b981;">
+        <h3 style="color: #10b981; margin-top: 0;">🎯 Best Practice Stack</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Prometheus scrapes metrics from JMX exporter → stores time-series data → Grafana visualizes with dashboards. This is the industry-standard setup for Cassandra monitoring.
+        </p>
+    </div>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Step 1: Install JMX Exporter</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Download JMX exporter:</span>
+wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/<span class="number">0.18.0</span>/jmx_prometheus_javaagent-<span class="number">0.18.0</span>.jar \
+  -O /opt/cassandra/jmx_exporter.jar
+
+<span class="comment">-- Create config file (jmx_exporter.yaml):</span>
+---
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+whitelistObjectNames:
+  - org.apache.cassandra.metrics:*
+  - java.lang:type=GarbageCollector,*
+  - java.lang:type=Memory
+  - java.lang:type=OperatingSystem
+    </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">Step 2: Configure Cassandra</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Add to jvm.options:</span>
+-javaagent:/opt/cassandra/jmx_exporter.jar=<span class="number">7070</span>:/opt/cassandra/jmx_exporter.yaml
+
+<span class="comment">-- Restart Cassandra:</span>
+sudo systemctl restart cassandra
+
+<span class="comment">-- Verify metrics exposed:</span>
+curl http://localhost:<span class="number">7070</span>/metrics
+<span class="comment">/*
+# HELP cassandra_table_readlatency_99thpercentile
+# TYPE cassandra_table_readlatency_99thpercentile gauge
+cassandra_table_readlatency_99thpercentile 8.7
+...
+*/</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Step 3: Configure Prometheus</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- prometheus.yml:</span>
+global:
+  scrape_interval: <span class="number">15</span>s
+  evaluation_interval: <span class="number">15</span>s
+
+scrape_configs:
+  - job_name: <span class="string">'cassandra'</span>
+    static_configs:
+      - targets:
+        - <span class="string">'node1:7070'</span>
+        - <span class="string">'node2:7070'</span>
+        - <span class="string">'node3:7070'</span>
+        labels:
+          cluster: <span class="string">'production'</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #f59e0b;"></div>
+            <div class="timeline-content" style="border-left-color: #f59e0b;">
+                <h4 style="color: #f59e0b;">Step 4: Create Grafana Dashboards</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Import pre-built dashboard:</span>
+<span class="comment">// 1. Go to grafana.com/dashboards</span>
+<span class="comment">// 2. Search "Cassandra"</span>
+<span class="comment">// 3. Import dashboard ID: 11298 (popular one)</span>
+
+<span class="comment">-- Or create custom panels for:</span>
+<span class="comment">- Read/Write latency (P50, P99, P999)</span>
+<span class="comment">- Throughput (ops/sec)</span>
+<span class="comment">- Pending compactions</span>
+<span class="comment">- Heap usage</span>
+<span class="comment">- GC pause times</span>
+<span class="comment">- SSTable counts</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Key Metrics to Export</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">JMX Path</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Alert Threshold</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Read Latency P99</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">org.apache.cassandra.metrics:type=ClientRequest,scope=Read,name=Latency</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 50ms</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Write Latency P99</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">org.apache.cassandra.metrics:type=ClientRequest,scope=Write,name=Latency</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 20ms</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Pending Compactions</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">org.apache.cassandra.metrics:type=Compaction,name=PendingTasks</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 20</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Heap Usage</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">java.lang:type=Memory</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 85%</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Dropped Messages</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">org.apache.cassandra.metrics:type=DroppedMessage</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 0</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="alerting" data-aos="fade-up">
+    <h2>🚨 Alerting Rules</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Setting up proactive alerts!</p>
+
+    <h3 style="color: var(--accent-purple);">Prometheus Alert Rules</h3>
+
+    <div class="code-block">
+<span class="comment">####################################</span>
+<span class="comment"># cassandra_alerts.yml</span>
+<span class="comment">####################################</span>
+
+groups:
+  - name: cassandra_alerts
+    interval: <span class="number">30</span>s
+    rules:
+    
+    <span class="comment"># ========== PERFORMANCE ALERTS ==========</span>
+    
+    - alert: HighReadLatency
+      expr: cassandra_table_readlatency_99thpercentile > <span class="number">50</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: warning
+      annotations:
+        summary: <span class="string">"High read latency on {{ $labels.instance }}"</span>
+        description: <span class="string">"P99 read latency is {{ $value }}ms (> 50ms)"</span>
+    
+    - alert: HighWriteLatency
+      expr: cassandra_table_writelatency_99thpercentile > <span class="number">20</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: warning
+      annotations:
+        summary: <span class="string">"High write latency on {{ $labels.instance }}"</span>
+        description: <span class="string">"P99 write latency is {{ $value }}ms (> 20ms)"</span>
+    
+    <span class="comment"># ========== COMPACTION ALERTS ==========</span>
+    
+    - alert: CompactionBacklog
+      expr: cassandra_compaction_pendingtasks > <span class="number">20</span>
+      for: <span class="number">10</span>m
+      labels:
+        severity: warning
+      annotations:
+        summary: <span class="string">"Compaction backlog on {{ $labels.instance }}"</span>
+        description: <span class="string">"{{ $value }} pending compaction tasks"</span>
+    
+    - alert: CompactionCritical
+      expr: cassandra_compaction_pendingtasks > <span class="number">100</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"CRITICAL: Compaction backlog on {{ $labels.instance }}"</span>
+        description: <span class="string">"{{ $value }} pending tasks - compaction falling behind!"</span>
+    
+    <span class="comment"># ========== MEMORY ALERTS ==========</span>
+    
+    - alert: HighHeapUsage
+      expr: (jvm_memory_used_bytes{area=<span class="string">"heap"</span>} / jvm_memory_max_bytes{area=<span class="string">"heap"</span>}) > <span class="number">0.85</span>
+      for: <span class="number">10</span>m
+      labels:
+        severity: warning
+      annotations:
+        summary: <span class="string">"High heap usage on {{ $labels.instance }}"</span>
+        description: <span class="string">"Heap usage at {{ $value | humanizePercentage }}"</span>
+    
+    - alert: CriticalHeapUsage
+      expr: (jvm_memory_used_bytes{area=<span class="string">"heap"</span>} / jvm_memory_max_bytes{area=<span class="string">"heap"</span>}) > <span class="number">0.95</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"CRITICAL: Heap usage on {{ $labels.instance }}"</span>
+        description: <span class="string">"Heap at {{ $value | humanizePercentage }} - OOM imminent!"</span>
+    
+    <span class="comment"># ========== GC ALERTS ==========</span>
+    
+    - alert: LongGCPauses
+      expr: cassandra_storage_gc_pausetime_max > <span class="number">1000</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"Long GC pauses on {{ $labels.instance }}"</span>
+        description: <span class="string">"Max GC pause: {{ $value }}ms (> 1s)"</span>
+    
+    <span class="comment"># ========== MESSAGE DROPS ==========</span>
+    
+    - alert: DroppedMessages
+      expr: rate(cassandra_droppedmessage_dropped_count[<span class="number">5</span>m]) > <span class="number">0</span>
+      for: <span class="number">2</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"Dropped messages on {{ $labels.instance }}"</span>
+        description: <span class="string">"Dropping {{ $value }} messages/sec"</span>
+    
+    <span class="comment"># ========== NODE STATUS ==========</span>
+    
+    - alert: NodeDown
+      expr: up{job=<span class="string">"cassandra"</span>} == <span class="number">0</span>
+      for: <span class="number">2</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"Cassandra node DOWN: {{ $labels.instance }}"</span>
+        description: <span class="string">"Node has been down for 2 minutes"</span>
+    
+    <span class="comment"># ========== DISK SPACE ==========</span>
+    
+    - alert: LowDiskSpace
+      expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < <span class="number">0.15</span>
+      for: <span class="number">10</span>m
+      labels:
+        severity: warning
+      annotations:
+        summary: <span class="string">"Low disk space on {{ $labels.instance }}"</span>
+        description: <span class="string">"Only {{ $value | humanizePercentage }} space remaining"</span>
+    
+    - alert: CriticalDiskSpace
+      expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < <span class="number">0.10</span>
+      for: <span class="number">5</span>m
+      labels:
+        severity: critical
+      annotations:
+        summary: <span class="string">"CRITICAL: Disk space on {{ $labels.instance }}"</span>
+        description: <span class="string">"Only {{ $value | humanizePercentage }} remaining!"</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Alert Priority Levels</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Severity</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Response Time</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Examples</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Critical</strong> 🔴</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Immediate (< 15 min)</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Node down, dropped messages, OOM</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Warning</strong> ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Within hours</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">High latency, compaction backlog</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Info</strong> ℹ️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Track trends</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Capacity planning, growth rates</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="dashboards" data-aos="fade-up">
+    <h2>📊 Dashboard Essentials</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">What to display on your monitoring dashboards!</p>
+
+    <h3 style="color: var(--accent-purple);">The Perfect Cassandra Dashboard</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #8b5cf6;">
+            <div class="comparison-icon">⚡</div>
+            <h3>Performance Panel</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Read latency (P50, P99, P999)</li>
+                <li>Write latency (P50, P99, P999)</li>
+                <li>Operations per second</li>
+                <li>Timeout rate</li>
+                <li>Error rate</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #8b5cf6; font-size: 0.9rem;">⏱️ 1-minute intervals</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #10b981;">
+            <div class="comparison-icon">🔄</div>
+            <h3>Cassandra Health Panel</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Pending compactions</li>
+                <li>SSTable count per table</li>
+                <li>GC pause times</li>
+                <li>Dropped messages</li>
+                <li>Hints stored</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #10b981; font-size: 0.9rem;">📊 5-minute intervals</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #0d9488;">
+            <div class="comparison-icon">💾</div>
+            <h3>Resources Panel</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>CPU usage per node</li>
+                <li>Heap usage (%)</li>
+                <li>Disk I/O (read/write)</li>
+                <li>Network throughput</li>
+                <li>Disk space remaining</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #0d9488; font-size: 0.9rem;">📈 1-minute intervals</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">📡</div>
+            <h3>Cluster Overview Panel</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li>Node status (UP/DOWN)</li>
+                <li>Schema agreement</li>
+                <li>Ownership distribution</li>
+                <li>Active repairs</li>
+                <li>Streaming status</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #f59e0b; font-size: 0.9rem;">🔍 5-minute intervals</p>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Dashboard Design Tips</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">1. Most Important Metrics on Top</h4>
+                <p style="color: var(--text-secondary);">What you check first should be at the top!</p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Row 1: P99 latency, throughput, error rate</li>
+                    <li>Row 2: Node status, pending compactions, heap</li>
+                    <li>Row 3: Detailed metrics, per-table stats</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">2. Use Color Coding</h4>
+                <p style="color: var(--text-secondary);">Visual cues for quick assessment!</p>
+                <ul style="color: var(--text-secondary);">
+                    <li>🟢 Green: Healthy (< warning threshold)</li>
+                    <li>🟡 Yellow: Warning (needs attention)</li>
+                    <li>🔴 Red: Critical (immediate action)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #059669;"></div>
+            <div class="timeline-content" style="border-left-color: #059669;">
+                <h4 style="color: #059669;">3. Historical Context</h4>
+                <p style="color: var(--text-secondary);">Show trends, not just current values!</p>
+                <ul style="color: var(--text-secondary);">
+                    <li>Last 6 hours for operational view</li>
+                    <li>Last 7 days for trend analysis</li>
+                    <li>Overlay events (deployments, repairs)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box expert" data-aos="fade-up">
+        <h4><i class="fas fa-tv" style="color: var(--accent-purple);"></i> The "NOC Screen" Test</h4>
+        <p style="margin-top: 1rem;">If you display your dashboard on a wall monitor, can you tell cluster health from 10 feet away?</p>
+        <ul style="margin-top: 0.5rem; line-height: 1.9;">
+            <li>✅ Big numbers for P99 latency</li>
+            <li>✅ Status indicators (green/yellow/red)</li>
+            <li>✅ Trend graphs (up/down/stable)</li>
+            <li>❌ Tiny text, complex tables</li>
+        </ul>
+    </div>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master performance monitoring for your interview!</p>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">What are the top 5 metrics you would monitor for a production Cassandra cluster?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: (1) P99 read/write latency - user experience, (2) Pending compactions - long-term stability, (3) Heap usage - OOM risk, (4) Dropped messages - overload indicator, (5) Node status - availability. These five catch 90% of problems before users notice.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>The Critical Five:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">1. P99 Latency (Most Important!)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Why P99, not average:</span>
+Average latency: <span class="number">8</span>ms    <span class="comment">← Looks great!</span>
+P99 latency: <span class="number">250</span>ms     <span class="comment">← Users suffering!</span>
+
+<span class="comment">-- What it tells you:</span>
+<span class="comment">// - User experience (1 in 100 requests)</span>
+<span class="comment">// - GC pause impact</span>
+<span class="comment">// - Compaction interference</span>
+<span class="comment">// - Overload signals</span>
+
+<span class="comment">-- Alert thresholds:</span>
+P99 read > <span class="number">50</span>ms: Warning
+P99 read > <span class="number">100</span>ms: Critical
+P99 write > <span class="number">20</span>ms: Warning
+P99 write > <span class="number">50</span>ms: Critical
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">2. Pending Compactions</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Why it matters:</span>
+Pending: <span class="number">847</span> tasks    <span class="comment">← Disaster brewing!</span>
+SSTables: <span class="number">237</span>        <span class="comment">← Read amplification!</span>
+
+<span class="comment">-- Leading indicator:</span>
+<span class="comment">// Day 1: 5 pending (normal)</span>
+<span class="comment">// Week 1: 20 pending (warning!)</span>
+<span class="comment">// Week 2: 50 pending (critical!)</span>
+<span class="comment">// Week 4: 500 pending (too late!)</span>
+
+<span class="comment">-- Catches problems early!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">3. Heap Usage</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- OOM predictor:</span>
+Heap: <span class="number">98</span>%           <span class="comment">← OOM imminent!</span>
+GC frequency: <span class="number">1</span>/sec  <span class="comment">← Thrashing!</span>
+
+<span class="comment">-- Sweet spot:</span>
+<span class="number">60</span>-<span class="number">80</span>%: Healthy ✅
+<span class="number">80</span>-<span class="number">90</span>%: Warning ⚠️
+> <span class="number">90</span>%: Critical ❌
+
+<span class="comment">-- Prevents OOM crashes!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">4. Dropped Messages</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Cluster overload indicator:</span>
+Dropped: <span class="number">1247</span> messages/sec  <span class="comment">← Overloaded!</span>
+
+<span class="comment">-- What causes drops:</span>
+<span class="comment">// - Thread pool saturation</span>
+<span class="comment">// - Too much load</span>
+<span class="comment">// - Slow nodes</span>
+<span class="comment">// - Network issues</span>
+
+<span class="comment">-- Must be ZERO!</span>
+Any drops = serious problem!
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">5. Node Status</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Availability:</span>
+nodetool status
+UN: <span class="number">3</span> nodes      <span class="comment">← All UP ✅</span>
+DN: <span class="number">0</span> nodes      <span class="comment">← None DOWN ✅</span>
+
+<span class="comment">-- What to watch:</span>
+<span class="comment">// - Node down (immediate alert!)</span>
+<span class="comment">// - Gossip issues</span>
+<span class="comment">// - Schema disagreement</span>
+<span class="comment">// - Ownership imbalance</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why These Five?</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Comprehensive:</strong> Cover performance, stability, capacity</li>
+                        <li><strong>Early Warning:</strong> Catch issues before users notice</li>
+                        <li><strong>Actionable:</strong> Clear remediation steps</li>
+                        <li><strong>Essential:</strong> 90% of problems show up here</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Monitor user experience (latency), long-term health (compactions), resource limits (heap), overload signals (drops), and availability (node status). These five metrics catch most problems early!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">How would you set up proactive alerting to catch performance degradation before users complain?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Use tiered alerting with leading indicators: (1) Warning alerts at 60-80% of critical thresholds, (2) Trend alerts for slow degradation, (3) Rate-of-change alerts for sudden spikes, (4) Anomaly detection for unusual patterns. Alert on metrics that predict problems (compactions, heap) before they affect users (latency).</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Tiered Alerting Strategy:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Level 1: Leading Indicators (Predict Problems)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Alert BEFORE users affected:</span>
+
+<span class="comment"># Compaction backlog (leading indicator):</span>
+<span class="number">5</span> pending: Normal
+<span class="number">20</span> pending: ⚠️ WARNING (investigate)
+<span class="number">50</span> pending: ❌ CRITICAL (act now!)
+
+<span class="comment"># Heap creeping up:</span>
+<span class="number">60</span>-<span class="number">75</span>%: Normal
+<span class="number">75</span>-<span class="number">85</span>%: ⚠️ WARNING (monitor closely)
+> <span class="number">85</span>%: ❌ CRITICAL (add capacity/tune)
+
+<span class="comment">These warn hours/days before users notice!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Level 2: Trend Alerts (Catch Slow Degradation)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Detect gradual worsening:</span>
+
+<span class="comment"># P99 latency trending up:</span>
+<span class="keyword">if</span> P99_today > P99_last_week * <span class="number">1.5</span>:
+  alert(<span class="string">"Latency degrading: was 10ms, now 15ms"</span>)
+
+<span class="comment"># SSTable count growing:</span>
+<span class="keyword">if</span> SSTables_today > SSTables_last_month * <span class="number">2</span>:
+  alert(<span class="string">"SSTables doubled: compaction not keeping up"</span>)
+
+<span class="comment">Catches Rachel's 3-month degradation!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Level 3: Rate-of-Change Alerts (Sudden Problems)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Catch sudden spikes:</span>
+
+<span class="comment"># Latency spike:</span>
+<span class="keyword">if</span> rate(P99_latency[<span class="number">5</span>m]) > <span class="number">50</span>%:
+  alert(<span class="string">"Latency spiked 50% in 5 minutes!"</span>)
+
+<span class="comment"># Error rate surge:</span>
+<span class="keyword">if</span> errors_per_sec > baseline * <span class="number">10</span>:
+  alert(<span class="string">"Error rate 10x normal!"</span>)
+
+<span class="comment">Catches deployment issues, outages</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Level 4: Anomaly Detection (Unusual Patterns)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Machine learning for anomalies:</span>
+
+<span class="comment"># Traffic pattern unusual:</span>
+<span class="keyword">if</span> current_ops > mean + <span class="number">3</span> * stddev:
+  alert(<span class="string">"Traffic 3σ above normal"</span>)
+
+<span class="comment"># GC pattern changed:</span>
+<span class="keyword">if</span> gc_frequency_today != gc_pattern_last_30d:
+  alert(<span class="string">"GC behavior changed"</span>)
+
+<span class="comment">Catches weird, unexpected issues</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Complete Alert Configuration:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Prometheus alert rules:</span>
+
+<span class="comment"># Level 1: Leading indicators</span>
+- alert: CompactionBacklogWarning
+  expr: cassandra_compaction_pendingtasks > <span class="number">20</span>
+  for: <span class="number">10</span>m
+  severity: warning
+
+<span class="comment"># Level 2: Trend</span>
+- alert: LatencyTrending
+  expr: |
+    cassandra_latency_p99 > 
+    cassandra_latency_p99 offset <span class="number">7</span>d * <span class="number">1.5</span>
+  for: <span class="number">1</span>h
+  severity: warning
+
+<span class="comment"># Level 3: Rate of change</span>
+- alert: LatencySpike
+  expr: |
+    (cassandra_latency_p99 - cassandra_latency_p99 offset <span class="number">5</span>m) / 
+    cassandra_latency_p99 offset <span class="number">5</span>m > <span class="number">0.5</span>
+  for: <span class="number">2</span>m
+  severity: critical
+
+<span class="comment"># Level 4: Anomaly</span>
+- alert: TrafficAnomaly
+  expr: |
+    abs(cassandra_ops_per_sec - 
+        avg_over_time(cassandra_ops_per_sec[<span class="number">7</span>d])) >
+    <span class="number">3</span> * stddev_over_time(cassandra_ops_per_sec[<span class="number">7</span>d])
+  for: <span class="number">10</span>m
+  severity: warning
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Alert Fatigue Prevention:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ <strong>Tune thresholds:</strong> Adjust based on normal patterns</li>
+                        <li>✅ <strong>Require duration:</strong> "for: 10m" prevents flapping</li>
+                        <li>✅ <strong>Group related alerts:</strong> Don't spam with 100 alerts</li>
+                        <li>✅ <strong>Actionable only:</strong> Every alert needs clear action</li>
+                        <li>❌ <strong>Don't alert on:</strong> Metrics you can't act on</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Proactive monitoring uses leading indicators (compactions, heap) and trends (slow degradation) to catch problems hours or days before users complain. Alert on predictive metrics, not just symptoms!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">What's the difference between monitoring and observability? Why does it matter for Cassandra?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Monitoring answers "is it broken?" with predefined metrics (CPU, latency). Observability answers "why is it broken?" with arbitrary queries into system behavior. For Cassandra: monitoring catches known problems (high GC), observability debugs unknown problems (why is this specific query slow?). Need both.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Monitoring (Traditional Approach):</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Known metrics, predefined dashboards:</span>
+
+<span class="comment"># What you track:</span>
+<span class="comment">- CPU usage</span>
+<span class="comment">- Memory usage</span>
+<span class="comment">- P99 latency</span>
+<span class="comment">- Throughput</span>
+<span class="comment">- Error rate</span>
+
+<span class="comment"># Questions it answers:</span>
+<span class="string">"Is latency high?"</span> → Yes, P99 = <span class="number">250</span>ms
+<span class="string">"Is heap full?"</span> → Yes, <span class="number">95</span>%
+
+<span class="comment"># What it CAN'T answer:</span>
+<span class="string">"WHY is latency high?"</span> → 🤷
+<span class="string">"WHICH queries are slow?"</span> → 🤷
+<span class="string">"WHAT changed?"</span> → 🤷
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Observability (Modern Approach):</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Flexible exploration, arbitrary queries:</span>
+
+<span class="comment"># Tools:</span>
+<span class="comment">- Distributed tracing (see request flow)</span>
+<span class="comment">- Structured logging (query by any field)</span>
+<span class="comment">- Metrics with high cardinality</span>
+
+<span class="comment"># Questions it answers:</span>
+<span class="string">"WHY is latency high?"</span>
+→ Trace shows: <span class="number">200</span>ms in compaction
+
+<span class="string">"WHICH queries are slow?"</span>
+→ SELECT * FROM huge_table (no LIMIT!)
+
+<span class="string">"WHAT changed at 3pm?"</span>
+→ Deployment introduced N+1 query pattern
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Cassandra-Specific Examples:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Problem</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Monitoring Says</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Observability Reveals</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Slow reads</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">P99 = 250ms ⚠️</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Trace: Reading from 237 SSTables!</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">High CPU</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">CPU = 95% ⚠️</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Logs: Compaction stuck on huge partition</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Timeouts</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Timeout rate = 15% ⚠️</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Trace: CL=ALL on cross-DC query!</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disk full</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Disk = 95% ⚠️</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Query: Table X has 500GB uncompacted!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Implementing Observability:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 1. Distributed Tracing (Jaeger/Zipkin):</span>
+<span class="comment"># See request flow across nodes</span>
+Request → Node1 (coordinator) → Node2 (replica) → Node3 (replica)
+  <span class="number">2</span>ms       <span class="number">150</span>ms (GC pause!)      <span class="number">3</span>ms
+  
+<span class="comment">Now you know: Node2's GC caused slowness!</span>
+
+<span class="comment">-- 2. Structured Logging:</span>
+log.info({
+  <span class="string">"query"</span>: query,
+  <span class="string">"table"</span>: <span class="string">"users"</span>,
+  <span class="string">"latency_ms"</span>: <span class="number">250</span>,
+  <span class="string">"sstables_read"</span>: <span class="number">237</span>,  <span class="comment">← Aha!</span>
+  <span class="string">"consistency_level"</span>: <span class="string">"QUORUM"</span>
+})
+
+<span class="comment">Query: "Show me all queries with sstables_read > 100"</span>
+
+<span class="comment">-- 3. High-Cardinality Metrics:</span>
+cassandra_latency{
+  table=<span class="string">"users"</span>,
+  operation=<span class="string">"read"</span>,
+  consistency=<span class="string">"QUORUM"</span>
+} = <span class="number">250</span>ms
+
+<span class="comment">Query: "Which tables have high latency?"</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why You Need Both:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Monitoring:</strong> Catches known problems automatically</li>
+                        <li><strong>Observability:</strong> Debugs unknown/new problems</li>
+                        <li><strong>Together:</strong> Monitoring alerts, observability investigates</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Monitoring tells you THAT there's a problem. Observability tells you WHY. For Cassandra: use monitoring for alerts, observability for debugging!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">A node shows 95% heap usage but no obvious memory leak. How would you diagnose this?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: (1) Take heap dump with jmap, (2) Analyze with Eclipse MAT or jhat to find large objects, (3) Check nodetool tablestats for huge partitions, (4) Check row cache size, (5) Review memtable settings. Common causes: row cache too large, giant partitions, memtables oversized, or actual memory leak in driver/app code.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Diagnostic Process:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Take Heap Dump</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Capture heap snapshot:</span>
+jmap -dump:format=b,file=/tmp/heap.bin <cassandra_pid>
+
+<span class="comment">-- Or wait for automatic dump (jvm.options):</span>
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/cassandra/heapdump.hprof
+
+<span class="comment">-- Check size:</span>
+ls -lh /tmp/heap.bin
+<span class="comment">// 14.8 GB  ← Close to 16GB heap limit!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Analyze Heap Dump</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Use Eclipse MAT (Memory Analyzer Tool):</span>
+<span class="comment">// 1. Open heap dump</span>
+<span class="comment">// 2. Run "Leak Suspects Report"</span>
+<span class="comment">// 3. Look at "Dominator Tree"</span>
+
+<span class="comment">-- Common findings:</span>
+
+<span class="comment"># Finding 1: Huge row cache</span>
+org.apache.cassandra.cache.RowCacheKey: <span class="number">8.5</span> GB (<span class="number">57</span>%)
+<span class="comment">↑ Row cache is 8.5GB!</span>
+
+<span class="comment"># Finding 2: Giant partition</span>
+ByteBuffer[]: <span class="number">3.2</span> GB
+  └─ users:user_<span class="number">12345</span>: <span class="number">3.2</span> GB  <span class="comment">← One partition!</span>
+
+<span class="comment"># Finding 3: Memtable bloat</span>
+org.apache.cassandra.db.Memtable: <span class="number">6.8</span> GB
+<span class="comment">↑ Memtables too large!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Check Cassandra Statistics</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Check row cache size:</span>
+nodetool info | grep <span class="string">"Row Cache"</span>
+<span class="comment">/*
+Row Cache: size 8532 MB, capacity 8192 MB
+           ↑              ↑
+        Using 104%!    Configured max
+        
+Problem: Row cache oversized!
+*/</span>
+
+<span class="comment">-- Check for huge partitions:</span>
+nodetool tablestats keyspace.table | grep partition
+<span class="comment">/*
+Compacted partition maximum bytes: 3,421,883,152
+                                    ↑
+                               3.2 GB partition!
+*/</span>
+
+<span class="comment">-- Check memtable settings:</span>
+grep memtable /etc/cassandra/cassandra.yaml
+<span class="comment">/*
+memtable_heap_space_in_mb: 8192  ← Way too high!
+*/</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Common Causes & Fixes</strong></p>
+
+                        <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                            <thead style="background: rgba(139, 92, 246, 0.1);">
+                                <tr>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Cause</th>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Diagnosis</th>
+                                    <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Fix</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Row Cache Too Large</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Heap dump shows cache > 50%</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Reduce row_cache_size_in_mb</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Giant Partitions</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">tablestats shows > 1GB partitions</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Fix data model (add bucketing)</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Memtables Oversized</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">memtable_heap_space > 25% heap</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Reduce memtable size</td>
+                                </tr>
+                                <tr style="background: rgba(71, 85, 105, 0.05);">
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Driver Leak</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Heap dump shows driver objects</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Update driver, fix app code</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Too Many SSTables</strong></td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Bloom filters + indexes huge</td>
+                                    <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Force compaction</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 5: Apply Fixes</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Fix 1: Reduce row cache</span>
+ALTER TABLE keyspace.table 
+WITH caching = {
+  <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+  <span class="string">'rows_per_partition'</span>: <span class="string">'NONE'</span>  <span class="comment">← Disable row cache</span>
+};
+
+<span class="comment">-- Fix 2: Reduce memtable size (cassandra.yaml)</span>
+memtable_heap_space_in_mb: <span class="number">2048</span>  <span class="comment"># 25% of 8GB heap</span>
+
+<span class="comment">-- Fix 3: Fix giant partition (data model change)</span>
+<span class="comment">// Add bucket column to split large partition</span>
+CREATE TABLE users_v2 (
+  user_id uuid,
+  bucket int,     <span class="comment">← New!</span>
+  created_at timestamp,
+  PRIMARY KEY ((user_id, bucket), created_at)
+);
+
+<span class="comment">-- Restart Cassandra and monitor</span>
+sudo systemctl restart cassandra
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> 95% heap usually means: row cache too large, giant partitions, or memtables oversized. Heap dump analysis reveals the culprit. Fix by tuning caches, fixing data model, or reducing memtable size!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">How would you use nodetool commands to perform a quick health check on a production cluster?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: 5-minute health check: (1) nodetool status - all nodes UN?, (2) nodetool tpstats - any pending/blocked?, (3) nodetool compactionstats - < 20 pending?, (4) nodetool gcstats - < 200ms pauses?, (5) nodetool netstats - zero drops?. These five commands catch 90% of problems.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>The 5-Minute Health Check:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Command 1: nodetool status</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool status
+
+<span class="comment">/*
+Datacenter: datacenter1
+Status=Up/Down, State=Normal/Leaving/Joining
+UN  192.168.1.10  156.48 GB  32  33.3%  abc123...
+UN  192.168.1.11  158.32 GB  32  33.3%  def456...
+UN  192.168.1.12  155.91 GB  32  33.4%  ghi789...
+*/</span>
+
+<span class="comment">-- What to check:</span>
+✅ All nodes: UN (Up, Normal)
+✅ Ownership: Balanced (~33% each)
+✅ Load: Similar across nodes
+
+❌ Red flags:
+<span class="comment">- DN (Down, Normal) = node down!</span>
+<span class="comment">- Ownership: 60%, 20%, 20% = imbalanced!</span>
+<span class="comment">- Load: 200GB, 50GB, 50GB = hotspot!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Command 2: nodetool tpstats</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool tpstats
+
+<span class="comment">/*
+Pool Name         Active  Pending  Completed  Blocked
+ReadStage         8       0        45M        0
+MutationStage     4       0        127M       0
+CompactionEx      2       5        15K        0
+*/</span>
+
+<span class="comment">-- What to check:</span>
+✅ Pending: <span class="number">0</span> (or very low)
+✅ Blocked: <span class="number">0</span> (MUST be zero!)
+
+❌ Red flags:
+<span class="comment">- Pending > 100 = bottleneck!</span>
+<span class="comment">- Blocked > 0 = thread starvation!</span>
+<span class="comment">- Growing pending = can't keep up!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Command 3: nodetool compactionstats</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool compactionstats
+<span class="comment">/*
+pending tasks: 12
+SSTable count: 87
+...
+*/</span>
+<span class="comment">-- What to check:</span>
+✅ Pending: < <span class="number">20</span>
+✅ SSTable count: < <span class="number">100</span> per table
+❌ Red flags:
+<span class="comment">- Pending > 50 = falling behind!</span>
+<span class="comment">- SSTables > 200 = read amplification!</span>
+<span class="comment">- Growing pending = disaster brewing!</span>
+</div>
+</div>
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--accent-purple);">Command 4: nodetool gcstats</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool gcstats
+<span class="comment">/*
+Interval   Max GC   Total GC   Stdev    GC#
+600 sec    157 ms   487 ms     23 ms    12
+*/</span>
+<span class="comment">-- What to check:</span>
+✅ Max GC: < <span class="number">200</span>ms
+✅ Total: < <span class="number">500</span>ms per interval
+✅ GC#: < <span class="number">20</span> per interval
+❌ Red flags:
+<span class="comment">- Max > 1000ms = long pauses!</span>
+<span class="comment">- Total > 1000ms = GC pressure!</span>
+<span class="comment">- GC# > 50 = thrashing!</span>
+</div>
+</div>
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--accent-purple);">Command 5: nodetool netstats</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+nodetool netstats | grep -i dropped
+<span class="comment">/*
+Dropped: 0  ← MUST be zero!
+*/</span>
+<span class="comment">-- What to check:</span>
+✅ Dropped: <span class="number">0</span> (CRITICAL!)
+❌ Red flags:
+<span class="comment">- Any drops = overload!</span>
+<span class="comment">- Growing drops = serious problem!</span>
+</div>
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Bonus Commands (If Time Permits):</strong></p>
+
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Memory usage:</span>
+nodetool info | grep -E <span class="string">"Heap|Cache"</span>
+<span class="comment">-- Latency check:</span>
+nodetool proxyhistograms
+<span class="comment">-- Per-table health:</span>
+nodetool tablestats keyspace.table
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Decision Tree:</strong></p>
+
+                <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- All checks pass:</span>
+✅ Cluster healthy!
+<span class="comment">-- status shows DN:</span>
+❌ CRITICAL: Node down, investigate immediately!
+<span class="comment">-- tpstats shows pending/blocked:</span>
+⚠️ WARNING: Bottleneck, check load/hardware
+<span class="comment">-- compactionstats shows backlog:</span>
+⚠️ WARNING: Add compaction throughput/nodes
+<span class="comment">-- gcstats shows long pauses:</span>
+⚠️ WARNING: Tune JVM or reduce heap
+<span class="comment">-- netstats shows drops:</span>
+❌ CRITICAL: Cluster overload, add capacity!
+</div>
+                <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Five nodetool commands in 5 minutes: status (availability), tpstats (bottlenecks), compactionstats (long-term health), gcstats (JVM health), netstats (overload). These catch 90% of problems!</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+</section>
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Monitoring Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now understand production-grade Cassandra monitoring!</strong></p>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">The Essential Five Metrics:</h4>
+    <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+        <ul style="line-height: 2; margin: 0;">
+            <li>⚡ <strong>P99 Latency:</strong> User experience (< 50ms)</li>
+            <li>🔄 <strong>Pending Compactions:</strong> Long-term stability (< 20)</li>
+            <li>💾 <strong>Heap Usage:</strong> OOM risk (60-80%)</li>
+            <li>📉 <strong>Dropped Messages:</strong> Overload signal (= 0)</li>
+            <li>✅ <strong>Node Status:</strong> Availability (all UN)</li>
+        </ul>
+    </div>
+
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">5-Minute Health Check:</h4>
+    <div class="code-block" style="margin-top: 0.5rem;">
+nodetool status           <span class="comment"># All nodes UN?</span>
+nodetool tpstats          <span class="comment"># Pending = 0?</span>
+nodetool compactionstats  <span class="comment"># < 20 pending?</span>
+nodetool gcstats          <span class="comment"># < 200ms pauses?</span>
+nodetool netstats         <span class="comment"># Drops = 0?</span>
+</div>
+    <h4 style="color: var(--accent-purple); margin-top: 2rem;">Monitoring Stack:</h4>
+    <p style="margin-top: 0.5rem;">Prometheus (metrics) + Grafana (visualization) + Alerting (proactive)</p>
+
+    <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+        <strong style="color: var(--accent-purple);">Remember Rachel: What you don't monitor will eventually fail! 📊</strong>
+    </p>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="benchmarking.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Benchmarking</div>
+        </div>
+    </a>
+    <a href="nodetool.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Nodetool</div>
+        </div>
+    </a>
+</div>
+<!-- AdSense Placeholder -->
+        <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                <p style="color: var(--text-muted); margin: 0;">📱 Responsive Ad 📱</p>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

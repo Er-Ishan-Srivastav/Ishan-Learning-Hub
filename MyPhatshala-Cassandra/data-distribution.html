@@ -1,0 +1,2900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Cassandra Data Distribution Guide - Master consistent hashing, token rings, replication strategies with animations, live examples, and expert insights!">
+    <meta name="keywords" content="cassandra data distribution, consistent hashing, token ring, replication strategy, data placement">
+    <title>Cassandra Data Distribution: Expert Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-indigo: #6366f1;
+            --accent-cyan: #06b6d4;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #10b981;
+            --success-emerald: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--accent-indigo), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(99, 102, 241, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-indigo), var(--accent-cyan));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(236, 72, 153, 0.15);
+            border-color: var(--accent-indigo);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-indigo);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(236, 72, 153, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+            animation: heroGlow 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(236, 72, 153, 0.3);
+            border: 2px solid rgba(236, 72, 153, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-indigo), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-indigo);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🌐';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-indigo);
+            margin-top: 0;
+        }
+
+        /* SVG Container */
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.expert {
+            border-left-color: var(--accent-indigo);
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(236, 72, 153, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Animated Ring */
+        .ring-animation {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            margin: 3rem 0;
+        }
+
+        .ring-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            animation: nodeGlow 2s ease-in-out infinite;
+        }
+
+        .ring-node:hover {
+            transform: scale(1.2);
+            z-index: 10;
+        }
+
+        @keyframes nodeGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.8); }
+        }
+
+        /* Data Flow Animation */
+        @keyframes dataFlow {
+            0% { transform: translateX(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+
+        .data-packet {
+            animation: dataFlow 3s ease-in-out infinite;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .comparison-card:hover::before {
+            opacity: 1;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 10px 40px rgba(236, 72, 153, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Interactive Console */
+        .live-console {
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .console-header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .console-title {
+            color: white;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .console-btn.primary {
+            background: var(--accent-teal);
+            border-color: var(--accent-teal);
+        }
+
+        .console-btn.primary:hover {
+            background: #0d9488;
+        }
+
+        .console-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .console-output {
+            color: var(--text-secondary);
+        }
+
+        .console-log {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .log-key {
+            color: #6366f1;
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        .log-node {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .log-replica {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .log-success {
+            color: #059669;
+            background: rgba(5, 150, 105, 0.1);
+            font-weight: 600;
+        }
+
+        .log-warning {
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        /* Input field */
+        .console-input {
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 200px;
+            transition: all 0.3s;
+        }
+
+        .console-input:focus {
+            outline: none;
+            border-color: var(--accent-indigo);
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+        }
+
+        .console-select {
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .console-select:focus {
+            outline: none;
+            border-color: var(--accent-indigo);
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 5px 20px rgba(236, 72, 153, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(236, 72, 153, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        .question-number {
+            background: var(--accent-indigo);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-indigo);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-indigo);
+            box-shadow: 0 15px 40px rgba(236, 72, 153, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-indigo);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-indigo), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(236, 72, 153, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(236, 72, 153, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .console-controls {
+                width: 100%;
+            }
+
+            .console-input {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spin-animation {
+            animation: spin 3s linear infinite;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Distribution visualization */
+        .distribution-viz {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 0.5rem;
+            margin: 2rem 0;
+        }
+
+        .data-block {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .data-block:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .data-block::after {
+            content: attr(data-key);
+            position: absolute;
+            bottom: -20px;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+         <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html" class="active">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Hero Section -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-network-wired"></i>
+                        Section 3: Data Operations & Internals
+                    </span>
+                    <h1>Cassandra <span class="gradient-text">Data Distribution</span></h1>
+                    <p>Master the art of distributing petabytes across thousands of nodes! Deep dive into consistent hashing, token rings, replication strategies, and the mathematical elegance of distributed data placement.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-3-overview.html">Section 3: Data Operations</a>
+                <span class="separator">›</span>
+                <span class="current">Data Distribution</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                
+                <!-- Floating Table of Contents -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#what-is-distribution">🌐 What is Distribution?</a></li>
+                            <li><a href="#consistent-hashing">⭕ Consistent Hashing</a></li>
+                            <li><a href="#token-ring">💍 Token Ring</a></li>
+                            <li><a href="#replication">🔄 Replication</a></li>
+                            <li><a href="#live-simulator">🖥️ Live Simulator</a></li>
+                            <li><a href="#real-world">🌍 Real World</a></li>
+                            <li><a href="#balancing">⚖️ Load Balancing</a></li>
+                            <li><a href="#interview-questions">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="col-lg-9">
+
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: The Pizza Delivery Empire</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Imagine <strong style="color: var(--text-primary);">MegaPizza</strong> - a global delivery company with 1 billion customers. How do you organize customer data so ANY order arrives in minutes?</p>
+
+                                <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                                    <h3 style="color: #dc2626; margin-top: 0;">❌ BAD System: Single Central Database</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Problem:</strong> One massive server in New York stores all customer data</p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+🏢 NYC Server (OVERLOADED):<br/>
+├─ Alice (LA) - 3000 miles away!<br/>
+├─ Bob (Tokyo) - 7000 miles away!<br/>
+├─ Charlie (London) - 3500 miles away!<br/>
+└─ ... 1 BILLION customers!<br/><br/>
+<strong style="color: #dc2626;">Problems:</strong><br/>
+• Latency: Tokyo user waits 200ms!<br/>
+• Single point of failure: Server dies = business stops<br/>
+• Scalability limit: Can't handle 1 billion!<br/>
+• Hot spot: NYC server at 100% CPU
+                                    </div>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                                    <h3 style="color: #059669; margin-top: 0;">✅ BRILLIANT System: Distributed Ring</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Solution:</strong> 100 regional hubs arranged in a circle (ring)</p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #6366f1;">THE RING:</strong><br/><br/>
+      Hub-25(NYC) → Hub-26(Boston) → Hub-27(Miami)<br/>
+           ↑                                  ↓<br/>
+  Hub-24(Seattle)                    Hub-28(Atlanta)<br/>
+           ↑                                  ↓<br/>
+  Hub-23(LA)    ←  Hub-1(Tokyo)  ←  Hub-29(London)<br/><br/>
+<strong style="color: #059669;">Distribution Algorithm:</strong><br/>
+1. Customer name → Hash → Number (0-99)<br/>
+2. Number determines which hub stores data<br/>
+3. Data copies stored at 3 consecutive hubs<br/><br/>
+<strong style="color: #10b981;">Examples:</strong><br/>
+Alice → hash("Alice") = 47 → Hub-47, Hub-48, Hub-49<br/>
+Bob → hash("Bob") = 12 → Hub-12, Hub-13, Hub-14<br/>
+Charlie → hash("Charlie") = 89 → Hub-89, Hub-90, Hub-91
+                                    </div>
+
+                                    <h4 style="color: #059669; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">Why It's GENIUS:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Even Distribution:</strong> Each hub stores ~10 million customers (perfect balance!)</li>
+                                        <li><strong style="color: var(--text-primary);">Low Latency:</strong> Tokyo user gets data from Hub-1 (local!)</li>
+                                        <li><strong style="color: var(--text-primary);">Fault Tolerant:</strong> Hub-47 crashes? Still have copies at Hub-48 & Hub-49!</li>
+                                        <li><strong style="color: var(--text-primary);">Scalable:</strong> Add more hubs to ring → automatically rebalance!</li>
+                                        <li><strong style="color: var(--text-primary);">No Hotspots:</strong> Similar names (Alice, Alicia) go to different hubs!</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(13, 148, 136, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #6366f1;">
+                                    <h3 style="color: #6366f1; margin-top: 0;">🎯 This is EXACTLY Cassandra's Data Distribution!</h3>
+                                    
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Pizza Hubs = Cassandra Nodes</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Ring of Hubs = Token Ring</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Hash Number = Token (64-bit integer)</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Customer Name = Partition Key</strong></li>
+                                        <li><strong style="color: var(--text-primary);">3 Consecutive Hubs = Replication Factor 3</strong></li>
+                                    </ul>
+
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #6366f1;">CASSANDRA DATA DISTRIBUTION:</strong><br/><br/>
+user_id="alice_2024" → Murmur3 → Token: -3,847,293,847,293<br/>
+Token falls in Node 2's range → PRIMARY<br/>
+RF=3 → Also stored on Node 3, Node 4 (clockwise)<br/><br/>
+<strong style="color: #10b981;">Result: 3 copies across 3 nodes! ✅</strong>
+                                    </div>
+
+                                    <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                        <strong style="color: #6366f1;">MegaPizza's hub system = Cassandra's token ring!<br/>Same genius, distributed scale!</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What is Distribution Section -->
+                    <section id="what-is-distribution" data-aos="fade-up">
+                        <h2>🌐 What is Data Distribution in Cassandra?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The mathematical framework that determines where every piece of data lives in the cluster.</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-book-open" style="color: var(--accent-indigo);"></i> Complete Definition</h4>
+                            <p><strong style="color: var(--text-primary);">Data Distribution:</strong> The process by which Cassandra determines the physical location of data across nodes using consistent hashing, token assignments, and replication strategies to ensure even load distribution, fault tolerance, and linear scalability.</p>
+                            
+                            <p style="margin-top: 1.5rem;"><strong>The Three Pillars:</strong></p>
+                            <ul>
+                                <li><strong>Consistent Hashing:</strong> Maps data to tokens using hash functions</li>
+                                <li><strong>Token Ring:</strong> Organizes nodes in circular topology (-2^63 to 2^63-1)</li>
+                                <li><strong>Replication:</strong> Creates multiple copies across nodes for durability</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why It Matters:</strong></p>
+                            <ul>
+                                <li>Determines query latency (data locality)</li>
+                                <li>Ensures even load across cluster</li>
+                                <li>Enables horizontal scalability</li>
+                                <li>Provides fault tolerance</li>
+                                <li>Eliminates single points of failure</li>
+                            </ul>
+                        </div>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="500" y="30" font-family="Inter, sans-serif" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Data Distribution Complete Flow
+                                </text>
+
+                                <!-- Step 1: Data arrives -->
+                                <g>
+                                    <rect x="50" y="80" width="200" height="100" rx="12" fill="#1e293b" stroke="#6366f1" stroke-width="3"/>
+                                    <text x="150" y="110" font-size="16" fill="#6366f1" text-anchor="middle" font-weight="700">DATA ARRIVES</text>
+                                    <text x="150" y="135" font-size="12" fill="#94a3b8" text-anchor="middle">INSERT INTO users</text>
+                                    <text x="150" y="155" font-size="12" fill="#94a3b8" text-anchor="middle">(user_id='alice_2024')</text>
+                                </g>
+
+                                <!-- Arrow -->
+                                <path d="M 250 130 L 330 130" stroke="#6366f1" stroke-width="3" marker-end="url(#arrowPink)"/>
+
+                                <!-- Step 2: Hash -->
+                                <g>
+                                    <rect x="330" y="80" width="180" height="100" rx="12" fill="#8b5cf6" stroke="#7c3aed" stroke-width="3"/>
+                                    <text x="420" y="110" font-size="16" fill="white" text-anchor="middle" font-weight="700">HASH</text>
+                                    <text x="420" y="135" font-size="12" fill="white" text-anchor="middle">Murmur3</text>
+                                    <text x="420" y="155" font-size="11" fill="white" text-anchor="middle">Token: -3,847,293...</text>
+                                </g>
+
+                                <!-- Arrow -->
+                                <path d="M 510 130 L 590 130" stroke="#8b5cf6" stroke-width="3" marker-end="url(#arrowPurple)"/>
+
+                                <!-- Step 3: Ring Lookup -->
+                                <g>
+                                    <circle cx="680" cy="130" r="70" fill="none" stroke="#f59e0b" stroke-width="4" stroke-dasharray="10,5"/>
+                                    <text x="680" y="125" font-size="14" fill="#f59e0b" text-anchor="middle" font-weight="700">TOKEN</text>
+                                    <text x="680" y="145" font-size="14" fill="#f59e0b" text-anchor="middle" font-weight="700">RING</text>
+                                    <!-- Ring nodes -->
+                                    <circle cx="680" cy="70" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <circle cx="730" cy="100" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <circle cx="730" cy="160" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <circle cx="680" cy="190" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <circle cx="630" cy="160" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <circle cx="630" cy="100" r="12" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                </g>
+
+                                <!-- Vertical arrow down -->
+                                <path d="M 680 210 L 680 280" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)"/>
+
+                                <!-- Step 4: Nodes -->
+                                <g>
+                                    <text x="500" y="310" font-size="18" fill="#10b981" text-anchor="middle" font-weight="700">REPLICA PLACEMENT</text>
+                                    
+                                    <!-- Node 1 - Primary -->
+                                    <g>
+                                        <rect x="100" y="340" width="200" height="120" rx="12" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                        <text x="200" y="370" font-size="16" fill="white" text-anchor="middle" font-weight="700">NODE 1 (Primary)</text>
+                                        <text x="200" y="395" font-size="12" fill="white" text-anchor="middle">Token: -4,000,000,000,000</text>
+                                        <text x="200" y="420" font-size="13" fill="white" text-anchor="middle" font-weight="600">✅ Stores Data</text>
+                                        <text x="200" y="440" font-size="11" fill="white" text-anchor="middle">Owns this token range</text>
+                                    </g>
+
+                                    <!-- Node 2 - Replica -->
+                                    <g>
+                                        <rect x="320" y="340" width="200" height="120" rx="12" fill="#8b5cf6" stroke="#7c3aed" stroke-width="2"/>
+                                        <text x="420" y="370" font-size="16" fill="white" text-anchor="middle" font-weight="700">NODE 2 (Replica)</text>
+                                        <text x="420" y="395" font-size="12" fill="white" text-anchor="middle">Next clockwise</text>
+                                        <text x="420" y="420" font-size="13" fill="white" text-anchor="middle" font-weight="600">✅ Stores Copy</text>
+                                        <text x="420" y="440" font-size="11" fill="white" text-anchor="middle">RF=3, Replica 2</text>
+                                    </g>
+
+                                    <!-- Node 3 - Replica -->
+                                    <g>
+                                        <rect x="540" y="340" width="200" height="120" rx="12" fill="#8b5cf6" stroke="#7c3aed" stroke-width="2"/>
+                                        <text x="640" y="370" font-size="16" fill="white" text-anchor="middle" font-weight="700">NODE 3 (Replica)</text>
+                                        <text x="640" y="395" font-size="12" fill="white" text-anchor="middle">Next clockwise</text>
+                                        <text x="640" y="420" font-size="13" fill="white" text-anchor="middle" font-weight="600">✅ Stores Copy</text>
+                                        <text x="640" y="440" font-size="11" fill="white" text-anchor="middle">RF=3, Replica 3</text>
+                                    </g>
+                                </g>
+
+                                <!-- Result -->
+                                <rect x="200" y="520" width="600" height="120" rx="12" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488" stroke-width="3"/>
+                                <text x="500" y="555" font-size="20" fill="#0d9488" text-anchor="middle" font-weight="900">RESULT: 3 COPIES DISTRIBUTED!</text>
+                                <text x="500" y="585" font-size="14" fill="#94a3b8" text-anchor="middle">• Even distribution across nodes</text>
+                                <text x="500" y="605" font-size="14" fill="#94a3b8" text-anchor="middle">• Fault tolerant (can lose 1 node)</text>
+                                <text x="500" y="625" font-size="14" fill="#94a3b8" text-anchor="middle">• Fast reads (3 options to query)</text>
+
+                                <!-- Markers -->
+                                <defs>
+                                    <marker id="arrowPink" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#6366f1" />
+                                    </marker>
+                                    <marker id="arrowPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#8b5cf6" />
+                                    </marker>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#10b981" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                    </section>
+
+                    <!-- Consistent Hashing Section -->
+                    <section id="consistent-hashing" data-aos="fade-up">
+                        <h2>⭕ Consistent Hashing: The Mathematical Foundation</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Why Cassandra uses consistent hashing instead of traditional modulo-based distribution.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border: 3px solid #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Simple Hashing (BAD)</h3>
+                                <p><strong>Traditional approach:</strong> node = hash(key) % N</p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+N = 3 nodes<br/>
+alice → hash=100 → 100%3=1 → Node 1<br/>
+bob → hash=50 → 50%3=2 → Node 2<br/><br/>
+<strong style="color: #dc2626;">Add 4th node (N=4):</strong><br/>
+alice → 100%4=0 → Node 0 ❌ MOVED!<br/>
+bob → 50%4=2 → Node 2 ✅ Same<br/><br/>
+<strong style="color: #dc2626;">Result: 75% of data needs to move!</strong>
+                                </div>
+                                <p style="margin-top: 1rem; color: #dc2626;"><strong>Problem:</strong> Adding/removing nodes causes massive data migration!</p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border: 3px solid #059669;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>Consistent Hashing (GOOD)</h3>
+                                <p><strong>Cassandra approach:</strong> Token ring with ranges</p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+Token Ring (-2^63 to 2^63):<br/>
+Node 1: -6T to -2T<br/>
+Node 2: -2T to 2T<br/>
+Node 3: 2T to 6T<br/><br/>
+<strong style="color: #059669;">Add Node 4:</strong><br/>
+Node 4 takes half of Node 1's range<br/>
+Only ~25% of data moves!<br/>
+alice stays on same node ✅<br/><br/>
+<strong style="color: #059669;">Result: Minimal disruption!</strong>
+                                </div>
+                                <p style="margin-top: 1rem; color: #059669;"><strong>Benefit:</strong> Adding nodes only affects immediate neighbors!</p>
+                            </div>
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--accent-indigo);"></i> Expert Insight: Why Consistent Hashing is Revolutionary</h4>
+                            <p><strong>The Problem It Solves:</strong></p>
+                            <p>In traditional distributed systems, adding/removing servers requires rehashing and relocating most data. With 1000 servers and 1PB data, adding one server means moving ~1TB of data!</p>
+                            
+                            <p style="margin-top: 1.5rem;"><strong>Consistent Hashing Solution:</strong></p>
+                            <ul>
+                                <li>Data mapped to points on a ring (not to servers directly)</li>
+                                <li>Servers claim ranges on the ring</li>
+                                <li>Adding server: Only data in that range moves (~K/N where K=keys, N=nodes)</li>
+                                <li>For 1000 nodes + 1PB data: Adding node moves only ~1GB!</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Mathematical Guarantee:</strong></p>
+                            <p>With N nodes and K keys, adding/removing one node moves at most K/N keys. This is optimal - you can't do better!</p>
+                        </div>
+                    </section>
+
+                    <!-- Token Ring Section with Advanced Visualization -->
+                    <section id="token-ring" data-aos="fade-up">
+                        <h2>💍 Token Ring: Cassandra's Circular Universe</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Understanding the 64-bit token space and how nodes organize themselves.</p>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="450" y="30" font-family="Inter, sans-serif" font-size="22" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Token Ring Visualization (6 Nodes)
+                                </text>
+
+                                <!-- Main Ring -->
+                                <circle cx="450" cy="450" r="300" fill="none" stroke="#334155" stroke-width="4" stroke-dasharray="10,5"/>
+                                
+                                <!-- Token range labels -->
+                                <text x="450" y="115" font-size="12" fill="#64748b" text-anchor="middle">-9,223,372,036,854,775,808</text>
+                                <text x="770" y="460" font-size="12" fill="#64748b" text-anchor="middle">0</text>
+                                <text x="450" y="790" font-size="12" fill="#64748b" text-anchor="middle">9,223,372,036,854,775,807</text>
+
+                                <!-- Node 1 (Top) -->
+                                <g class="ring-node-group">
+                                    <circle cx="450" cy="140" r="50" fill="#6366f1" stroke="#5b21b6" stroke-width="3"/>
+                                    <text x="450" y="138" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="450" y="158" font-size="16" fill="white" text-anchor="middle" font-weight="700">1</text>
+                                    <!-- Token -->
+                                    <rect x="350" y="50" width="200" height="30" rx="6" fill="rgba(236, 72, 153, 0.2)" stroke="#6366f1"/>
+                                    <text x="450" y="70" font-size="10" fill="#6366f1" text-anchor="middle" font-weight="600">Token: -7.6T</text>
+                                </g>
+
+                                <!-- Node 2 (Right-Top) -->
+                                <g>
+                                    <circle cx="675" cy="261" r="50" fill="#8b5cf6" stroke="#7c3aed" stroke-width="3"/>
+                                    <text x="675" y="259" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="675" y="279" font-size="16" fill="white" text-anchor="middle" font-weight="700">2</text>
+                                    <rect x="700" y="240" width="120" height="30" rx="6" fill="rgba(139, 92, 246, 0.2)" stroke="#8b5cf6"/>
+                                    <text x="760" y="260" font-size="10" fill="#8b5cf6" text-anchor="middle" font-weight="600">Token: -4.6T</text>
+                                </g>
+
+                                <!-- Node 3 (Right-Bottom) -->
+                                <g>
+                                    <circle cx="675" cy="639" r="50" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="675" y="637" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="675" y="657" font-size="16" fill="white" text-anchor="middle" font-weight="700">3</text>
+                                    <rect x="700" y="620" width="120" height="30" rx="6" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981"/>
+                                    <text x="760" y="640" font-size="10" fill="#10b981" text-anchor="middle" font-weight="600">Token: -1.5T</text>
+                                </g>
+
+                                <!-- Node 4 (Bottom) -->
+                                <g>
+                                    <circle cx="450" cy="760" r="50" fill="#f59e0b" stroke="#d97706" stroke-width="3"/>
+                                    <text x="450" y="758" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="450" y="778" font-size="16" fill="white" text-anchor="middle" font-weight="700">4</text>
+                                    <rect x="350" y="815" width="200" height="30" rx="6" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b"/>
+                                    <text x="450" y="835" font-size="10" fill="#f59e0b" text-anchor="middle" font-weight="600">Token: 1.5T</text>
+                                </g>
+
+                                <!-- Node 5 (Left-Bottom) -->
+                                <g>
+                                    <circle cx="225" cy="639" r="50" fill="#3b82f6" stroke="#2563eb" stroke-width="3"/>
+                                    <text x="225" y="637" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="225" y="657" font-size="16" fill="white" text-anchor="middle" font-weight="700">5</text>
+                                    <rect x="80" y="620" width="120" height="30" rx="6" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6"/>
+                                    <text x="140" y="640" font-size="10" fill="#3b82f6" text-anchor="middle" font-weight="600">Token: 4.6T</text>
+                                </g>
+
+                                <!-- Node 6 (Left-Top) -->
+                                <g>
+                                    <circle cx="225" cy="261" r="50" fill="#0d9488" stroke="#0f766e" stroke-width="3"/>
+                                    <text x="225" y="259" font-size="16" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="225" y="279" font-size="16" fill="white" text-anchor="middle" font-weight="700">6</text>
+                                    <rect x="80" y="240" width="120" height="30" rx="6" fill="rgba(13, 148, 136, 0.2)" stroke="#0d9488"/>
+                                    <text x="140" y="260" font-size="10" fill="#0d9488" text-anchor="middle" font-weight="600">Token: 7.6T</text>
+                                </g>
+
+                                <!-- Clockwise arrows -->
+                                <path d="M 490,170 Q 550,200 610,250" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrowPink)" stroke-dasharray="5,3"/>
+                                <path d="M 700,300 Q 720,370 710,450" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowPurple)" stroke-dasharray="5,3"/>
+                                <path d="M 650,680 Q 570,730 490,750" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)" stroke-dasharray="5,3"/>
+
+                                <!-- Center Info -->
+                                <circle cx="450" cy="450" r="100" fill="rgba(236, 72, 153, 0.1)" stroke="#6366f1" stroke-width="2"/>
+                                <text x="450" y="430" font-size="16" fill="#6366f1" text-anchor="middle" font-weight="700">TOKEN</text>
+                                <text x="450" y="455" font-size="16" fill="#6366f1" text-anchor="middle" font-weight="700">RING</text>
+                                <text x="450" y="480" font-size="12" fill="#94a3b8" text-anchor="middle">Clockwise</text>
+                                <text x="450" y="500" font-size="12" fill="#94a3b8" text-anchor="middle">Traversal →</text>
+
+                                <!-- Legend -->
+                                <rect x="50" y="850" width="800" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+                                <text x="450" y="875" font-size="13" fill="#0d9488" text-anchor="middle" font-weight="700">
+                                    Each node owns range from its token to next node's token (clockwise)
+                                </text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Important: Token Ownership Rules</h4>
+                            <ul>
+                                <li><strong>Each node has a token</strong> (its position on the ring)</li>
+                                <li><strong>Node owns all tokens from its token to next node's token</strong> (clockwise)</li>
+                                <li><strong>Ring wraps around</strong> (after max token comes min token)</li>
+                                <li><strong>Virtual nodes (vnodes):</strong> Each physical node gets multiple tokens</li>
+                                <li><strong>Default: 256 vnodes per node</strong> for better distribution</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Live Simulator Section -->
+                    <section id="live-simulator" data-aos="fade-up">
+                        <h2>🖥️ Interactive Distribution Simulator</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Experiment with data distribution in real-time!</p>
+
+                        <div class="live-console" data-aos="fade-up">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-network-wired"></i>
+                                    Data Distribution Simulator
+                                </div>
+                                <div class="console-controls">
+                                    <input type="text" id="partitionKey" class="console-input" placeholder="Partition key" value="user_12345">
+                                    <select id="nodeCount" class="console-select">
+                                        <option value="3">3 Nodes</option>
+                                        <option value="6" selected>6 Nodes</option>
+                                        <option value="9">9 Nodes</option>
+                                    </select>
+                                    <select id="rfValue" class="console-select">
+                                        <option value="1">RF=1</option>
+                                        <option value="2">RF=2</option>
+                                        <option value="3" selected>RF=3</option>
+                                    </select>
+                                    <button class="console-btn primary" onclick="simulateDistribution()">
+                                        <i class="fas fa-play"></i> Distribute
+                                    </button>
+                                    <button class="console-btn" onclick="clearDistConsole()">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                    <button class="console-btn" onclick="batchSimulate()">
+                                        <i class="fas fa-random"></i> Batch Test
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="console-body" id="distOutput">
+                                <div class="console-log" style="color: #94a3b8;">
+                                    <strong>🌐 Distribution Simulator Ready!</strong><br/>
+                                    Configure cluster settings and enter a partition key to see where data gets distributed.<br/><br/>
+                                    <strong>Try these examples:</strong><br/>
+                                    • user_12345<br/>
+                                    • order_abc123<br/>
+                                    • session_xyz789<br/>
+                                    • Click "Batch Test" to see 10 keys distributed!
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 3rem;" id="visualDistribution"></div>
+                    </section>
+
+                    <!-- Real World Examples -->
+                    <section id="real-world" data-aos="fade-up">
+                        <h2>🌍 Real-World Production Examples</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How tech giants use data distribution at massive scale.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border-color: #dc2626;">
+                                <div class="comparison-icon">🎬</div>
+                                <h3>Netflix</h3>
+                                <p><strong>2,500 nodes, 1PB+ data, 30 million ops/sec</strong></p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+Keyspace: user_viewing<br/>
+RF: 3 (per datacenter)<br/>
+Datacenters: 3 (US-East, US-West, EU)<br/><br/>
+Example Distribution:<br/>
+user_id='alice_123'<br/>
+→ Token: -2,847,239,847,234<br/>
+→ US-EAST: Node 47, 48, 49<br/>
+→ US-WEST: Node 128, 129, 130<br/>
+→ EU-WEST: Node 89, 90, 91<br/><br/>
+Total: 9 copies globally!
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>Why:</strong> Can lose entire datacenter and still serve!</p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border-color: #3b82f6;">
+                                <div class="comparison-icon">🍎</div>
+                                <h3>Apple iCloud</h3>
+                                <p><strong>75,000+ nodes, 10PB+ data, 2 billion users</strong></p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+Keyspace: contacts<br/>
+RF: 3 (per DC)<br/>
+Vnodes: 256 per node<br/><br/>
+Distribution Strategy:<br/>
+device_id='iPhone_xyz'<br/>
+→ Hash determines primary DC<br/>
+→ LOCAL_QUORUM for writes<br/>
+→ Sub-10ms latency globally<br/><br/>
+Load: ~10M keys per node<br/>
+Balance: 99.8% uniformity!
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>Why:</strong> Perfect distribution = no hotspots!</p>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200" style="border-color: #10b981;">
+                                <div class="comparison-icon">🚗</div>
+                                <h3>Uber</h3>
+                                <p><strong>1,000+ nodes, 100TB+ data, real-time geolocation</strong></p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+Keyspace: driver_locations<br/>
+RF: 3<br/>
+Write: LOCAL_QUORUM<br/><br/>
+Distribution Pattern:<br/>
+driver_id='driver_456'<br/>
+→ Token based on driver ID<br/>
+→ 3 replicas in local DC<br/>
+→ Updates every 4 seconds<br/><br/>
+Challenge: Time-based keys<br/>
+Solution: Add driver_id to key!
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>Why:</strong> Geographic distribution + low latency!</p>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Scenario Analysis -->
+                        <h3 style="color: var(--accent-indigo); margin-top: 4rem;">📊 Detailed Scenario Deep-Dives</h3>
+
+                        <!-- E-commerce Scenario -->
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(6, 182, 212, 0.08)); border-left: 5px solid #3b82f6;">
+                            <h3 style="color: #3b82f6;">Scenario 1: E-Commerce Platform - ShopGlobal.com</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Company:</strong> ShopGlobal - Global marketplace with 500M users, 10M sellers</p>
+                                <p><strong style="color: var(--text-primary);">Scale:</strong> 100,000 orders/second peak, 50TB data, 200-node cluster</p>
+
+                                <div style="background: rgba(0,0,0,0.3); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+                                    <h4 style="color: #3b82f6; margin-top: 0;">Table Design & Distribution Strategy</h4>
+                                    
+                                    <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong>// User Orders Table</strong><br/>
+CREATE TABLE user_orders (<br/>
+&nbsp;&nbsp;user_id UUID,<br/>
+&nbsp;&nbsp;order_date DATE,<br/>
+&nbsp;&nbsp;order_id TIMEUUID,<br/>
+&nbsp;&nbsp;total_amount DECIMAL,<br/>
+&nbsp;&nbsp;status TEXT,<br/>
+&nbsp;&nbsp;items LIST&lt;frozen&lt;order_item&gt;&gt;,<br/>
+&nbsp;&nbsp;PRIMARY KEY ((user_id, order_date), order_id)<br/>
+) WITH CLUSTERING ORDER BY (order_id DESC);<br/><br/>
+<strong>Replication Strategy:</strong><br/>
+RF = 3 per datacenter<br/>
+Datacenters: US-EAST, US-WEST, EU-WEST, ASIA-PAC<br/>
+Total replicas per order: 12 copies!
+                                    </div>
+
+                                    <h4 style="color: #3b82f6; margin-top: 2rem;">Real Distribution Example</h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Customer Order Flow:</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+<strong style="color: #6366f1;">Step 1: Order Placed</strong><br/>
+user_id = 'a1b2c3d4-e5f6-...'<br/>
+order_date = '2024-12-26'<br/>
+Partition Key: (user_id, order_date)<br/><br/>
+<strong style="color: #6366f1;">Step 2: Token Generation</strong><br/>
+Combined key serialized:<br/>
+→ Murmur3 hash<br/>
+→ Token: -4,892,374,928,374,928<br/><br/>
+<strong style="color: #6366f1;">Step 3: Ring Lookup (200 nodes)</strong><br/>
+Token range per node: ~92Q tokens<br/>
+Token falls in Node 89's range<br/><br/>
+<strong style="color: #6366f1;">Step 4: Replica Placement</strong><br/>
+US-EAST (Primary DC):<br/>
+&nbsp;&nbsp;→ Node 89 (primary)<br/>
+&nbsp;&nbsp;→ Node 90 (replica 2)<br/>
+&nbsp;&nbsp;→ Node 91 (replica 3)<br/><br/>
+US-WEST (Async replication):<br/>
+&nbsp;&nbsp;→ Node 145, 146, 147<br/><br/>
+EU-WEST:<br/>
+&nbsp;&nbsp;→ Node 67, 68, 69<br/><br/>
+ASIA-PAC:<br/>
+&nbsp;&nbsp;→ Node 23, 24, 25
+                                        </div>
+                                    </div>
+
+                                    <h4 style="color: #3b82f6; margin-top: 2rem;">Performance Metrics</h4>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li><strong style="color: var(--text-primary);">Write Latency:</strong> 3-5ms (LOCAL_QUORUM)</li>
+                                        <li><strong style="color: var(--text-primary);">Read Latency:</strong> 1-2ms (LOCAL_ONE)</li>
+                                        <li><strong style="color: var(--text-primary);">Data per Node:</strong> ~250GB (perfectly balanced)</li>
+                                        <li><strong style="color: var(--text-primary);">Hotspot Prevention:</strong> Date in partition key spreads orders evenly</li>
+                                        <li><strong style="color: var(--text-primary);">Fault Tolerance:</strong> Can lose 2 nodes per DC without data loss</li>
+                                    </ul>
+
+                                    <h4 style="color: #3b82f6; margin-top: 2rem;">Why This Design Works</h4>
+                                    <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 8px; border-left: 3px solid #10b981;">
+                                        <ul style="margin: 0; color: var(--text-secondary);">
+                                            <li><strong style="color: #10b981;">Composite Partition Key:</strong> (user_id, order_date) ensures orders distributed across nodes AND time</li>
+                                            <li><strong style="color: #10b981;">No Time-Based Hotspots:</strong> Different dates = different nodes</li>
+                                            <li><strong style="color: #10b981;">Query Efficiency:</strong> "Get user's orders for date" = single partition read</li>
+                                            <li><strong style="color: #10b981;">Global Distribution:</strong> 4 DCs mean 12 copies, survive entire region failure</li>
+                                            <li><strong style="color: #10b981;">Linear Scalability:</strong> Add nodes → automatic rebalancing</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Social Media Scenario -->
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.08)); border-left: 5px solid #8b5cf6; margin-top: 3rem;">
+                            <h3 style="color: #8b5cf6;">Scenario 2: Social Media Platform - SocialVerse</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Company:</strong> SocialVerse - Social network with 2B users, 100M DAU</p>
+                                <p><strong style="color: var(--text-primary);">Scale:</strong> 500,000 posts/second, 1PB data, 500-node cluster</p>
+
+                                <div style="background: rgba(0,0,0,0.3); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+                                    <h4 style="color: #8b5cf6; margin-top: 0;">Challenge: Celebrity Hotspot Problem</h4>
+                                    
+                                    <div style="background: rgba(220, 38, 38, 0.15); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #dc2626;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>❌ Initial Design (BROKEN):</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+CREATE TABLE user_timeline (<br/>
+&nbsp;&nbsp;user_id UUID PRIMARY KEY,<br/>
+&nbsp;&nbsp;posts LIST&lt;frozen&lt;post&gt;&gt;<br/>
+);<br/><br/>
+<strong style="color: #dc2626;">Problem with Celebrity (100M followers):</strong><br/>
+All 100M follower timelines point to SAME celebrity user_id<br/>
+→ Same token<br/>
+→ Same 3 nodes (with RF=3)<br/>
+→ HOTSPOT! Nodes at 100% CPU while others idle!<br/><br/>
+Example:<br/>
+celebrity_id='taylor_swift'<br/>
+→ Token: -5,123,456,789,012<br/>
+→ ALWAYS Node 234, 235, 236<br/>
+→ These 3 nodes handle ALL 100M requests!<br/>
+→ <strong style="color: #dc2626;">CLUSTER MELTDOWN! 💥</strong>
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(16, 185, 129, 0.15); padding: 1.5rem; border-radius: 8px; margin-top: 2rem; border-left: 3px solid #10b981;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>✅ Fixed Design (BRILLIANT):</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+CREATE TABLE user_timeline_sharded (<br/>
+&nbsp;&nbsp;user_id UUID,<br/>
+&nbsp;&nbsp;shard_id INT,  // 0-99<br/>
+&nbsp;&nbsp;post_id TIMEUUID,<br/>
+&nbsp;&nbsp;content TEXT,<br/>
+&nbsp;&nbsp;likes_count COUNTER,<br/>
+&nbsp;&nbsp;PRIMARY KEY ((user_id, shard_id), post_id)<br/>
+) WITH CLUSTERING ORDER BY (post_id DESC);<br/><br/>
+<strong style="color: #10b981;">Solution: Partition Key Sharding!</strong><br/>
+celebrity_id + shard_id = different tokens!<br/><br/>
+taylor_swift + shard_0 → Token A → Node 45, 46, 47<br/>
+taylor_swift + shard_1 → Token B → Node 123, 124, 125<br/>
+taylor_swift + shard_2 → Token C → Node 289, 290, 291<br/>
+...<br/>
+taylor_swift + shard_99 → Token Z → Node 456, 457, 458<br/><br/>
+<strong style="color: #10b981;">Result: 100M requests spread across 300 nodes!</strong><br/>
+Load per node: ~333K requests (manageable!)<br/>
+<strong style="color: #10b981;">HOTSPOT ELIMINATED! ✅</strong>
+                                        </div>
+                                    </div>
+
+                                    <h4 style="color: #8b5cf6; margin-top: 2rem;">Application Logic</h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+<strong>// Writing a post</strong><br/>
+shard_id = hash(post_id) % 100;<br/>
+INSERT INTO user_timeline_sharded<br/>
+(user_id, shard_id, post_id, content)<br/>
+VALUES ('taylor_swift', shard_id, now(), 'Hello!');<br/><br/>
+<strong>// Reading timeline</strong><br/>
+// Query ALL shards in parallel<br/>
+FOR shard_id IN 0..99:<br/>
+&nbsp;&nbsp;SELECT * FROM user_timeline_sharded<br/>
+&nbsp;&nbsp;WHERE user_id='taylor_swift'<br/>
+&nbsp;&nbsp;AND shard_id=shard_id<br/>
+&nbsp;&nbsp;LIMIT 100;<br/><br/>
+// Merge results client-side<br/>
+// Sort by post_id (timestamp)<br/>
+// Return top 100
+                                    </div>
+
+                                    <h4 style="color: #8b5cf6; margin-top: 2rem;">Performance Impact</h4>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li><strong style="color: var(--text-primary);">Before Sharding:</strong> 3 nodes at 100% CPU, 497 nodes idle</li>
+                                        <li><strong style="color: var(--text-primary);">After Sharding:</strong> Load distributed across 300 nodes (~60% of cluster)</li>
+                                        <li><strong style="color: var(--text-primary);">Write Latency:</strong> Reduced from 500ms to 5ms</li>
+                                        <li><strong style="color: var(--text-primary);">Read Latency:</strong> 100 parallel queries = 10ms total (async)</li>
+                                        <li><strong style="color: var(--text-primary);">Scalability:</strong> Can now handle 10x more celebrities!</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IoT Scenario -->
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(13, 148, 136, 0.08)); border-left: 5px solid #06b6d4; margin-top: 3rem;">
+                            <h3 style="color: #06b6d4;">Scenario 3: IoT Platform - SmartHome Inc.</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Company:</strong> SmartHome - IoT platform with 50M devices, 100K new sensors/day</p>
+                                <p><strong style="color: var(--text-primary);">Scale:</strong> 1M sensor readings/second, 500TB timeseries data, 300-node cluster</p>
+
+                                <div style="background: rgba(0,0,0,0.3); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+                                    <h4 style="color: #06b6d4; margin-top: 0;">Time-Series Data Distribution</h4>
+                                    
+                                    <div style="background: rgba(6, 182, 212, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong>// Sensor Data Table</strong><br/>
+CREATE TABLE sensor_readings (<br/>
+&nbsp;&nbsp;device_id UUID,<br/>
+&nbsp;&nbsp;date DATE,<br/>
+&nbsp;&nbsp;reading_time TIMESTAMP,<br/>
+&nbsp;&nbsp;temperature DOUBLE,<br/>
+&nbsp;&nbsp;humidity DOUBLE,<br/>
+&nbsp;&nbsp;battery_level INT,<br/>
+&nbsp;&nbsp;PRIMARY KEY ((device_id, date), reading_time)<br/>
+) WITH CLUSTERING ORDER BY (reading_time DESC)<br/>
+AND compaction = {<br/>
+&nbsp;&nbsp;'class': 'TimeWindowCompactionStrategy',<br/>
+&nbsp;&nbsp;'compaction_window_size': '1',<br/>
+&nbsp;&nbsp;'compaction_window_unit': 'DAYS'<br/>
+};<br/><br/>
+<strong>Replication:</strong> RF=3, NetworkTopologyStrategy
+                                    </div>
+
+                                    <h4 style="color: #06b6d4; margin-top: 2rem;">Distribution Analysis</h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>50M Devices × 365 Days = 18.25 BILLION Partitions!</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+<strong style="color: #06b6d4;">Example: 3 Thermostats on Same Day</strong><br/><br/>
+Device 1:<br/>
+device_id='thermostat_a1b2'<br/>
+date='2024-12-26'<br/>
+→ Token: -8,234,567,890,123<br/>
+→ Node 45, 46, 47<br/><br/>
+Device 2:<br/>
+device_id='thermostat_c3d4'<br/>
+date='2024-12-26'<br/>
+→ Token: 2,345,678,901,234<br/>
+→ Node 178, 179, 180<br/><br/>
+Device 3:<br/>
+device_id='thermostat_e5f6'<br/>
+date='2024-12-26'<br/>
+→ Token: 6,789,012,345,678<br/>
+→ Node 256, 257, 258<br/><br/>
+<strong style="color: #06b6d4;">Perfect Distribution!</strong><br/>
+Same date, different devices → different nodes!<br/>
+No time-based hotspots!
+                                        </div>
+                                    </div>
+
+                                    <h4 style="color: #06b6d4; margin-top: 2rem;">Query Patterns & Performance</h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Common Queries:</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+<strong style="color: #06b6d4;">Query 1: Latest Reading (Single Partition)</strong><br/>
+SELECT * FROM sensor_readings<br/>
+WHERE device_id='thermostat_a1b2'<br/>
+AND date='2024-12-26'<br/>
+LIMIT 1;<br/><br/>
+Performance: 1-2ms (single node)<br/>
+Distribution: Node 45 serves directly<br/><br/>
+<strong style="color: #06b6d4;">Query 2: Day's History (Single Partition)</strong><br/>
+SELECT * FROM sensor_readings<br/>
+WHERE device_id='thermostat_a1b2'<br/>
+AND date='2024-12-26';<br/><br/>
+Performance: 5-10ms (1 partition, ~17K rows)<br/>
+Distribution: All data on Node 45, 46, 47<br/><br/>
+<strong style="color: #06b6d4;">Query 3: Week's Data (7 Partitions)</strong><br/>
+SELECT * FROM sensor_readings<br/>
+WHERE device_id='thermostat_a1b2'<br/>
+AND date IN ('2024-12-20', ..., '2024-12-26');<br/><br/>
+Performance: 15-25ms (7 parallel queries)<br/>
+Distribution: Could hit 7 different node groups!<br/>
+Total rows: ~120K (perfect for cassandra)
+                                        </div>
+                                    </div>
+
+                                    <h4 style="color: #06b6d4; margin-top: 2rem;">Compaction Strategy Impact</h4>
+                                    <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 8px; border-left: 3px solid #10b981;">
+                                        <ul style="margin: 0; color: var(--text-secondary);">
+                                            <li><strong style="color: #10b981;">TimeWindowCompactionStrategy:</strong> Perfect for time-series data</li>
+                                            <li><strong style="color: #10b981;">Window Size:</strong> 1 day = one SSTable per day per partition</li>
+                                            <li><strong style="color: #10b981;">Old Data:</strong> Drop entire SSTables (no tombstones!)</li>
+                                            <li><strong style="color: #10b981;">Retention:</strong> Delete data older than 90 days = just delete files</li>
+                                            <li><strong style="color: #10b981;">Performance:</strong> No compaction overhead during writes!</li>
+                                        </ul>
+                                    </div>
+
+                                    <h4 style="color: #06b6d4; margin-top: 2rem;">Capacity Planning</h4>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li><strong style="color: var(--text-primary);">Data per Device per Day:</strong> ~100KB (1 reading/min × 1440 min × 70 bytes)</li>
+                                        <li><strong style="color: var(--text-primary);">Total per Day:</strong> 50M devices × 100KB = 5TB/day</li>
+                                        <li><strong style="color: var(--text-primary);">90-Day Retention:</strong> 450TB raw data</li>
+                                        <li><strong style="color: var(--text-primary);">With RF=3:</strong> 1.35PB total storage</li>
+                                        <li><strong style="color: var(--text-primary);">Per Node (300 nodes):</strong> 4.5TB/node (comfortable!)</li>
+                                        <li><strong style="color: var(--text-primary);">Distribution:</strong> 18.25B partitions ÷ 300 nodes = 60M partitions/node</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Services Scenario -->
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.08)); border-left: 5px solid #f59e0b; margin-top: 3rem;">
+                            <h3 style="color: #f59e0b;">Scenario 4: Financial Trading Platform - TradeFlow</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Company:</strong> TradeFlow - High-frequency trading platform, 10M traders</p>
+                                <p><strong style="color: var(--text-primary);">Scale:</strong> 500K trades/second peak, 1TB/day audit logs, 100-node cluster</p>
+
+                                <div style="background: rgba(0,0,0,0.3); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+                                    <h4 style="color: #f59e0b; margin-top: 0;">Multi-Table Distribution Strategy</h4>
+                                    
+                                    <div style="background: rgba(245, 158, 11, 0.1); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+<strong>// Table 1: Trade Executions (Query by trader)</strong><br/>
+CREATE TABLE trades_by_trader (<br/>
+&nbsp;&nbsp;trader_id UUID,<br/>
+&nbsp;&nbsp;trade_date DATE,<br/>
+&nbsp;&nbsp;trade_id TIMEUUID,<br/>
+&nbsp;&nbsp;symbol TEXT,<br/>
+&nbsp;&nbsp;quantity BIGINT,<br/>
+&nbsp;&nbsp;price DECIMAL,<br/>
+&nbsp;&nbsp;side TEXT, // BUY/SELL<br/>
+&nbsp;&nbsp;PRIMARY KEY ((trader_id, trade_date), trade_id)<br/>
+);<br/><br/>
+<strong>// Table 2: Same data (Query by symbol)</strong><br/>
+CREATE TABLE trades_by_symbol (<br/>
+&nbsp;&nbsp;symbol TEXT,<br/>
+&nbsp;&nbsp;trade_date DATE,<br/>
+&nbsp;&nbsp;trade_id TIMEUUID,<br/>
+&nbsp;&nbsp;trader_id UUID,<br/>
+&nbsp;&nbsp;quantity BIGINT,<br/>
+&nbsp;&nbsp;price DECIMAL,<br/>
+&nbsp;&nbsp;side TEXT,<br/>
+&nbsp;&nbsp;PRIMARY KEY ((symbol, trade_date), trade_id)<br/>
+);<br/><br/>
+<strong>Strategy: Duplicate data, different partition keys</strong><br/>
+→ Different distributions!<br/>
+→ Optimized for different queries!
+                                    </div>
+
+                                    <h4 style="color: #f59e0b; margin-top: 2rem;">Distribution Comparison</h4>
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Same Trade, Different Locations!</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+<strong style="color: #f59e0b;">Trade Details:</strong><br/>
+trader_id='john_doe_123'<br/>
+symbol='AAPL'<br/>
+trade_date='2024-12-26'<br/>
+trade_id=now()<br/>
+price=150.25<br/>
+quantity=1000<br/><br/>
+<strong style="color: #6366f1;">Distribution in trades_by_trader:</strong><br/>
+Partition Key: (john_doe_123, 2024-12-26)<br/>
+→ Token: -3,456,789,012,345<br/>
+→ Nodes: 34, 35, 36<br/><br/>
+<strong style="color: #6366f1;">Distribution in trades_by_symbol:</strong><br/>
+Partition Key: (AAPL, 2024-12-26)<br/>
+→ Token: 7,890,123,456,789<br/>
+→ Nodes: 78, 79, 80<br/><br/>
+<strong style="color: #f59e0b;">Result: Same data, stored on DIFFERENT nodes!</strong><br/>
+This is OK! Optimizes for different query patterns!
+                                        </div>
+                                    </div>
+
+                                    <h4 style="color: #f59e0b; margin-top: 2rem;">Query Performance Analysis</h4>
+                                    <ul style="color: var(--text-secondary);">
+                                        <li><strong style="color: var(--text-primary);">Get Trader's Trades:</strong> Query trades_by_trader → Node 34 (1-2ms)</li>
+                                        <li><strong style="color: var(--text-primary);">Get Symbol's Trades:</strong> Query trades_by_symbol → Node 78 (1-2ms)</li>
+                                        <li><strong style="color: var(--text-primary);">Storage Overhead:</strong> 2x storage (worth it for query speed!)</li>
+                                        <li><strong style="color: var(--text-primary);">Write Amplification:</strong> 2 writes per trade (batched, still fast)</li>
+                                        <li><strong style="color: var(--text-primary);">Consistency:</strong> Both writes use QUORUM (strong consistency)</li>
+                                    </ul>
+
+                                    <h4 style="color: #f59e0b; margin-top: 2rem;">Hot Symbol Problem & Solution</h4>
+                                    <div style="background: rgba(220, 38, 38, 0.15); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #dc2626;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Problem: AAPL has 1M trades/day</strong></p>
+                                        <div style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+All AAPL trades for 2024-12-26 go to same partition!<br/>
+→ Same 3 nodes (78, 79, 80)<br/>
+→ Potential hotspot!
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(16, 185, 129, 0.15); padding: 1.5rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #10b981;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Solution: Time-based Micro-sharding</strong></p>
+                                        <div style="margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">
+CREATE TABLE trades_by_symbol_hourly (<br/>
+&nbsp;&nbsp;symbol TEXT,<br/>
+&nbsp;&nbsp;trade_date DATE,<br/>
+&nbsp;&nbsp;hour INT,  // 0-23<br/>
+&nbsp;&nbsp;trade_id TIMEUUID,<br/>
+&nbsp;&nbsp;...<br/>
+&nbsp;&nbsp;PRIMARY KEY ((symbol, trade_date, hour), trade_id)<br/>
+);<br/><br/>
+AAPL on 2024-12-26:<br/>
+→ (AAPL, 2024-12-26, 00) → Nodes 12, 13, 14<br/>
+→ (AAPL, 2024-12-26, 01) → Nodes 45, 46, 47<br/>
+→ (AAPL, 2024-12-26, 02) → Nodes 78, 79, 80<br/>
+...<br/>
+→ (AAPL, 2024-12-26, 23) → Nodes 91, 92, 93<br/><br/>
+<strong style="color: #10b981;">1M trades distributed across 72 nodes!</strong><br/>
+~14K trades per node (manageable!)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions -->
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Expert Interview Questions</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master these to demonstrate deep expertise!</p>
+
+                            <!-- Question 1 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">Explain consistent hashing and why Cassandra uses it</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Consistent hashing maps both data and nodes to points on a circular hash space (ring), allowing minimal data movement when nodes are added or removed.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Why Cassandra Uses It:</strong></p>
+                                        <ul>
+                                            <li><strong>Minimal Rebalancing:</strong> Adding node moves only K/N keys (K=total keys, N=nodes)</li>
+                                            <li><strong>No Central Coordinator:</strong> Each node knows ring topology</li>
+                                            <li><strong>Linear Scalability:</strong> Add nodes without downtime</li>
+                                            <li><strong>Even Distribution:</strong> With vnodes, nearly perfect balance</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Example:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Traditional: hash(key) % N<br/>
+3 nodes → Add 4th node → 75% data moves!<br/><br/>
+Consistent Hashing:<br/>
+Ring: -2^63 to 2^63-1<br/>
+3 nodes → Add 4th node → 25% data moves!<br/><br/>
+With 100 nodes → Add 1 node → 1% moves!
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 2 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">How does replication factor affect data distribution?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Replication Factor (RF) determines how many copies of each piece of data exist in the cluster. Data is replicated to RF consecutive nodes clockwise on the ring.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Distribution Rules:</strong></p>
+                                        <ul>
+                                            <li><strong>RF=1:</strong> Data stored on 1 node only (no fault tolerance)</li>
+                                            <li><strong>RF=3:</strong> Data stored on 3 consecutive nodes (industry standard)</li>
+                                            <li><strong>RF=5:</strong> Data stored on 5 nodes (high availability scenarios)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Example with RF=3:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Key: user_id='alice'<br/>
+Token: -3,847,293,847,293<br/><br/>
+Ring (6 nodes):<br/>
+Node 1: -8T to -4T (PRIMARY - owns token)<br/>
+Node 2: -4T to 0<br/>
+Node 3: 0 to 4T<br/>
+Node 4: 4T to 8T<br/>
+...<br/><br/>
+With RF=3, replicas on:<br/>
+→ Node 1 (primary)<br/>
+→ Node 2 (next clockwise)<br/>
+→ Node 3 (next clockwise)<br/><br/>
+Result: Can lose 2 nodes and still have data!
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Impact on Distribution:</strong></p>
+                                        <ul>
+                                            <li>Higher RF = More copies = Higher availability</li>
+                                            <li>Higher RF = More storage needed (RF=3 uses 3x space)</li>
+                                            <li>Higher RF = Slower writes (more nodes to coordinate)</li>
+                                            <li>Higher RF = Faster reads (more replicas to query)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-indigo);">🎓 Chapter Summary</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">You now understand Cassandra's data distribution!</strong></p>
+
+                            <h4 style="color: var(--accent-indigo); margin-top: 2rem;">Key Concepts:</h4>
+                            <ul>
+                                <li>Consistent hashing enables linear scalability</li>
+                                <li>Token ring organizes 2^64 possible tokens</li>
+                                <li>Replication provides fault tolerance</li>
+                                <li>Vnodes ensure perfect distribution</li>
+                                <li>Clockwise traversal for replica placement</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="hash-function.html" class="nav-button">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Hash Functions</div>
+                            </div>
+                        </a>
+                        <a href="replication-factor.html" class="nav-button next">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Replication Factor</div>
+                            </div>
+                        </a>
+                    </div>
+                        <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+            document.getElementById('scrollTop').classList.toggle('visible', winScroll > 300);
+        });
+
+        document.getElementById('mobileMenuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        function toggleQuestion(card) {
+            card.classList.toggle('active');
+        }
+
+        function clearDistConsole() {
+            document.getElementById('distOutput').innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared...</div>';
+        }
+
+        function addDistLog(msg, type = '') {
+            const output = document.getElementById('distOutput');
+            const div = document.createElement('div');
+            div.className = `console-log log-${type}`;
+            div.innerHTML = msg;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return hash * 1000000 + str.length * 12345;
+        }
+
+        function simulateDistribution() {
+            const key = document.getElementById('partitionKey').value;
+            const nodeCount = parseInt(document.getElementById('nodeCount').value);
+            const rf = parseInt(document.getElementById('rfValue').value);
+            
+            if (!key) { alert('Enter a partition key!'); return; }
+            
+            clearDistConsole();
+            
+            addDistLog('═══════════════════════════════════', '');
+            addDistLog('<strong>DATA DISTRIBUTION SIMULATION</strong>', 'key');
+            addDistLog('═══════════════════════════════════<br/>', '');
+            
+            addDistLog(`<strong>Configuration:</strong>`, '');
+            addDistLog(`Partition Key: "${key}"`, 'key');
+            addDistLog(`Nodes: ${nodeCount}`, '');
+            addDistLog(`Replication Factor: ${rf}<br/>`, '');
+            
+            const token = simpleHash(key);
+            addDistLog(`<strong>Token Generation:</strong>`, '');
+            addDistLog(`Hash(${key}) = ${token.toLocaleString()}`, 'node');
+            
+            const primaryNode = Math.abs(token % nodeCount) + 1;
+            addDistLog(`<br/><strong>Primary Replica:</strong>`, '');
+            addDistLog(`Node ${primaryNode} (owns token range)`, 'replica');
+            
+            addDistLog(`<br/><strong>Additional Replicas (RF=${rf}):</strong>`, '');
+            const replicas = [primaryNode];
+            for (let i = 1; i < rf; i++) {
+                const replicaNode = ((primaryNode - 1 + i) % nodeCount) + 1;
+                replicas.push(replicaNode);
+                addDistLog(`Node ${replicaNode} (clockwise from Node ${primaryNode})`, 'replica');
+            }
+            
+            addDistLog(`<br/><strong>RESULT:</strong>`, 'success');
+            addDistLog(`Data stored on ${rf} nodes: ${replicas.join(', ')}`, 'success');
+            addDistLog(`Can survive ${rf - 1} node failure(s)! ✅`, 'success');
+        }
+
+        function batchSimulate() {
+            const keys = ['user_001', 'user_002', 'user_003', 'order_abc', 'session_x', 'product_123', 'cart_456', 'payment_789', 'review_xyz', 'inventory_99'];
+            const nodeCount = parseInt(document.getElementById('nodeCount').value);
+            
+            clearDistConsole();
+            addDistLog('<strong>BATCH SIMULATION (10 keys)</strong><br/>', '');
+            
+            const dist = {};
+            keys.forEach(key => {
+                const token = simpleHash(key);
+                const node = Math.abs(token % nodeCount) + 1;
+                dist[node] = (dist[node] || 0) + 1;
+                addDistLog(`${key} → Node ${node}`, 'node');
+            });
+            
+            addDistLog('<br/><strong>DISTRIBUTION SUMMARY:</strong>', 'success');
+            for (let i = 1; i <= nodeCount; i++) {
+                const count = dist[i] || 0;
+                const bar = '█'.repeat(count);
+                addDistLog(`Node ${i}: ${bar} (${count} keys)`, 'replica');
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addDistLog('🌐 <strong>Distribution Simulator Ready!</strong>', '');
+                addDistLog('Configure settings and click "Distribute" to see data placement.', '');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

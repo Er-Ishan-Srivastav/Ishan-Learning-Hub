@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Replacing Nodes in Cassandra Cluster - Replace dead nodes safely with replace_address!">
+    <title>Replacing Nodes in Cassandra Cluster | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 25%, #0d9488 50%, #059669 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-teal);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(13, 148, 136, 0.3);
+            border: 2px solid rgba(13, 148, 136, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🔄';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🔄</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Replacing Nodes</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+         <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html" class="active">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-sync-alt"></i>
+                        Node Replacement
+                    </span>
+                    <h1><span class="gradient-text">Replacing Nodes</span></h1>
+                    <p>Replace dead nodes with replace_address - Maintain cluster size!</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="cluster-operations.html">Cluster Operations</a>
+                <span class="separator">›</span>
+                <span class="current">Replacing Nodes</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><a href="#when-to-replace">🔍 When to Replace</a></li>
+                            <li><a href="#replace-vs-remove">🔀 Replace vs Remove</a></li>
+                            <li><a href="#prerequisites">✅ Prerequisites</a></li>
+                            <li><a href="#replacement-process">🔄 Replacement Process</a></li>
+                            <li><a href="#monitoring">📊 Monitoring</a></li>
+                            <li><a href="#scenarios">💼 Real Scenarios</a></li>
+                            <li><a href="#troubleshooting">🔧 Troubleshooting</a></li>
+                            <li><a href="#best-practices">💡 Best Practices</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- When to Replace -->
+                    <section id="when-to-replace" data-aos="fade-up">
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(13, 148, 136, 0.05)); border-left-color: #f59e0b;">
+                            <h2 style="color: #f59e0b;">🔍 When Do You Replace a Node?</h2>
+                            <div style="line-height: 1.9; font-size: 1.15rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Node replacement is for when a node is DEAD and you want to bring in a NEW node to take its place!</strong></p>
+                                
+                                <h4 style="color: #f59e0b; margin-top: 2rem;">✅ Replace Node When:</h4>
+                                <ul style="font-size: 1.05rem; line-height: 2;">
+                                    <li>💀 <strong>Hardware failure</strong> - Disk died, server won't boot</li>
+                                    <li>💀 <strong>Node is permanently dead</strong> - Can't be recovered</li>
+                                    <li>💀 <strong>Want to maintain cluster size</strong> - Keep same number of nodes</li>
+                                    <li>💀 <strong>Node down > 3 hours</strong> - Hints expired, too much data to catch up</li>
+                                    <li>💀 <strong>Data corruption</strong> - Beyond repair</li>
+                                </ul>
+
+                                <h4 style="color: #dc2626; margin-top: 2rem;">❌ Don't Replace When:</h4>
+                                <ul style="font-size: 1.05rem; line-height: 2;">
+                                    <li>✋ Node is still running - Use <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px;">nodetool decommission</code></li>
+                                    <li>✋ Temporary failure - Just restart it!</li>
+                                    <li>✋ Node down < 3 hours - Let hinted handoff catch it up</li>
+                                    <li>✋ Scaling down - Use <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px;">removenode</code> instead</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Replace vs Remove -->
+                    <section id="replace-vs-remove" data-aos="fade-up">
+                        <h2>🔀 Replace vs Remove vs Add</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Three different operations - Know the difference!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: var(--accent-teal);">
+                                <div class="comparison-icon">🔄</div>
+                                <h3>Replace Node</h3>
+                                <p><strong>New node takes dead node's place</strong></p>
+                                <div style="text-align: left; margin-top: 1.5rem;">
+                                    <p><strong>When:</strong></p>
+                                    <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                        <li>💀 Node is dead</li>
+                                        <li>🔢 Keep cluster size same</li>
+                                        <li>🎫 Inherit dead node's tokens</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>How:</strong></p>
+                                    <ul style="font-size: 0.9rem;">
+                                        <li>New node starts with <code>replace_address</code></li>
+                                        <li>Gets exact same token ranges</li>
+                                        <li>Streams data from replicas</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>Result:</strong> Same cluster size ✅</p>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--error-red);">
+                                <div class="comparison-icon">➖</div>
+                                <h3>Remove Node</h3>
+                                <p><strong>Shrink cluster size</strong></p>
+                                <div style="text-align: left; margin-top: 1.5rem;">
+                                    <p><strong>When:</strong></p>
+                                    <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                        <li>⬇️ Scaling down</li>
+                                        <li>💰 Cost reduction</li>
+                                        <li>🔄 Tokens redistributed</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>How:</strong></p>
+                                    <ul style="font-size: 0.9rem;">
+                                        <li>Use <code>nodetool decommission</code></li>
+                                        <li>OR <code>nodetool removenode</code></li>
+                                        <li>Data moves to remaining nodes</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>Result:</strong> Cluster shrinks 📉</p>
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--success-green);">
+                                <div class="comparison-icon">➕</div>
+                                <h3>Add Node</h3>
+                                <p><strong>Grow cluster size</strong></p>
+                                <div style="text-align: left; margin-top: 1.5rem;">
+                                    <p><strong>When:</strong></p>
+                                    <ul style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                        <li>⬆️ Scaling up</li>
+                                        <li>💪 More capacity needed</li>
+                                        <li>🆕 Gets NEW tokens</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>How:</strong></p>
+                                    <ul style="font-size: 0.9rem;">
+                                        <li>Start Cassandra normally</li>
+                                        <li>Auto-bootstrap enabled</li>
+                                        <li>Streams from neighbors</li>
+                                    </ul>
+                                    <p style="margin-top: 1rem;"><strong>Result:</strong> Cluster grows 📈</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-info-circle" style="color: var(--accent-teal);"></i> Key Decision Tree</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Is the node dead/permanently gone?</span>
+<span class="keyword">YES</span> → Do you want to keep cluster size?
+      <span class="keyword">YES</span> → <span class="string">Replace node</span> (this page!)
+      <span class="keyword">NO</span>  → <span class="string">Remove node</span> (shrink cluster)
+<span class="keyword">NO</span>  → Node is alive:
+      → Use <span class="string">decommission</span> to remove gracefully
+      → OR just restart it if temporary issue
+
+<span class="comment"># Want to grow cluster?</span>
+→ Use normal node addition (not replacement!)
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Prerequisites -->
+                    <section id="prerequisites" data-aos="fade-up">
+                        <h2>✅ Prerequisites Before Replacement</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Check these BEFORE starting!</p>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Critical Checks</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># 1. Verify node is truly dead</span>
+ssh dead-node
+<span class="comment"># Can't connect? Good - it's dead!</span>
+
+<span class="comment"># 2. Check replication factor</span>
+cqlsh -e <span class="string">"DESCRIBE KEYSPACE my_keyspace"</span>
+
+<span class="comment"># Output must show RF >= 2:</span>
+replication = {<span class="string">'class'</span>: <span class="string">'NetworkTopologyStrategy'</span>,
+               <span class="string">'datacenter1'</span>: <span class="string">'3'</span>}  <span class="comment">← RF=3 ✅</span>
+
+<span class="comment"># If RF=1, YOU WILL LOSE DATA! ❌</span>
+
+<span class="comment"># 3. Check cluster health (from live node)</span>
+nodetool <span class="keyword">status</span>
+
+<span class="comment"># Should see dead node as DN:</span>
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">10</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  abc123
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">11</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  def456
+DN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.4</span>%  ghi789  <span class="comment">← Dead!</span>
+
+<span class="comment"># 4. Get the dead node's IP</span>
+<span class="comment"># Note: 192.168.1.15 (we'll need this!)</span>
+
+<span class="comment"># 5. Have new hardware ready</span>
+<span class="comment"># - Same or better specs</span>
+<span class="comment"># - Cassandra installed (same version!)</span>
+<span class="comment"># - Can be same IP or different IP</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Replacement Process -->
+                    <section id="replacement-process" data-aos="fade-up">
+                        <h2>🔄 Complete Replacement Process</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Step-by-step with commands!</p>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>Remove Dead Node from Cluster</h3>
+                                <p style="color: var(--text-secondary);">Tell cluster to forget the dead node</p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># From a LIVE node, get dead node's Host ID</span>
+nodetool <span class="keyword">status</span>
+
+<span class="comment"># Output:</span>
+DN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.4</span>%  ghi789-...
+<span class="comment">#                                         ^^^^^^^^^^</span>
+<span class="comment">#                                         Host ID!</span>
+
+<span class="comment"># Remove the dead node</span>
+nodetool <span class="keyword">removenode</span> ghi789-abc-def-123
+
+<span class="comment"># Wait for completion (5-15 minutes)</span>
+nodetool <span class="keyword">removenode</span> status
+
+<span class="comment"># Output:</span>
+RemovalStatus: No token removals in process.
+
+<span class="comment"># Verify node is gone</span>
+nodetool <span class="keyword">status</span>
+<span class="comment"># Dead node should not appear!</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>Prepare New Node</h3>
+                                <p style="color: var(--text-secondary);">Install and configure Cassandra on new hardware</p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># On NEW node, install Cassandra</span>
+<span class="comment"># Must be SAME VERSION as cluster!</span>
+
+<span class="comment"># Check cluster version first (from live node):</span>
+nodetool <span class="keyword">version</span>
+<span class="comment"># ReleaseVersion: 4.1.0</span>
+
+<span class="comment"># Install matching version on new node</span>
+sudo apt install cassandra=<span class="number">4.1</span>.<span class="number">0</span>
+
+<span class="comment"># Edit cassandra.yaml on NEW node</span>
+sudo vim /etc/cassandra/cassandra.yaml
+
+<span class="comment"># Configure these settings:</span>
+cluster_name: <span class="string">'MyCluster'</span>        <span class="comment"># Must match cluster!</span>
+seeds: <span class="string">"192.168.1.10,192.168.1.11"</span>  <span class="comment"># Live nodes (NOT dead node!)</span>
+listen_address: <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>      <span class="comment"># Can be same or different IP</span>
+rpc_address: <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>         <span class="comment"># Match listen_address</span>
+endpoint_snitch: GossipingPropertyFileSnitch
+
+<span class="comment"># Edit cassandra-rackdc.properties</span>
+sudo vim /etc/cassandra/cassandra-rackdc.properties
+
+dc=datacenter1  <span class="comment"># Must match cluster!</span>
+rack=rack1      <span class="comment"># Match dead node's rack</span>
+
+<span class="comment"># DON'T start Cassandra yet!</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>Start Replacement with replace_address</h3>
+                                <p style="color: var(--text-secondary);">The magic parameter that makes it a replacement!</p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># METHOD 1: JVM Option (RECOMMENDED)</span>
+<span class="comment"># On NEW node:</span>
+sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=192.168.1.15"</span> \
+     cassandra
+
+<span class="comment"># Use dead node's IP address!</span>
+<span class="comment"># Even if new node has different IP</span>
+
+<span class="comment"># METHOD 2: cassandra.yaml</span>
+<span class="comment"># Edit cassandra.yaml:</span>
+replace_address_first_boot: <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+
+<span class="comment"># Then start:</span>
+sudo systemctl start cassandra
+
+<span class="comment"># What happens now:</span>
+<span class="comment"># 1. New node contacts seeds</span>
+<span class="comment"># 2. Announces "I'm replacing 192.168.1.15"</span>
+<span class="comment"># 3. Gets dead node's token ranges</span>
+<span class="comment"># 4. Starts streaming data from replicas</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 1: Joining (Instant)</h4>
+                                    <p><strong>Node announces replacement</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Check logs on NEW node</span>
+tail -f /var/log/cassandra/system.log
+
+<span class="comment"># You'll see:</span>
+INFO  Starting replacement of <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+INFO  Replacement node taking tokens: [<span class="number">100</span>, <span class="number">200</span>, <span class="number">300</span>...]
+INFO  Node state jump to JOINING
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 2: Streaming (30 min - 6 hours)</h4>
+                                    <p><strong>Data streams from replicas</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Monitor streaming progress</span>
+nodetool <span class="keyword">netstats</span>
+
+<span class="comment"># Output shows:</span>
+Mode: JOINING
+Streaming from: /<span class="number">192.168</span>.<span class="number">1</span>.<span class="number">10</span>
+    my_keyspace/users: <span class="number">125543265</span>/<span class="number">500000000</span> bytes (<span class="number">25</span>%)
+Streaming from: /<span class="number">192.168</span>.<span class="number">1</span>.<span class="number">11</span>
+    my_keyspace/orders: <span class="number">456782340</span>/<span class="number">1200000000</span> bytes (<span class="number">38</span>%)
+
+<span class="comment"># Check from another live node:</span>
+nodetool <span class="keyword">status</span>
+
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">10</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  abc123
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">11</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  def456
+UJ  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">45</span> GB   <span class="number">16</span>  <span class="number">33.4</span>%  xyz999  <span class="comment">← Joining!</span>
+<span class="comment">#^^ UJ = Up and Joining</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>Phase 3: Normal (Complete!)</h4>
+                                    <p><strong>Replacement successful</strong></p>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># Logs show completion:</span>
+INFO  All streaming completed successfully
+INFO  Node <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span> state jump to NORMAL
+
+<span class="comment"># Verify status:</span>
+nodetool <span class="keyword">status</span>
+
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">10</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  abc123
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">11</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.3</span>%  def456
+UN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>  <span class="number">100</span> GB  <span class="number">16</span>  <span class="number">33.4</span>%  xyz999  <span class="comment">← Normal! ✅</span>
+
+<span class="comment"># Replacement complete!</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-card" data-aos="fade-up">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h3>Verify Replacement Success</h3>
+                                <p style="color: var(--text-secondary);">Ensure everything is working!</p>
+                                <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># 1. Check node status</span>
+nodetool <span class="keyword">status</span>
+<span class="comment"># All nodes should be UN (Up Normal)</span>
+
+<span class="comment"># 2. Verify token ownership</span>
+nodetool <span class="keyword">ring</span> | grep <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+<span class="comment"># Should show same tokens as dead node had</span>
+
+<span class="comment"># 3. Test data access</span>
+cqlsh <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span>
+
+SELECT <span class="keyword">count</span>(*) FROM my_keyspace.users;
+<span class="comment"># Count should match other nodes</span>
+
+SELECT * FROM my_keyspace.users WHERE id=<span class="number">123</span>;
+<span class="comment"># Data should be readable</span>
+
+<span class="comment"># 4. Check data size</span>
+nodetool <span class="keyword">tablestats</span> my_keyspace.users | grep <span class="string">"Space used"</span>
+<span class="comment"># Should match other nodes (~100 GB)</span>
+
+<span class="comment"># 5. Run repair (IMPORTANT!)</span>
+nodetool <span class="keyword">repair</span> -pr my_keyspace
+<span class="comment"># Catches any missed writes during replacement</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Monitoring -->
+                    <section id="monitoring" data-aos="fade-up">
+                        <h2>📊 Monitoring Replacement Progress</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Watch it carefully!</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-chart-line" style="color: var(--accent-teal);"></i> Key Commands</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Monitor streaming (on NEW node)</span>
+nodetool <span class="keyword">netstats</span>
+
+<span class="comment"># Watch logs (on NEW node)</span>
+tail -f /var/log/cassandra/system.log | grep -i <span class="string">"stream\|joining\|normal"</span>
+
+<span class="comment"># Check status from live node</span>
+watch -n <span class="number">10</span> <span class="string">'nodetool status'</span>
+
+<span class="comment"># Monitor disk space (on NEW node)</span>
+watch -n <span class="number">30</span> <span class="string">'df -h /var/lib/cassandra'</span>
+
+<span class="comment"># Check network throughput</span>
+iftop -i eth0
+
+<span class="comment"># Check compaction activity</span>
+nodetool <span class="keyword">compactionstats</span>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-clock" style="color: #d97706;"></i> Timeline Estimates</h4>
+                            <ul style="font-size: 1.05rem; line-height: 2;">
+                                <li>💾 <strong>100 GB node:</strong> 30 min - 2 hours</li>
+                                <li>💾 <strong>500 GB node:</strong> 2-6 hours</li>
+                                <li>💾 <strong>2 TB node:</strong> 8-24 hours</li>
+                                <li>⚡ <strong>Factors:</strong> Network speed, disk I/O, RF, cluster load</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Real Scenarios -->
+                    <section id="scenarios" data-aos="fade-up">
+                        <h2>💼 Real-World Scenarios</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete examples!</p>
+
+                        <h3 style="color: var(--accent-teal);">Scenario 1: Disk Failure - Same IP</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Context: Production node's SSD died</span>
+<span class="comment"># Goal: Replace disk, keep same IP</span>
+
+<span class="comment"># BEFORE STATE:</span>
+$ nodetool status
+UN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">100</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  node1-abc
+DN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">101</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  node2-def  <span class="comment">← DEAD</span>
+UN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">102</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.4</span>%  node3-ghi
+
+<span class="comment"># STEP 1: Remove dead node</span>
+$ nodetool removenode node2-def-456-789
+Removal status: REMOVED
+
+<span class="comment"># STEP 2: Replace disk hardware</span>
+<span class="comment"># - Install new SSD</span>
+<span class="comment"># - Keep same IP: 10.50.1.101</span>
+
+<span class="comment"># STEP 3: Install Cassandra (matching version!)</span>
+$ cassandra -v
+<span class="number">4.1</span>.<span class="number">0</span>  <span class="comment">← Must match cluster</span>
+
+<span class="comment"># STEP 4: Configure cassandra.yaml</span>
+$ sudo vim /etc/cassandra/cassandra.yaml
+cluster_name: <span class="string">'Production'</span>
+seeds: <span class="string">"10.50.1.100,10.50.1.102"</span>
+listen_address: <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">101</span>
+rpc_address: <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">101</span>
+
+<span class="comment"># STEP 5: Start with replace_address</span>
+$ sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=10.50.1.101"</span> \
+       cassandra
+
+<span class="comment"># STEP 6: Monitor streaming</span>
+$ tail -f /var/log/cassandra/system.log
+INFO  Replacing node <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">101</span>
+INFO  Streaming from /<span class="number">10.50</span>.<span class="number">1</span>.<span class="number">100</span>: <span class="number">250</span> GB
+INFO  Streaming from /<span class="number">10.50</span>.<span class="number">1</span>.<span class="number">102</span>: <span class="number">250</span> GB
+...
+INFO  Node state jump to NORMAL
+
+<span class="comment"># AFTER STATE:</span>
+$ nodetool status
+UN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">100</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  node1-abc
+UN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">101</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  node2-NEW  <span class="comment">← Replaced! ✅</span>
+UN  <span class="number">10.50</span>.<span class="number">1</span>.<span class="number">102</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.4</span>%  node3-ghi
+
+<span class="comment"># Success! Same IP, new hardware</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Scenario 2: Different IP (Cloud Migration)</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Context: Moving from on-prem to AWS</span>
+<span class="comment"># Old IP: 192.168.1.50 (on-prem)</span>
+<span class="comment"># New IP: 10.0.5.200 (AWS)</span>
+
+<span class="comment"># STEP 1: Dead node info</span>
+$ nodetool status
+DN  <span class="number">192.168</span>.<span class="number">1</span>.<span class="number">50</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  old-node
+
+<span class="comment"># STEP 2: Remove dead node</span>
+$ nodetool removenode old-node-host-id
+
+<span class="comment"># STEP 3: Configure NEW node (AWS)</span>
+<span class="comment"># cassandra.yaml on 10.0.5.200:</span>
+cluster_name: <span class="string">'MyCluster'</span>
+seeds: <span class="string">"10.0.5.201,10.0.5.202"</span>  <span class="comment">← AWS seeds</span>
+listen_address: <span class="number">10.0</span>.<span class="number">5</span>.<span class="number">200</span>        <span class="comment">← NEW IP</span>
+rpc_address: <span class="number">10.0</span>.<span class="number">5</span>.<span class="number">200</span>
+
+<span class="comment"># STEP 4: Start with OLD IP in replace_address!</span>
+$ sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=192.168.1.50"</span> \
+       cassandra
+<span class="comment">#                                             ^^^^^^^^^^^^^^</span>
+<span class="comment">#                                             OLD IP here!</span>
+
+<span class="comment"># What happens:</span>
+<span class="comment"># - New node (10.0.5.200) says "I'm replacing 192.168.1.50"</span>
+<span class="comment"># - Gets 192.168.1.50's token ranges</span>
+<span class="comment"># - Streams data to 10.0.5.200</span>
+<span class="comment"># - Cluster maps old tokens → new IP</span>
+
+<span class="comment"># RESULT:</span>
+$ nodetool status
+UN  <span class="number">10.0</span>.<span class="number">5</span>.<span class="number">200</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  new-node  <span class="comment">← New IP! ✅</span>
+UN  <span class="number">10.0</span>.<span class="number">5</span>.<span class="number">201</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.3</span>%  node2
+UN  <span class="number">10.0</span>.<span class="number">5</span>.<span class="number">202</span>  <span class="number">500</span> GB  <span class="number">256</span>  <span class="number">33.4</span>%  node3
+
+<span class="comment"># Update your application connection strings!</span>
+<span class="comment"># Replace 192.168.1.50 → 10.0.5.200</span>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Scenario 3: Emergency - Node Vanished</h3>
+                        <div class="code-block" data-aos="fade-up">
+<span class="comment"># Context: Node completely destroyed (fire, flood, etc)</span>
+<span class="comment"># Need IMMEDIATE replacement</span>
+
+<span class="comment"># STEP 1: Verify disaster</span>
+$ ping <span class="number">10.20</span>.<span class="number">3</span>.<span class="number">75</span>
+<span class="comment"># No response - node is GONE</span>
+
+$ nodetool status
+DN  <span class="number">10.20</span>.<span class="number">3</span>.<span class="number">75</span>  ???  <span class="number">256</span>  <span class="number">33.3</span>%  disaster-node
+
+<span class="comment"># STEP 2: Emergency removal with assassinate</span>
+<span class="comment"># (Faster than removenode)</span>
+$ nodetool <span class="keyword">assassinate</span> <span class="number">10.20</span>.<span class="number">3</span>.<span class="number">75</span>
+<span class="comment"># Immediately removes from gossip</span>
+
+<span class="comment"># STEP 3: Verify removal</span>
+$ nodetool status
+<span class="comment"># Node should be GONE instantly</span>
+
+<span class="comment"># STEP 4: Quick new node setup</span>
+<span class="comment"># Use automation/Ansible/Terraform if available</span>
+
+<span class="comment"># STEP 5: Start replacement</span>
+$ sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=10.20.3.75"</span> \
+       cassandra
+
+<span class="comment"># STEP 6: Aggressive monitoring</span>
+$ watch -n <span class="number">5</span> <span class="string">'nodetool netstats'</span>
+
+<span class="comment"># Timeline:</span>
+<span class="comment"># - assassinate: Instant</span>
+<span class="comment"># - Replacement: 1-4 hours (depends on data size)</span>
+<span class="comment"># - Total: Much faster than normal removenode</span>
+
+<span class="comment"># CAUTION: Only use assassinate when 100% sure node is dead!</span>
+                        </div>
+                    </section>
+
+                    <!-- Troubleshooting -->
+                    <section id="troubleshooting" data-aos="fade-up">
+                        <h2>🔧 Troubleshooting</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Fix common issues!</p>
+
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ "Node already exists" Error</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># ERROR:</span>
+Can<span class="string">'t start node with replace_address because node</span>
+<span class="number">192.168</span>.<span class="number">1</span>.<span class="number">15</span> already exists!
+
+<span class="comment"># CAUSE: Didn't removenode before replacing</span>
+
+<span class="comment"># FIX:</span>
+<span class="comment"># 1. Stop new node</span>
+$ sudo systemctl stop cassandra
+
+<span class="comment"># 2. Remove dead node (from live node)</span>
+$ nodetool removenode <host-id>
+
+<span class="comment"># 3. Verify removal</span>
+$ nodetool status
+<span class="comment"># Dead node should be gone</span>
+
+<span class="comment"># 4. Retry replacement</span>
+$ sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=192.168.1.15"</span> \
+       cassandra
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Streaming Stuck/Slow</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># SYMPTOM: No progress for >1 hour</span>
+$ nodetool netstats
+Mode: JOINING
+Streaming: <span class="number">145</span> GB / <span class="number">500</span> GB (<span class="number">29</span>%)  <span class="comment">← Stuck!</span>
+
+<span class="comment"># DIAGNOSIS:</span>
+
+<span class="comment"># 1. Check network</span>
+$ iftop -i eth0
+<span class="comment"># Is network saturated?</span>
+
+<span class="comment"># 2. Check disk on source nodes</span>
+$ ssh source-node
+$ iostat -x <span class="number">5</span>
+<span class="comment"># %util near 100%? Disk is bottleneck</span>
+
+<span class="comment"># 3. Check for errors</span>
+$ grep -i <span class="string">"error\|exception"</span> /var/log/cassandra/system.log
+
+<span class="comment"># FIXES:</span>
+
+<span class="comment"># Fix 1: Increase stream throughput</span>
+<span class="comment"># Edit cassandra.yaml:</span>
+stream_throughput_outbound_megabits_per_sec: <span class="number">400</span>  <span class="comment"># Default: 200</span>
+<span class="comment"># Restart and try again</span>
+
+<span class="comment"># Fix 2: Check disk space on new node</span>
+$ df -h /var/lib/cassandra
+<span class="comment"># Need enough space for all data!</span>
+
+<span class="comment"># Fix 3: Disable compaction temporarily</span>
+$ nodetool <span class="keyword">disableautocompaction</span>
+<span class="comment"># Re-enable after replacement:</span>
+$ nodetool <span class="keyword">enableautocompaction</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Wrong Data After Replacement</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># SYMPTOM: Data count doesn't match</span>
+$ cqlsh <span class="number">10.1</span>.<span class="number">0</span>.<span class="number">15</span>
+SELECT <span class="keyword">count</span>(*) FROM users;
+<span class="number">3500000</span>  <span class="comment">← Expected: 5000000!</span>
+
+<span class="comment"># DIAGNOSIS:</span>
+$ nodetool tablestats my_keyspace.users
+Space used: <span class="number">120</span> GB  <span class="comment">← Expected: ~170 GB</span>
+
+<span class="comment"># CAUSE: Incomplete streaming</span>
+
+<span class="comment"># FIX: Run full repair</span>
+$ nodetool <span class="keyword">repair</span> -full my_keyspace users
+
+<span class="comment"># This will:</span>
+<span class="comment"># 1. Compare with replicas</span>
+<span class="comment"># 2. Stream missing data</span>
+<span class="comment"># 3. Ensure consistency</span>
+
+<span class="comment"># Wait for completion (1-3 hours)</span>
+
+<span class="comment"># Verify:</span>
+SELECT <span class="keyword">count</span>(*) FROM users;
+<span class="number">5000000</span>  <span class="comment">← Fixed! ✅</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h4>❌ Node Keeps Restarting</h4>
+                                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment"># SYMPTOM: Cassandra won't stay up</span>
+$ systemctl status cassandra
+Active: activating (auto-restart)
+
+<span class="comment"># CHECK LOGS:</span>
+$ tail -<span class="number">100</span> /var/log/cassandra/system.log
+
+<span class="comment"># Common errors and fixes:</span>
+
+<span class="comment"># Error 1: replace_address still set</span>
+ERROR: replace_address is set but node is not replacing!
+
+<span class="comment"># Fix: Remove from cassandra.yaml after first boot</span>
+$ sudo sed -i <span class="string">'/replace_address/d'</span> /etc/cassandra/cassandra.yaml
+$ sudo systemctl restart cassandra
+
+<span class="comment"># Error 2: Version mismatch</span>
+ERROR: Cannot start version <span class="number">4.0</span>.<span class="number">0</span> in cluster running <span class="number">4.1</span>.<span class="number">0</span>
+
+<span class="comment"># Fix: Install exact matching version!</span>
+$ sudo apt install cassandra=<span class="number">4.1</span>.<span class="number">0</span>
+
+<span class="comment"># Error 3: Out of memory</span>
+ERROR: java.lang.OutOfMemoryError
+
+<span class="comment"># Fix: Increase JVM heap in cassandra-env.sh</span>
+MAX_HEAP_SIZE=<span class="string">"16G"</span>  <span class="comment"># Increase from 8G</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>💡 Best Practices</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Do it right!</p>
+
+                        <div class="comparison-grid" data-aos="fade-up">
+                            <div class="comparison-card" style="border-color: var(--success-green);">
+                                <div class="comparison-icon">✅</div>
+                                <h3>DO</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Verify node is truly dead first</li>
+                                    <li>Remove dead node before replacing</li>
+                                    <li>Match Cassandra version exactly</li>
+                                    <li>Use same cluster_name</li>
+                                    <li>Monitor streaming progress</li>
+                                    <li>Run repair after completion</li>
+                                    <li>Replace during low traffic</li>
+                                    <li>Take snapshot before replacing</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" style="border-color: var(--error-red);">
+                                <div class="comparison-icon">❌</div>
+                                <h3>DON'T</h3>
+                                <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                                    <li>Replace if node is still alive</li>
+                                    <li>Skip removenode step</li>
+                                    <li>Use different Cassandra version</li>
+                                    <li>Wrong cluster_name</li>
+                                    <li>Interrupt streaming</li>
+                                    <li>Skip post-replacement repair</li>
+                                    <li>Replace multiple nodes at once</li>
+                                    <li>Forget to remove replace_address</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-star" style="color: #059669;"></i> Production Checklist</h4>
+                            <p><strong>Complete this before replacing:</strong></p>
+                            <ol style="font-size: 1.05rem; line-height: 2;">
+                                <li>✅ Verify node is dead (can't SSH, won't boot)</li>
+                                <li>✅ Check RF >= 2 (or data loss!)</li>
+                                <li>✅ Check cluster health (other nodes UN)</li>
+                                <li>✅ Note dead node's IP address</li>
+                                <li>✅ Remove dead node with <code>removenode</code></li>
+                                <li>✅ Prepare new hardware (same or better)</li>
+                                <li>✅ Install matching Cassandra version</li>
+                                <li>✅ Configure cassandra.yaml (cluster_name, seeds, etc)</li>
+                                <li>✅ Start with <code>replace_address</code></li>
+                                <li>✅ Monitor streaming to completion</li>
+                                <li>✅ Verify status (UN), data, tokens</li>
+                                <li>✅ Run <code>nodetool repair -pr</code></li>
+                                <li>✅ Remove <code>replace_address</code> from config</li>
+                                <li>✅ Update documentation/inventory</li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-purple);">🎉 You Can Replace Nodes Safely!</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">Congratulations! You now know how to replace dead nodes!</strong></p>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">🎓 What You Learned:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li>🔍 <strong>When to replace:</strong> Dead nodes that need swapping</li>
+                                <li>🔀 <strong>Replace vs Remove:</strong> Keep size vs shrink cluster</li>
+                                <li>✅ <strong>Prerequisites:</strong> RF >= 2, removenode first</li>
+                                <li>🔄 <strong>The process:</strong> 4 steps with <code>replace_address</code></li>
+                                <li>📊 <strong>Monitoring:</strong> netstats, logs, status</li>
+                                <li>💼 <strong>Real scenarios:</strong> Same IP, different IP, emergencies</li>
+                                <li>🔧 <strong>Troubleshooting:</strong> Stuck streaming, wrong data, restarts</li>
+                            </ul>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">💡 Key Takeaways:</h4>
+                            <ol style="line-height: 1.9;">
+                                <li><strong>Replacement maintains cluster size</strong> - Dead node → New node</li>
+                                <li><strong>Always removenode first</strong> - Clear out dead node</li>
+                                <li><strong>replace_address is magic</strong> - New node gets dead node's tokens</li>
+                                <li><strong>Can change IP</strong> - Old IP in replace_address, new IP in config</li>
+                                <li><strong>Monitor carefully</strong> - Can take hours to stream data</li>
+                                <li><strong>Run repair after</strong> - Catches missed writes</li>
+                            </ol>
+
+                            <h4 style="color: var(--accent-purple); margin-top: 2rem; margin-bottom: 1rem;">📋 Quick Reference:</h4>
+                            <div class="code-block" style="margin-top: 1rem;">
+<span class="comment"># Step 1: Remove dead node (from live node)</span>
+nodetool status  <span class="comment"># Get host ID</span>
+nodetool <span class="keyword">removenode</span> <host-id>
+
+<span class="comment"># Step 2: Prepare new node</span>
+<span class="comment"># Install Cassandra, configure cassandra.yaml</span>
+
+<span class="comment"># Step 3: Start replacement (on new node)</span>
+sudo <span class="keyword">JVM_OPTS</span>=<span class="string">"$JVM_OPTS -Dcassandra.replace_address=DEAD_NODE_IP"</span> \
+     cassandra
+
+<span class="comment"># Step 4: Monitor and verify</span>
+nodetool netstats  <span class="comment"># Watch streaming</span>
+nodetool status    <span class="comment"># Check status</span>
+nodetool <span class="keyword">repair</span> -pr  <span class="comment"># After completion</span>
+                            </div>
+
+                            <p style="margin-top: 2rem; font-size: 1.3rem; text-align: center; color: #059669; font-weight: 700;">
+                                ✅ Now you can handle node failures like a pro!<br>
+                                Dead node? No problem - just replace it!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="removing-nodes.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Removing Nodes</div>
+                            </div>
+                        </a>
+                        <a href="repair.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Repair Operations</div>
+                            </div>
+                        </a>
+                    </div>
+                     <!-- AdSense Placeholder -->
+        <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                <i class="fas fa-ad"></i> Advertisement
+            </div>
+            <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                <p style="color: var(--text-muted); margin: 0;">📱 Responsive Ad 📱</p>
+            </div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+       
+    </main>
+
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 992) {
+                if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

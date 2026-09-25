@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Guide to Disk Optimization in Cassandra - Master disk optimization techniques for optimal performance!">
+    <title>Disk Optimization in Cassandra: Complete Guide 2025 | CassandraHub</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 25%, #3b82f6 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-purple);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(13, 148, 136, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '👁️';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(139, 92, 246, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover { background: rgba(139, 92, 246, 0.1); }
+
+        .question-number {
+            background: var(--accent-purple);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle { transform: rotate(180deg); }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer { max-height: 5000px; }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong { color: var(--text-primary); }
+        .answer-content ul { margin-left: 1.5rem; margin-top: 1rem; }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+<nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Disk Optimization</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html" class="active">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+ <main class="main-content">
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-eye"></i>
+                        Advanced Performance Topics
+                    </span>
+                  <h1>Disk Optimization <span class="gradient-text">in Cassandra</span></h1>
+                  <p>Make your storage work harder and smarter! Disk optimization helps Cassandra store and access data efficiently, so your database stays fast, stable, and ready for heavy workloads.</p>
+
+                </div>
+            </div>
+        </section>
+
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="disk-optimization.html">Performance Overview</a>
+                <span class="separator">›</span>
+                <span class="current">Disk Optimization</span>
+            </div>
+        </div>
+
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul style="list-style: none; padding: 0;">
+                           <li><a href="#opening-story">📖 Emma's Story</a></li>
+                            <li><a href="#fundamentals">💾 Architecture</a></li>
+                            <li><a href="#commit-log">💎 Commit Log Deep Dive</a></li>
+                            <li><a href="#data-disks">📊 Data Disk</a></li>
+                            <li><a href="#io-scheduler">📈 Scheduler</a></li>
+                            <li><a href="#monitoring">🔧 Monitoring</a></li>
+                            <li><a href="#interview-questions">💼 Interview Questions</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <div class="col-lg-9">
+                    <!-- Replace content between <div class="col-lg-9"> and closing </div> -->
+
+<section id="opening-story" data-aos="fade-up">
+    <div class="story-box">
+        <h2>📖 The Story: Jake's 500ms Write Crisis</h2>
+        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+            <p style="margin-bottom: 1.5rem;">Jake's Cassandra cluster was supposed to handle 100K writes/sec. But writes were taking 500ms instead of 5ms. Users complained. Timeouts everywhere. He had 10 Gbps network, 128GB RAM, 32-core CPUs. But everything was slow. The bottleneck? His disks. Here's what he discovered...</p>
+
+            <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                <h3 style="color: #dc2626; margin-top: 0;">😱 The Problem: HDDs + Single Disk</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Jake's Original Setup:</strong></p>
+                <ul style="color: var(--text-secondary);">
+                    <li>💾 <strong>Disks:</strong> 4TB SATA HDD (spinning disk!)</li>
+                    <li>📁 <strong>Layout:</strong> Everything on one disk (commit log + data)</li>
+                    <li>⚡ <strong>Performance:</strong> 100 IOPS, 10ms latency</li>
+                    <li>📊 <strong>Reality:</strong> Write: 500ms, Read: 200ms</li>
+                    <li>😡 <strong>Users:</strong> Constant timeouts!</li>
+                </ul>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">What Was Happening:</strong></p>
+                <ol style="color: var(--text-secondary); line-height: 1.9;">
+                    <li><strong>Write Request Arrives:</strong> Client wants to write data</li>
+                    <li><strong>Commit Log Write:</strong> Must write to disk (fsync) = 10ms on HDD</li>
+                    <li><strong>Disk Queue Builds:</strong> 100K writes/sec but disk only 100 IOPS</li>
+                    <li><strong>Queue = 1000 deep:</strong> Each write waits for 1000 others</li>
+                    <li><strong>Latency = 1000 × 5ms = 5 seconds!</strong> 💥</li>
+                    <li><strong>Same Disk for Reads:</strong> Compaction also fighting for I/O</li>
+                </ol>
+
+                <div class="code-block" style="margin-top: 1.5rem;">
+<span class="comment">-- Disk stats showing disaster:</span>
+iostat -x <span class="number">1</span>
+
+<span class="comment">/*
+Device    r/s    w/s   util
+sda       50     100   100%  ← Completely saturated!
+
+avgqu-sz: 1247  ← 1247 operations waiting!
+await: 5241ms   ← Average wait: 5+ seconds!
+*/</span>
+
+<span class="comment">-- HDD specs (terrible for Cassandra):</span>
+<span class="comment">/*
+IOPS: 100-200         (vs SSD: 50,000-500,000!)
+Latency: 10-20ms      (vs SSD: 0.1-1ms!)
+Sequential: 150 MB/s  (vs SSD: 500-3500 MB/s!)
+*/</span>
+                </div>
+
+                <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Why This Failed:</strong></p>
+                <ul style="color: var(--text-secondary); line-height: 1.9;">
+                    <li>💾 <strong>HDD Too Slow:</strong> 100 IOPS vs 100K writes/sec needed</li>
+                    <li>🔀 <strong>Single Disk:</strong> Commit log + data + compaction fighting</li>
+                    <li>⏱️ <strong>Seek Time:</strong> HDDs need 10ms to seek, SSDs don't</li>
+                    <li>📊 <strong>Queue Buildup:</strong> Can't keep up with write rate</li>
+                    <li>🔥 <strong>Read Impact:</strong> Reads also slow (same bottleneck)</li>
+                </ul>
+            </div>
+
+            <div style="background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(5, 150, 105, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #059669;">
+                <h3 style="color: #059669; margin-top: 0;">🚀 The Fix: NVMe SSDs + Separate Disks!</h3>
+                
+                <p style="margin-top: 1rem;"><strong style="color: var(--text-primary);">Jake's New Setup:</strong></p>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--text-primary);">Disk 1 (NVMe SSD): Commit Log Only</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 500GB NVMe SSD for commit log</span>
+Device: /dev/nvme0n1
+Mount: /var/lib/cassandra/commitlog
+IOPS: <span class="number">500</span>,<span class="number">000</span>   <span class="comment">← 5000x better!</span>
+Latency: <span class="number">0.1</span>ms  <span class="comment">← 100x better!</span>
+
+<span class="comment"># In cassandra.yaml:</span>
+commitlog_directory: /var/lib/cassandra/commitlog
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <p><strong style="color: var(--text-primary);">Disks 2-3 (SATA SSD): Data</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- 2× 4TB SATA SSDs in RAID 0 for data</span>
+Devices: /dev/sda, /dev/sdb
+Mount: /var/lib/cassandra/data
+IOPS: <span class="number">100</span>,<span class="number">000</span>  <span class="comment">← 1000x better!</span>
+Latency: <span class="number">1</span>ms   <span class="comment">← 10x better!</span>
+
+<span class="comment"># In cassandra.yaml:</span>
+data_file_directories:
+  - /var/lib/cassandra/data
+                    </div>
+                </div>
+
+                <p style="margin-top: 2rem;"><strong style="color: var(--text-primary);">The Results:</strong></p>
+                <div style="background: rgba(5, 150, 105, 0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+                    <ul style="color: var(--text-secondary); line-height: 2; margin: 0;">
+                        <li>⚡ <strong>Write Latency:</strong> 500ms → 2ms (250x faster!)</li>
+                        <li>⚡ <strong>Read Latency:</strong> 200ms → 5ms (40x faster!)</li>
+                        <li>📊 <strong>Throughput:</strong> 1K writes/sec → 100K writes/sec</li>
+                        <li>🎯 <strong>Disk Util:</strong> 100% → 30% (headroom!)</li>
+                        <li>😊 <strong>Timeouts:</strong> 90% → 0%</li>
+                        <li>💰 <strong>ROI:</strong> $2K in SSDs saved $50K/month in lost revenue!</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: #059669;">
+                    <strong>Jake learned: SSDs are not optional, they're mandatory! 🎉</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="fundamentals" data-aos="fade-up">
+    <h2>💿 Disk Fundamentals</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Why disk performance is critical for Cassandra!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border-left-color: var(--accent-purple);">
+        <h3 style="color: var(--accent-purple); margin-top: 0;">🎯 Why Disks Matter</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Cassandra is disk-intensive by design. Every write hits commit log (fsync), reads scan SSTables, compaction rewrites data. Even with caching, disks are the ultimate bottleneck. Fast disks = fast Cassandra. Slow disks = disaster.
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">HDD vs SSD Comparison</h3>
+
+    <div class="svg-container" data-aos="zoom-in">
+        <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+            <text x="400" y="30" font-family="Inter" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">HDD vs SSD Performance</text>
+
+            <!-- HDD -->
+            <rect x="50" y="80" width="300" height="180" rx="10" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="3"/>
+            <text x="200" y="115" font-size="20" fill="#dc2626" text-anchor="middle" font-weight="700">HDD (Spinning Disk)</text>
+            
+            <text x="70" y="150" font-size="14" fill="#94a3b8">IOPS: 100-200</text>
+            <text x="70" y="175" font-size="14" fill="#94a3b8">Latency: 10-20ms</text>
+            <text x="70" y="200" font-size="14" fill="#94a3b8">Sequential: 150 MB/s</text>
+            <text x="70" y="225" font-size="14" fill="#94a3b8">Random: 1 MB/s</text>
+            <text x="70" y="250" font-size="14" fill="#dc2626" font-weight="700">❌ NOT for Cassandra!</text>
+
+            <!-- SATA SSD -->
+            <rect x="375" y="80" width="180" height="180" rx="10" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="3"/>
+            <text x="465" y="115" font-size="18" fill="#f59e0b" text-anchor="middle" font-weight="700">SATA SSD</text>
+            
+            <text x="390" y="150" font-size="13" fill="#94a3b8">IOPS: 50K-100K</text>
+            <text x="390" y="175" font-size="13" fill="#94a3b8">Latency: 0.5-1ms</text>
+            <text x="390" y="200" font-size="13" fill="#94a3b8">Sequential: 550 MB/s</text>
+            <text x="390" y="225" font-size="13" fill="#94a3b8">Random: 500 MB/s</text>
+            <text x="390" y="250" font-size="13" fill="#f59e0b" font-weight="700">✅ Good for data</text>
+
+            <!-- NVMe SSD -->
+            <rect x="580" y="80" width="180" height="180" rx="10" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="3"/>
+            <text x="670" y="115" font-size="18" fill="#10b981" text-anchor="middle" font-weight="700">NVMe SSD</text>
+            
+            <text x="595" y="150" font-size="13" fill="#94a3b8">IOPS: 500K+</text>
+            <text x="595" y="175" font-size="13" fill="#94a3b8">Latency: 0.1ms</text>
+            <text x="595" y="200" font-size="13" fill="#94a3b8">Sequential: 3500 MB/s</text>
+            <text x="595" y="225" font-size="13" fill="#94a3b8">Random: 2500 MB/s</text>
+            <text x="595" y="250" font-size="13" fill="#10b981" font-weight="700">⭐ Best for commit log</text>
+
+            <!-- Performance Comparison -->
+            <text x="400" y="310" font-size="18" fill="#e2e8f0" text-anchor="middle" font-weight="700">Write Performance Comparison</text>
+
+            <rect x="50" y="330" width="80" height="20" fill="#dc2626"/>
+            <text x="55" y="345" font-size="12" fill="#fff">HDD: 100</text>
+
+            <rect x="50" y="360" width="400" height="20" fill="#f59e0b"/>
+            <text x="55" y="375" font-size="12" fill="#fff">SATA SSD: 50,000 (500x faster!)</text>
+
+            <rect x="50" y="390" width="700" height="20" fill="#10b981"/>
+            <text x="55" y="405" font-size="12" fill="#fff">NVMe SSD: 500,000 (5000x faster!)</text>
+
+            <text x="400" y="440" font-size="16" fill="#10b981" text-anchor="middle" font-weight="700">Cassandra Recommendation: SSDs Mandatory!</text>
+            <text x="400" y="465" font-size="13" fill="#94a3b8" text-anchor="middle">NVMe for commit log, SATA SSD for data</text>
+        </svg>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Disk Performance Metrics</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">HDD</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">SATA SSD</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">NVMe SSD</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Random Read IOPS</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100-200</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50,000-100,000</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">500,000-1,000,000</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Random Write IOPS</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100-200</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">40,000-90,000</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">400,000-800,000</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Latency</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-20ms</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.5-1ms</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.1-0.2ms</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Sequential Read</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">150 MB/s</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">550 MB/s</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">3,500 MB/s</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Sequential Write</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">150 MB/s</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">520 MB/s</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">3,000 MB/s</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Price (1TB)</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">$40</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">$100</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">$150</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Cassandra Use</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ Never</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Data disks</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">⭐ Commit log</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="info-box danger" data-aos="fade-up" style="margin-top: 2rem;">
+        <h4><i class="fas fa-ban" style="color: #dc2626;"></i> NEVER Use HDDs for Cassandra!</h4>
+        <p style="margin-top: 1rem;">HDDs are 100-1000x slower than SSDs. Using HDDs means:</p>
+        <ul style="margin-top: 0.5rem; line-height: 1.9;">
+            <li>💥 Write latency: 500ms instead of 2ms</li>
+            <li>💥 Throughput: 100 writes/sec instead of 100K</li>
+            <li>💥 Constant timeouts and errors</li>
+            <li>💥 Unusable in production</li>
+        </ul>
+        <p style="margin-top: 1rem;"><strong>SSDs are mandatory, not optional!</strong></p>
+    </div>
+</section>
+
+<section id="commit-log" data-aos="fade-up">
+    <h2>📝 Commit Log Optimization</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The most critical disk optimization!</p>
+
+    <div class="story-box" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-left-color: #10b981;">
+        <h3 style="color: #10b981; margin-top: 0;">⚡ Why Commit Log is Critical</h3>
+        <p style="color: var(--text-secondary); line-height: 1.9;">
+            Every write must be written to commit log with fsync before acknowledging. This is THE bottleneck for write performance. Commit log on slow disk = slow writes. Commit log on fast disk = fast writes. It's that simple.
+        </p>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Write Path and Commit Log</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Step 1: Write to Commit Log (Disk)</h4>
+                <p style="color: var(--text-secondary);">MUST fsync to disk for durability</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Commit log write performance:</span>
+
+HDD: <span class="number">10</span>-<span class="number">20</span>ms per write  <span class="comment">← DISASTER!</span>
+SATA SSD: <span class="number">1</span>-<span class="number">2</span>ms        <span class="comment">← Acceptable</span>
+NVMe SSD: <span class="number">0.1</span>-<span class="number">0.5</span>ms     <span class="comment">← BEST!</span>
+
+<span class="comment">This is the write bottleneck!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">Step 2: Write to Memtable (Memory)</h4>
+                <p style="color: var(--text-secondary);">Fast in-memory operation</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Memtable write: 0.01ms (fast!)</span>
+<span class="comment">// But can't acknowledge until commit log done!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #0d9488;"></div>
+            <div class="timeline-content" style="border-left-color: #0d9488;">
+                <h4 style="color: #0d9488;">Step 3: Acknowledge to Client</h4>
+                <p style="color: var(--text-secondary);">Total time = commit log time + network</p>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Total write latency:</span>
+
+NVMe: <span class="number">0.5</span>ms + <span class="number">1</span>ms network = <span class="number">1.5</span>ms ✅
+SATA: <span class="number">2</span>ms + <span class="number">1</span>ms network = <span class="number">3</span>ms   ✅
+HDD: <span class="number">15</span>ms + <span class="number">1</span>ms network = <span class="number">16</span>ms   ❌
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Separate Commit Log Disk</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>Same Disk (Bad)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Problem:</strong> Commit log + data + compaction</li>
+                <li><strong>Contention:</strong> All fighting for I/O</li>
+                <li><strong>Seeks:</strong> Disk head jumping around</li>
+                <li><strong>Result:</strong> 10-20ms writes</li>
+                <li><strong>Throughput:</strong> 1K-5K writes/sec</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Never use same disk!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>Separate Disks (Good)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Disk 1 (NVMe):</strong> Commit log only</li>
+                <li><strong>Disk 2 (SATA):</strong> Data + compaction</li>
+                <li><strong>No Contention:</strong> Isolated I/O</li>
+                <li><strong>Result:</strong> 0.5-2ms writes</li>
+                <li><strong>Throughput:</strong> 50K-100K writes/sec</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #059669; font-weight: 700;">2-5x faster writes!</p>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Commit Log Configuration</h3>
+
+    <div class="code-block">
+<span class="comment">-- cassandra.yaml configuration</span>
+
+<span class="comment"># Separate NVMe disk for commit log</span>
+commitlog_directory: /mnt/nvme/cassandra/commitlog
+
+<span class="comment"># Commit log sync (CRITICAL!)</span>
+commitlog_sync: periodic
+commitlog_sync_period_in_ms: <span class="number">10000</span>  <span class="comment"># Default: 10 seconds</span>
+
+<span class="comment"># For low-latency writes:</span>
+commitlog_sync: batch
+commitlog_sync_batch_window_in_ms: <span class="number">2</span>  <span class="comment"># 2ms batching</span>
+
+<span class="comment"># Commit log segment size</span>
+commitlog_segment_size_in_mb: <span class="number">32</span>  <span class="comment"># Default, works well</span>
+
+<span class="comment"># Compression (optional, saves space)</span>
+commitlog_compression:
+  - class_name: LZ4Compressor
+    parameters:
+      -
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Commit Log Sizing</h3>
+
+    <div class="info-box expert" data-aos="fade-up">
+        <h4><i class="fas fa-calculator" style="color: var(--accent-purple);"></i> How Much Space for Commit Log?</h4>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- Formula:</span>
+commit_log_size = write_rate × flush_interval
+
+<span class="comment">-- Example 1: 10K writes/sec, 5KB avg</span>
+<span class="number">10</span>,<span class="number">000</span> writes/sec × <span class="number">5</span>KB = <span class="number">50</span>MB/sec
+Memtable flush every <span class="number">10</span> minutes = <span class="number">600</span> sec
+<span class="number">50</span>MB/sec × <span class="number">600</span>sec = <span class="number">30</span>GB needed
+
+<span class="comment">-- Recommendation: 2-3x for safety</span>
+Provision: <span class="number">100</span>GB commit log disk
+
+<span class="comment">-- Example 2: High write rate</span>
+<span class="number">100</span>K writes/sec × <span class="number">2</span>KB = <span class="number">200</span>MB/sec
+<span class="number">200</span>MB × <span class="number">600</span>sec = <span class="number">120</span>GB
+Provision: <span class="number">250</span>-<span class="number">500</span>GB NVMe
+        </div>
+    </div>
+</section>
+
+<section id="data-disks" data-aos="fade-up">
+    <h2>💾 Data Disk Optimization</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Optimizing SSTable storage and compaction!</p>
+
+    <h3 style="color: var(--accent-purple);">RAID Configuration</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>RAID 5/6 (Bad)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Problem:</strong> Write penalty (4x I/O)</li>
+                <li><strong>Parity:</strong> Calculates parity on every write</li>
+                <li><strong>Performance:</strong> 75% slower writes</li>
+                <li><strong>Why:</strong> Read-modify-write cycle</li>
+                <li><strong>Use Case:</strong> None for Cassandra</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #dc2626; font-weight: 700;">Never use RAID 5/6!</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #f59e0b;">
+            <div class="comparison-icon">⚠️</div>
+            <h3>RAID 1/10 (OK)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Mirroring:</strong> Data written to 2+ disks</li>
+                <li><strong>Performance:</strong> Good (no write penalty)</li>
+                <li><strong>Capacity:</strong> 50% (2 disks = 1 disk space)</li>
+                <li><strong>Why OK:</strong> Cassandra has replication</li>
+                <li><strong>Use Case:</strong> If must have RAID</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #f59e0b; font-weight: 700;">Acceptable but expensive</p>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>RAID 0 or JBOD (Best)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>RAID 0:</strong> Stripe across disks</li>
+                <li><strong>JBOD:</strong> Each disk separate</li>
+                <li><strong>Performance:</strong> Full disk speed</li>
+                <li><strong>Capacity:</strong> 100% (4 disks = 4x space)</li>
+                <li><strong>Why Best:</strong> Cassandra handles failures</li>
+            </ul>
+            <p style="margin-top: 1rem; color: #059669; font-weight: 700;">Recommended for Cassandra!</p>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Why RAID 0/JBOD for Cassandra?</h3>
+
+    <div class="info-box success" data-aos="fade-up">
+        <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Cassandra's Built-In Fault Tolerance</h4>
+        <p style="margin-top: 1rem; line-height: 1.9;">
+            Cassandra has its own replication (RF=3 means 3 copies). Disk failure just means one replica is down. Other replicas serve requests. RAID adds overhead for redundancy you already have!
+        </p>
+        <div class="code-block" style="margin-top: 1rem;">
+<span class="comment">-- With RF=3:</span>
+<span class="comment">// Data replicated across 3 nodes</span>
+<span class="comment">// Disk failure on one node? Other 2 nodes still serve!</span>
+<span class="comment">// RAID redundancy = waste of performance</span>
+
+<span class="comment">-- RAID 0 advantages:</span>
+<span class="comment">// 1. Full performance (no parity overhead)</span>
+<span class="comment">// 2. Full capacity (no mirroring cost)</span>
+<span class="comment">// 3. Simpler (less hardware complexity)</span>
+<span class="comment">// 4. Cheaper (more usable space)</span>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">File System Choice</h3>
+
+    <div class="code-block">
+<span class="comment">-- Recommended: XFS or ext4</span>
+
+<span class="comment"># XFS (preferred for large files)</span>
+mkfs.xfs -f -L cassandra_data /dev/sdb
+mount -o noatime,nodiratime /dev/sdb /var/lib/cassandra/data
+
+<span class="comment"># ext4 (also good)</span>
+mkfs.ext4 -L cassandra_data /dev/sdb
+mount -o noatime,nodiratime,data=writeback /dev/sdb /var/lib/cassandra/data
+
+<span class="comment"># Mount options:</span>
+<span class="comment"># - noatime: Don't update access times (faster!)</span>
+<span class="comment"># - nodiratime: Don't update directory access times</span>
+<span class="comment"># - data=writeback (ext4): Better write performance</span>
+
+<span class="comment"># Add to /etc/fstab:</span>
+/dev/sdb  /var/lib/cassandra/data  xfs  noatime,nodiratime  <span class="number">0</span> <span class="number">0</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Data Disk Sizing</h3>
+
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #8b5cf6;"></div>
+            <div class="timeline-content" style="border-left-color: #8b5cf6;">
+                <h4 style="color: #8b5cf6;">Calculate Required Space</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Formula:</span>
+disk_space = (total_data / RF) × space_amplification
+
+<span class="comment">-- Example: 10TB dataset, RF=3</span>
+Per node: <span class="number">10</span>TB / <span class="number">3</span> = <span class="number">3.33</span>TB raw data
+
+<span class="comment">-- Space amplification factors:</span>
+Compaction overhead: <span class="number">1.5</span>x  <span class="comment">(STCS) or 1.1x (LCS/TWCS)</span>
+Snapshots: <span class="number">1.2</span>x
+Safety margin: <span class="number">1.2</span>x
+
+Total: <span class="number">3.33</span>TB × <span class="number">1.5</span> × <span class="number">1.2</span> × <span class="number">1.2</span> = <span class="number">7.2</span>TB
+
+<span class="comment">-- Provision: 8TB per node</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item">
+            <div class="timeline-marker" style="background: #10b981;"></div>
+            <div class="timeline-content" style="border-left-color: #10b981;">
+                <h4 style="color: #10b981;">Multiple Data Disks</h4>
+                <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- cassandra.yaml with multiple disks:</span>
+
+data_file_directories:
+  - /mnt/ssd1/cassandra/data
+  - /mnt/ssd2/cassandra/data
+  - /mnt/ssd3/cassandra/data
+
+<span class="comment">-- Cassandra distributes SSTables across disks</span>
+<span class="comment">// Better I/O parallelization</span>
+<span class="comment">// Example: 3× 4TB SSDs = 12TB total</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="io-scheduler" data-aos="fade-up">
+    <h2>⚙️ I/O Scheduler & Kernel Tuning</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">OS-level optimizations for disk performance!</p>
+
+    <h3 style="color: var(--accent-purple);">I/O Scheduler Selection</h3>
+
+    <div class="comparison-grid" data-aos="fade-up">
+        <div class="comparison-card" style="border-color: #dc2626;">
+            <div class="comparison-icon">❌</div>
+            <h3>CFQ (Bad for SSDs)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Design:</strong> For HDDs (seek optimization)</li>
+                <li><strong>Problem:</strong> Adds latency for SSDs</li>
+                <li><strong>Overhead:</strong> Unnecessary queueing</li>
+                <li><strong>Result:</strong> 20-30% slower</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #059669;">
+            <div class="comparison-icon">✅</div>
+            <h3>deadline (Good)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Design:</strong> Low latency</li>
+                <li><strong>Works:</strong> Well with SSDs</li>
+                <li><strong>Overhead:</strong> Minimal</li>
+                <li><strong>Result:</strong> Good performance</li>
+            </ul>
+        </div>
+
+        <div class="comparison-card" style="border-color: #10b981;">
+            <div class="comparison-icon">⭐</div>
+            <h3>noop/none (Best)</h3>
+            <ul style="font-size: 0.95rem; margin-top: 1rem; line-height: 1.8;">
+                <li><strong>Design:</strong> No scheduling</li>
+                <li><strong>Perfect:</strong> For NVMe SSDs</li>
+                <li><strong>Overhead:</strong> Zero</li>
+                <li><strong>Result:</strong> Maximum performance</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Configure I/O Scheduler</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check current scheduler</span>
+cat /sys/block/sda/queue/scheduler
+<span class="comment">// [mq-deadline] kyber bfq none</span>
+
+<span class="comment">-- Set to 'none' for NVMe SSDs</span>
+echo none | sudo tee /sys/block/nvme0n1/queue/scheduler
+
+<span class="comment">-- Set to 'deadline' for SATA SSDs</span>
+echo mq-deadline | sudo tee /sys/block/sda/queue/scheduler
+
+<span class="comment">-- Make permanent (add to /etc/rc.local or udev rules):</span>
+echo 'ACTION=="add|change", KERNEL=="nvme[0-9]n[0-9]", ATTR{queue/scheduler}="none"' | \
+  sudo tee /etc/udev/rules.d/60-scheduler.rules
+
+echo 'ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/scheduler}="mq-deadline"' | \
+  sudo tee -a /etc/udev/rules.d/60-scheduler.rules
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Kernel Parameters</h3>
+
+    <div class="code-block">
+<span class="comment">-- /etc/sysctl.conf optimizations</span>
+
+<span class="comment"># Increase read-ahead for sequential I/O</span>
+vm.min_free_kbytes = <span class="number">1000000</span>
+vm.vfs_cache_pressure = <span class="number">50</span>
+
+<span class="comment"># Dirty page writeback (for better write performance)</span>
+vm.dirty_ratio = <span class="number">40</span>                    <span class="comment"># % of RAM for dirty pages</span>
+vm.dirty_background_ratio = <span class="number">10</span>         <span class="comment"># When background writeback starts</span>
+vm.dirty_expire_centisecs = <span class="number">3000</span>       <span class="comment"># 30 seconds</span>
+vm.dirty_writeback_centisecs = <span class="number">500</span>     <span class="comment"># 5 seconds</span>
+
+<span class="comment"># Swap (disable or minimize)</span>
+vm.swappiness = <span class="number">1</span>                      <span class="comment"># Emergency only</span>
+
+<span class="comment"># Apply changes</span>
+sudo sysctl -p
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Read-Ahead Settings</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check current read-ahead</span>
+sudo blockdev --getra /dev/sda
+<span class="comment">// 256 (default, too small for SSDs)</span>
+
+<span class="comment">-- Set read-ahead for better sequential reads</span>
+sudo blockdev --setra <span class="number">8192</span> /dev/sda    <span class="comment"># 8192 = 4MB</span>
+sudo blockdev --setra <span class="number">8192</span> /dev/nvme0n1
+
+<span class="comment">-- Make permanent (add to /etc/rc.local):</span>
+echo '/sbin/blockdev --setra 8192 /dev/sda' | sudo tee -a /etc/rc.local
+echo '/sbin/blockdev --setra 8192 /dev/nvme0n1' | sudo tee -a /etc/rc.local
+    </div>
+</section>
+
+<section id="monitoring" data-aos="fade-up">
+    <h2>📊 Disk Monitoring</h2>
+    <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Essential commands to monitor disk performance!</p>
+
+    <h3 style="color: var(--accent-purple);">Key Disk Metrics</h3>
+
+    <div class="code-block">
+<span class="comment">-- iostat: Comprehensive disk stats</span>
+iostat -x <span class="number">1</span>
+
+<span class="comment">/*
+Device    r/s    w/s    rMB/s  wMB/s  %util  await
+sda       120    450    15.2   67.3   45.2   8.4
+nvme0n1   10     2500   1.2    125.0  32.1   0.3
+
+Key metrics:
+- r/s, w/s: Reads/writes per second
+- %util: Disk utilization (< 80% good)
+- await: Average wait time in ms (< 10ms good)
+*/</span>
+
+<span class="comment">-- iotop: Per-process I/O</span>
+sudo iotop -o
+
+<span class="comment">-- Watch disk stats in real-time</span>
+watch -n <span class="number">1</span> 'iostat -x'
+    </div>
+
+    <h3 style="color: var(--accent-purple);">Health Thresholds</h3>
+
+    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+        <thead style="background: rgba(139, 92, 246, 0.1);">
+            <tr>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Metric</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Healthy</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Warning</th>
+                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light); color: var(--text-primary);">Critical</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Disk Utilization</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 60% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">60-80% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 80% ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Await (latency)</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 5ms ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">5-10ms ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 20ms ❌</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Queue Size</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 10 ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-50 ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 100 ❌</td>
+            </tr>
+            <tr style="background: rgba(71, 85, 105, 0.05);">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>Space Used</strong></td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">< 70% ✅</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">70-85% ⚠️</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">> 85% ❌</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 style="color: var(--accent-purple); margin-top: 3rem;">Disk Space Monitoring</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check disk space</span>
+df -h
+
+<span class="comment">/*
+Filesystem      Size  Used  Avail Use% Mounted on
+/dev/sda1       4.0T  2.1T  1.9T  53%  /var/lib/cassandra/data
+/dev/nvme0n1    500G  120G  380G  24%  /var/lib/cassandra/commitlog
+*/</span>
+
+<span class="comment">-- Find large directories</span>
+du -sh /var/lib/cassandra/data/*
+
+<span class="comment">-- Cassandra-specific space usage</span>
+nodetool status
+<span class="comment">// Shows "Load" per node</span>
+
+nodetool tablestats
+<span class="comment">// Shows space per table</span>
+    </div>
+
+    <h3 style="color: var(--accent-purple);">SSD Health Monitoring</h3>
+
+    <div class="code-block">
+<span class="comment">-- Check SSD SMART stats</span>
+sudo smartctl -a /dev/sda
+
+<span class="comment">-- Key metrics to watch:</span>
+<span class="comment">/*
+Wear_Leveling_Count: 100 → 0 (lifespan indicator)
+Total_LBAs_Written: Track write volume
+Reallocated_Sector_Ct: Should be 0
+*/</span>
+
+<span class="comment">-- NVMe health</span>
+sudo nvme smart-log /dev/nvme0n1
+
+<span class="comment">-- Monitor write amplification</span>
+<span class="comment">// data_written / host_writes = amplification</span>
+<span class="comment">// Should be < 5x for good wear</span>
+    </div>
+</section>
+
+<section id="interview-questions" data-aos="fade-up">
+    <div class="interview-section">
+        <h2>💼 Interview Questions & Expert Answers</h2>
+        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master disk optimization for your interview!</p>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">1</span>
+                <span class="question-text">Why are SSDs mandatory for Cassandra? What happens if you use HDDs?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: SSDs provide 100-1000x more IOPS (50K vs 100) and 100x lower latency (0.5ms vs 15ms) than HDDs. Using HDDs causes write latency of 500ms+ instead of 2ms, making Cassandra unusable for production workloads.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Performance Comparison:</strong></p>
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Metric</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">HDD</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">SSD</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Difference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">IOPS</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100-200</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50,000-500,000</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">500-5000x faster</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Latency</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-20ms</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.1-1ms</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-200x faster</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Sequential</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">150 MB/s</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">500-3500 MB/s</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">3-23x faster</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why Cassandra Needs High IOPS:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li><strong>Commit Log:</strong> Every write requires fsync (disk sync)</li>
+                        <li><strong>Compaction:</strong> Rewrites data constantly (background I/O)</li>
+                        <li><strong>Reads:</strong> May need to read from 5-10 SSTables</li>
+                        <li><strong>Repairs:</strong> Stream data across network and disk</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Real-World Impact:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Write performance comparison:</span>
+
+<span class="comment">// HDD (100 IOPS):</span>
+Write rate: <span class="number">100</span> writes/sec max
+Latency: <span class="number">500</span>ms+ (queue builds up)
+Timeouts: <span class="number">90</span>%
+Result: Unusable! ❌
+
+<span class="comment">// SSD (50,000 IOPS):</span>
+Write rate: <span class="number">100</span>K writes/sec
+Latency: <span class="number">2</span>ms
+Timeouts: <span class="number">0</span>%
+Result: Production-ready! ✅
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> SSDs aren't a nice-to-have, they're absolutely mandatory. HDDs make Cassandra 100-1000x slower and unusable for any real workload!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">2</span>
+                <span class="question-text">Should you put the commit log on the same disk as data? Why or why not?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: No! Commit log should be on a separate NVMe SSD. When on the same disk, commit log competes with reads, compaction, and SSTable writes, causing I/O contention and 2-5x slower writes. Separate disk = isolated I/O paths.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Problem with Same Disk:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Single disk scenario:</span>
+/dev/sda (SATA SSD - 100K IOPS)
+
+<span class="comment">// Competing operations:</span>
+<span class="comment">1. Commit log writes: 50K IOPS</span>
+<span class="comment">2. SSTable reads: 20K IOPS</span>
+<span class="comment">3. Compaction: 20K IOPS</span>
+<span class="comment">4. Memtable flushes: 10K IOPS</span>
+<span class="comment">─────────────────────────</span>
+Total demand: <span class="number">100</span>K IOPS
+
+<span class="comment">Result:</span>
+<span class="comment">- Disk 100% saturated</span>
+<span class="comment">- Queue builds up</span>
+<span class="comment">- Commit log waits for compaction</span>
+<span class="comment">- Write latency: 10-20ms ❌</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Solution: Separate Disks</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Optimized setup:</span>
+
+<span class="comment">// Disk 1: NVMe SSD (500K IOPS)</span>
+/dev/nvme0n1 → Commit log ONLY
+Usage: <span class="number">50</span>K IOPS (<span class="number">10</span>% utilization)
+Latency: <span class="number">0.5</span>ms ✅
+
+<span class="comment">// Disk 2-3: SATA SSDs (100K IOPS each)</span>
+/dev/sda, /dev/sdb → Data + compaction
+Usage: <span class="number">50</span>K IOPS total (<span class="number">25</span>% each)
+Latency: <span class="number">2</span>-<span class="number">5</span>ms ✅
+
+<span class="comment">Result:</span>
+<span class="comment">- No I/O contention</span>
+<span class="comment">- Predictable performance</span>
+<span class="comment">- Write latency: 0.5-2ms ✅</span>
+<span class="comment">- 2-5x faster writes!</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Performance Gain:</strong></p>
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Configuration</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Write Latency</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Throughput</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Same disk (SATA)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">10-20ms</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">5K writes/sec</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">Separate (NVMe + SATA)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">0.5-2ms</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50K+ writes/sec</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Cost-Benefit:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>💰 <strong>Cost:</strong> $150 for 500GB NVMe SSD</li>
+                        <li>⚡ <strong>Benefit:</strong> 2-5x faster writes, 10x more throughput</li>
+                        <li>📊 <strong>ROI:</strong> Pays for itself immediately in performance</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Commit log on separate NVMe SSD is one of the highest ROI optimizations for Cassandra! Always separate commit log and data disks.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">3</span>
+                <span class="question-text">Why is RAID 0 or JBOD recommended for Cassandra instead of RAID 5/6?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: RAID 5/6 has 4x write penalty (read-modify-write for parity), making writes 75% slower. Cassandra already has replication (RF=3), so RAID redundancy is unnecessary overhead. RAID 0/JBOD provides full performance and capacity without duplicate redundancy.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>RAID 5/6 Write Penalty:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- RAID 5 write process (4 I/O operations):</span>
+
+<span class="number">1.</span> Read old data block
+<span class="number">2.</span> Read old parity block
+<span class="number">3.</span> Calculate new parity
+<span class="number">4.</span> Write new data block
+<span class="number">5.</span> Write new parity block
+
+<span class="comment">Result: 1 logical write = 4 physical I/O!</span>
+
+<span class="comment">-- Performance impact:</span>
+SATA SSD without RAID: <span class="number">100</span>K write IOPS
+SATA SSD with RAID <span class="number">5</span>: <span class="number">25</span>K write IOPS (<span class="number">75</span>% slower!)
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Cassandra's Built-In Redundancy:</strong></p>
+
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- With RF=3 (replication factor 3):</span>
+
+<span class="comment">// Data automatically replicated to 3 nodes</span>
+Node <span class="number">1</span>: Copy A
+Node <span class="number">2</span>: Copy B
+Node <span class="number">3</span>: Copy C
+
+<span class="comment">// If Node 1 disk fails:</span>
+<span class="comment">- Node 1 goes down</span>
+<span class="comment">- Nodes 2 and 3 still serve data</span>
+<span class="comment">- Replace disk, run repair</span>
+<span class="comment">- Data restored from other nodes</span>
+
+<span class="comment">Result: RAID redundancy is REDUNDANT!</span>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>RAID Configuration Comparison:</strong></p>
+
+                    <table style="width: 100%; margin-top: 1rem; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead style="background: rgba(139, 92, 246, 0.1);">
+                            <tr>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">RAID Level</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Performance</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Capacity</th>
+                                <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-light);">Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>RAID 5/6</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">25% speed (4x penalty)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">75% (1 disk parity)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">❌ Never use</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>RAID 10</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100% speed</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">50% (mirrored)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">⚠️ Acceptable but costly</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>RAID 0</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100%+ speed (striped)</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100%</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Recommended</td>
+                            </tr>
+                            <tr style="background: rgba(71, 85, 105, 0.05);">
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);"><strong>JBOD</strong></td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100% speed</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">100%</td>
+                                <td style="padding: 0.75rem; border: 1px solid var(--border-light);">✅ Also good</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin-top: 1.5rem;"><strong>Why RAID 0 or JBOD Works:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>✅ <strong>Full Performance:</strong> No parity overhead</li>
+                        <li>✅ <strong>Full Capacity:</strong> No mirroring waste</li>
+                        <li>✅ <strong>Cassandra Handles Failures:</strong> RF=3 provides redundancy</li>
+                        <li>✅ <strong>Simpler:</strong> Less hardware complexity</li>
+                        <li>✅ <strong>Cheaper:</strong> More usable space per dollar</li>
+                    </ul>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Don't add RAID redundancy when Cassandra already provides it! Use RAID 0 or JBOD for maximum performance and capacity.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">4</span>
+                <span class="question-text">What disk metrics would you monitor to identify performance problems?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Monitor disk utilization (< 80%), await latency (< 5ms), queue size (< 10), IOPS (vs capacity), and disk space (< 70% full). High utilization or latency indicates I/O bottleneck requiring faster disks or reducing load.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Key Metrics to Track:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">1. Disk Utilization (%util)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+iostat -x <span class="number">1</span>
+
+<span class="comment">/*
+Device    %util
+sda       45.2%   ← Good (< 60%)
+sdb       87.5%   ← Warning (60-80%)
+sdc       98.2%   ← Critical (> 80%)
+*/</span>
+
+<span class="comment">-- What it means:</span>
+<span class="comment">< 60%: Healthy, plenty of headroom</span>
+<span class="comment">60-80%: Warning, monitor closely</span>
+<span class="comment">> 80%: Critical, I/O bottleneck!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">2. Await (Average Wait Time)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">/*
+Device    await
+nvme0n1   0.4ms   ← Excellent (< 1ms)
+sda       3.2ms   ← Good (< 5ms)
+sdb       15.8ms  ← Bad (> 10ms)
+*/</span>
+
+<span class="comment">-- Indicates:</span>
+<span class="comment">< 1ms: NVMe SSD, no contention</span>
+<span class="comment">< 5ms: SATA SSD, healthy</span>
+<span class="comment">> 10ms: Slow disk or saturation</span>
+<span class="comment">> 20ms: HDD or severe problem</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">3. Queue Size (avgqu-sz)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">/*
+Device    avgqu-sz
+sda       2.4      ← Good (< 10)
+sdb       45.7     ← Warning (10-50)
+sdc       247.2    ← Critical (> 100)
+*/</span>
+
+<span class="comment">-- Interpretation:</span>
+<span class="comment">< 10: Normal queue depth</span>
+<span class="comment">10-50: Getting backed up</span>
+<span class="comment">> 100: Severe backlog, can't keep up!</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">4. IOPS (Operations/Sec)</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">/*
+Device    r/s     w/s     Total
+nvme0n1   100     2500    2600   vs 500K capacity (0.5%)
+sda       1200    4500    5700   vs 100K capacity (5.7%)
+sdb       25000   75000   100K   vs 100K capacity (100%!)
+*/</span>
+
+<span class="comment">-- Check if approaching disk capacity</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">5. Disk Space</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+df -h
+
+<span class="comment">/*
+Filesystem      Size  Used  Avail Use%
+/dev/sda1       4.0T  2.8T  1.2T  70%  ← Warning
+/dev/sdb1       4.0T  3.4T  600G  85%  ← Critical!
+*/</span>
+
+<span class="comment">-- Thresholds:</span>
+<span class="comment">< 70%: Healthy</span>
+<span class="comment">70-85%: Warning, plan for more space</span>
+<span class="comment">> 85%: Critical, compaction may fail!</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Monitoring Dashboard:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+<span class="comment">-- Comprehensive monitoring script:</span>
+#!/bin/bash
+while true; do
+  clear
+  echo "=== Disk Performance ==="
+  iostat -x <span class="number">1</span> <span class="number">1</span> | grep -E "Device|sd|nvme"
+  echo ""
+  echo "=== Disk Space ==="
+  df -h | grep -E "Filesystem|cassandra"
+  echo ""
+  echo "=== Top I/O Processes ==="
+  iotop -b -n <span class="number">1</span> | head -n <span class="number">15</span>
+  sleep <span class="number">5</span>
+done
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Alert Thresholds:</strong></p>
+                    <ul style="line-height: 1.9;">
+                        <li>⚠️ <strong>WARNING:</strong> %util > 60%, await > 5ms, space > 70%</li>
+                        <li>❌ <strong>CRITICAL:</strong> %util > 80%, await > 10ms, space > 85%</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="question-card" onclick="toggleQuestion(this)">
+            <div class="question-header">
+                <span class="question-number">5</span>
+                <span class="question-text">How would you size disks for a Cassandra cluster storing 10TB of data with RF=3?</span>
+                <span class="question-toggle">▼</span>
+            </div>
+            <div class="question-answer">
+                <div class="answer-content">
+                    <p><strong>Answer: Per-node calculation: (10TB / nodes / RF) × space_amplification × safety_margin. For 10 nodes: (10TB / 10 / 3) × 1.5 (STCS) × 1.5 (snapshots+margin) = 750GB per node. Provision 1TB per node for headroom.</strong></p>
+                    
+                    <p style="margin-top: 1rem;"><strong>Step-by-Step Sizing:</strong></p>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 1: Calculate Per-Node Raw Data</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Given:</span>
+Total data: <span class="number">10</span>TB
+Replication factor (RF): <span class="number">3</span>
+Number of nodes: <span class="number">10</span>
+
+<span class="comment">-- Calculation:</span>
+Per-node raw = Total / Nodes
+Per-node raw = <span class="number">10</span>TB / <span class="number">10</span> = <span class="number">1</span>TB
+
+<span class="comment">// Note: RF doesn't affect per-node calculation!</span>
+<span class="comment">// RF=3 means cluster stores 30TB total (3 copies)</span>
+<span class="comment">// But each node still stores 1TB</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 2: Account for Space Amplification</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Space amplification factors:</span>
+
+<span class="comment"># 1. Compaction overhead:</span>
+STCS: <span class="number">1.5</span>x  <span class="comment">(needs temp space during compaction)</span>
+LCS: <span class="number">1.1</span>x   <span class="comment">(better space efficiency)</span>
+TWCS: <span class="number">1.1</span>x  <span class="comment">(no cross-window compaction)</span>
+
+<span class="comment"># 2. Snapshots (for backups):</span>
+<span class="number">1.2</span>x  <span class="comment">(20% for snapshots)</span>
+
+<span class="comment"># 3. Safety margin:</span>
+<span class="number">1.2</span>x  <span class="comment">(20% headroom)</span>
+
+<span class="comment">-- Total amplification (STCS):</span>
+<span class="number">1</span>TB × <span class="number">1.5</span> × <span class="number">1.2</span> × <span class="number">1.2</span> = <span class="number">2.16</span>TB per node
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 3: Provision Disks</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Option 1: Conservative (STCS)</span>
+Per node: <span class="number">2.16</span>TB needed
+Provision: <span class="number">2.5</span>TB or <span class="number">3</span>TB per node
+
+<span class="comment">-- Option 2: Efficient (LCS/TWCS)</span>
+<span class="number">1</span>TB × <span class="number">1.1</span> × <span class="number">1.2</span> × <span class="number">1.2</span> = <span class="number">1.58</span>TB per node
+Provision: <span class="number">2</span>TB per node
+
+<span class="comment">-- Recommended setup per node:</span>
+Commit log: <span class="number">250</span>GB NVMe SSD
+Data: <span class="number">2</span>TB SATA SSD (<span class="number">2</span>× <span class="number">1</span>TB in RAID <span class="number">0</span>)
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <p><strong style="color: var(--accent-purple);">Step 4: Validation</strong></p>
+                        <div class="code-block" style="margin-top: 0.5rem; font-size: 0.9rem;">
+<span class="comment">-- Cluster totals:</span>
+<span class="number">10</span> nodes × <span class="number">2</span>TB = <span class="number">20</span>TB total provisioned
+<span class="number">10</span>TB raw data + <span class="number">10</span>TB overhead/safety
+
+<span class="comment">-- Cluster with RF=3:</span>
+Logical capacity: <span class="number">10</span>TB (<span class="number">3</span> copies)
+Physical storage: <span class="number">30</span>TB (<span class="number">3</span>× <span class="number">10</span>TB)
+Provisioned: <span class="number">20</span>TB (<span class="number">10</span> nodes × <span class="number">2</span>TB)
+
+<span class="comment">// Wait, 20TB < 30TB?</span>
+<span class="comment">// No! Each node stores 1TB of unique data</span>
+<span class="comment">// 10 nodes × 1TB = 10TB unique</span>
+<span class="comment">// × RF=3 = 30TB total (distributed)</span>
+<span class="comment">// Each node: 1TB × 2x overhead = 2TB ✅</span>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Quick Formula:</strong></p>
+                    <div class="code-block" style="margin-top: 0.5rem;">
+per_node_disk = (total_data / num_nodes) × amplification
+
+<span class="comment">-- Amplification factors:</span>
+STCS: <span class="number">2.0</span>-<span class="number">2.5</span>x
+LCS/TWCS: <span class="number">1.5</span>-<span class="number">2.0</span>x
+
+<span class="comment">-- Example:</span>
+(<span class="number">10</span>TB / <span class="number">10</span> nodes) × <span class="number">2</span>x = <span class="number">2</span>TB per node
+                    </div>
+
+                    <p style="margin-top: 1.5rem;"><strong>Key Takeaway:</strong> Always provision 1.5-2.5x raw data size per node to account for compaction, snapshots, and safety margin. Never run disks > 85% full!</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+    <h2 style="color: var(--accent-purple);">🎓 Chapter Summary: Disk Optimization Mastery</h2>
+    <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">You now understand disk optimization at a production level!</strong></p>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem;">Critical Rules:</h4>
+        <div style="background: rgba(5, 150, 105, 0.15); padding: 1.5rem; border-radius: 12px; margin-top: 1rem;">
+            <ul style="line-height: 2; margin: 0;">
+                <li>💿 <strong>SSDs Mandatory:</strong> 100-1000x faster than HDDs</li>
+                <li>📝 <strong>Separate Commit Log:</strong> NVMe for commit log, SATA for data</li>
+                <li>🔀 <strong>RAID 0/JBOD:</strong> No RAID 5/6 (Cassandra has replication!)</li>
+                <li>⚙️ <strong>I/O Scheduler:</strong> 'none' for NVMe, 'deadline' for SATA</li>
+                <li>📊 <strong>Monitor:</strong> %util < 80%, await < 5ms, space < 70%</li>
+            </ul>
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem;">Recommended Setup:</h4>
+        <div class="code-block" style="margin-top: 0.5rem;">
+Disk <span class="number">1</span>: <span class="number">250</span>-<span class="number">500</span>GB NVMe → Commit log
+Disk <span class="number">2</span>-<span class="number">3</span>: <span class="number">2</span>-<span class="number">4</span>TB SATA SSDs → Data (RAID <span class="number">0</span>)
+        </div>
+
+        <h4 style="color: var(--accent-purple); margin-top: 2rem;">Performance Gain:</h4>
+        <p style="margin-top: 0.5rem;">HDD: 500ms writes, 1K/sec → SSD: 2ms writes, 100K/sec (250x faster!)</p>
+
+        <p style="margin-top: 2rem; text-align: center; font-size: 1.2rem;">
+            <strong style="color: var(--accent-purple);">Remember Jake: SSDs are not optional! 🚀</strong>
+        </p>
+    </div>
+</div>
+
+<div class="page-navigation">
+    <a href="memory-management.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Memory Management</div>
+        </div>
+    </a>
+    <a href="network-tuning.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Network Tuning</div>
+        </div>
+    </a>
+</div>
+            <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                    </div>
+    </div>
+</div>
+</main>
+<button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+    AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+    
+    window.addEventListener('scroll', () => {
+        const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+    });
+
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    mobileMenuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 992) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        }
+    });
+
+    function toggleSection(element) {
+        element.closest('.path-section').classList.toggle('expanded');
+    }
+
+    function toggleQuestion(card) {
+        card.classList.toggle('active');
+    }
+
+    const scrollTopBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+</script>
+</body>
+</html>

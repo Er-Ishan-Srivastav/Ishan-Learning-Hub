@@ -1,0 +1,4132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Query Debugging - 50 Broken Queries | myPathshala MongoDB</title>
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+     <!-- Your existing stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="content-style.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+         /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--primary-green);
+            border-left-color: var(--primary-green);
+            padding-left: 1.25rem;
+        }
+
+        /* Content Section */
+        section {
+            padding: 4rem 0;
+            position: relative;
+            z-index: 1;
+        }
+        /* ========================================
+           NAVIGATION BUTTONS
+           ======================================== */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 4rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: var(--code-bg);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.2);
+            transform: translateY(-2px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+        }
+
+        .nav-icon {
+            font-size: 2rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* ========================================
+           SCROLL TO TOP
+           ======================================== */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            background: var(--dark-green);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.4);
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN
+           ======================================== */
+        @media (max-width: 992px) {
+            .toc-floating {
+                display: none;
+            }
+
+            .step-content {
+                padding-left: 0;
+            }
+
+            .step-header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 3rem 0 2rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .version-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .requirements-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+        :root {
+            --primary-green: #00ED64;
+            --dark-green: #00684A;
+            --deep-navy: #001E2B;
+            --darker-navy: #0A1929;
+            --code-bg: #1E293B;
+            --code-darker: #0F172A;
+            --text-primary: #E2E8F0;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: #334155;
+            --bg-dark: #0F172A;
+            --bg-darker: #020617;
+            --success-green: #10B981;
+            --warning-orange: #F59E0B;
+            --error-red: #EF4444;
+            --info-blue: #3B82F6;
+            --purple: #8B5CF6;
+            --cyan: #06B6D4;
+            --atlas-blue: #00ED64;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-darker);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--code-darker);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-green);
+            border-radius: 5px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 237, 100, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+
+        /* Page Hero */
+        .page-hero {
+            background: linear-gradient(135deg, #001E2B 0%, #00684A 100%);
+            padding: 5rem 0 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.05"><path d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/></g></g></svg>');
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            background: rgba(0, 237, 100, 0.15);
+            border: 1px solid var(--primary-green);
+            border-radius: 50px;
+            color: var(--primary-green);
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #FFFFFF 0%, #00ED64 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--primary-green);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Quick Nav */
+        .quick-nav {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            position: sticky;
+            top: 1rem;
+            z-index: 100;
+        }
+
+        .quick-nav h3 {
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .nav-btn {
+            background: var(--code-darker);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border-color: var(--primary-green);
+            transform: translateY(-2px);
+        }
+
+        /* Category Section */
+        .category-section {
+            margin: 4rem 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .category-icon {
+            font-size: 2.5rem;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .category-title h2 {
+            font-size: 2rem;
+            color: var(--primary-green);
+            margin: 0;
+        }
+
+        .category-title p {
+            color: var(--text-secondary);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Step Card */
+        .step-card {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .step-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.15);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-green);
+        }
+
+        .step-content {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        /* Connection String Box */
+        .connection-box {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 2px solid var(--border-light);
+            position: relative;
+        }
+
+        .connection-label {
+            font-size: 0.85rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .connection-string {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            word-break: break-all;
+            line-height: 1.6;
+        }
+
+        .copy-connection-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-connection-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        /* Terminal Block */
+        .terminal-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+            border: 2px solid var(--border-light);
+        }
+
+        .terminal-header {
+            background: var(--code-bg);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .terminal-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-green);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .terminal-body {
+            padding: 1.5rem;
+        }
+
+        .terminal-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .terminal-prompt {
+            color: var(--primary-green);
+            user-select: none;
+        }
+
+        .terminal-output {
+            background: rgba(0, 237, 100, 0.05);
+            border-left: 3px solid var(--primary-green);
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 6px;
+        }
+
+        .copy-btn {
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        /* Syntax highlighting */
+        .comment { color: #6A9955; }
+        .command { color: #569CD6; }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .comparison-card {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-3px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-green);
+            margin-bottom: 1rem;
+        }
+
+        .comparison-desc {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .comparison-list li {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .comparison-list li::before {
+            content: '✓';
+            color: var(--primary-green);
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        /* Info boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+            border-left: 4px solid var(--info-blue);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .info-box strong {
+            color: var(--info-blue);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+            border-left: 4px solid var(--warning-orange);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box strong {
+            color: var(--warning-orange);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05));
+            border-left: 4px solid var(--success-green);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .success-box strong {
+            color: var(--success-green);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Stats Box */
+        .stats-box {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid var(--primary-green);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Reference Table */
+        .reference-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .reference-table th {
+            background: linear-gradient(135deg, var(--dark-green), var(--primary-green));
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .reference-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .reference-table tr:hover {
+            background: rgba(0, 237, 100, 0.05);
+        }
+
+        .reference-table code {
+            background: var(--bg-darker);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--primary-green);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 237, 100, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(0, 237, 100, 0.5);
+        }
+
+        @media (max-width: 968px) {
+            .comparison-grid { grid-template-columns: 1fr; }
+            .nav-grid { grid-template-columns: 1fr; }
+            .print-btn { bottom: 1rem; right: 1rem; padding: 0.75rem 1.25rem; }
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            .print-btn, .quick-nav, .page-hero, .breadcrumb-modern { display: none; }
+        }
+
+        /* ========================================
+           DEBUGGING PRACTICE STYLES
+           ======================================== */
+
+        /* Question Container */
+        .question-container {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .question-container:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 20px 40px rgba(0, 237, 100, 0.15);
+            transform: translateY(-4px);
+        }
+
+        /* Question Number Badge */
+        .question-number {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.25rem;
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            color: var(--deep-navy);
+            font-weight: 800;
+            font-size: 1rem;
+            border-radius: 8px;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 237, 100, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        /* Difficulty Badges */
+        .difficulty {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.25rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .difficulty.easy {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .difficulty.medium {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
+            color: white;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .difficulty.hard {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Bug Type Badge */
+        .bug-type {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.25rem;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
+            border: 2px solid #8B5CF6;
+            color: #C4B5FD;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* Data Display */
+        .data-display {
+            background: var(--code-darker);
+            border: 2px solid var(--primary-green);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .data-display h4 {
+            color: var(--primary-green);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .data-display h4::before {
+            content: '📊';
+            font-size: 1.2rem;
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin: 0;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .code-block.error {
+            border-color: #EF4444;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .code-block.error pre {
+            color: #FCA5A5;
+        }
+
+        .code-block.correct {
+            border-color: var(--primary-green);
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+        }
+
+        .code-block.correct pre {
+            color: var(--primary-green);
+        }
+
+        /* Code Labels */
+        .error-label,
+        .code-label {
+            position: absolute;
+            top: -12px;
+            left: 1rem;
+            padding: 0.4rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .error-label {
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .code-label {
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            color: var(--deep-navy);
+            box-shadow: 0 4px 12px rgba(0, 237, 100, 0.4);
+        }
+
+        /* Error Indicator */
+        .error-indicator {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+            border-left: 4px solid #EF4444;
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+            color: #FCA5A5;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .error-indicator::before {
+            content: '⚠️';
+            font-size: 1.3rem;
+        }
+
+        /* Hint Box */
+        .hint-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.1));
+            border: 2px solid #F59E0B;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .hint-box h5 {
+            color: #FCD34D;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hint-box p {
+            color: #FDE68A;
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Show Solution Button */
+        .show-solution-btn {
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.9rem 2rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(0, 237, 100, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 1.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .show-solution-btn:hover {
+            background: linear-gradient(135deg, var(--dark-green), var(--primary-green));
+            box-shadow: 0 8px 24px rgba(0, 237, 100, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .show-solution-btn:active {
+            transform: translateY(0);
+        }
+
+        .show-solution-btn::after {
+            content: '▼';
+            font-size: 0.9rem;
+            transition: transform 0.3s;
+        }
+
+        .show-solution-btn.active::after {
+            transform: rotate(180deg);
+        }
+
+        /* Solution Section */
+        .solution-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px dashed var(--border-light);
+            display: none;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        .solution-section.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Explanation Box */
+        .explanation {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.1));
+            border-left: 4px solid var(--info-blue);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .explanation h5 {
+            color: #93C5FD;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .explanation p {
+            color: #BFDBFE;
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Copy Button */
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--primary-green);
+            color: var(--deep-navy);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-btn:hover {
+            background: var(--dark-green);
+            transform: scale(1.05);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Progress Tracker */
+        .progress-tracker {
+            background: linear-gradient(135deg, rgba(0, 237, 100, 0.1), rgba(0, 104, 74, 0.05));
+            border: 2px solid var(--primary-green);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .quiz-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid var(--border-light);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--primary-green);
+            transform: translateY(-3px);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary-green);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            background: var(--code-darker);
+            border-radius: 50px;
+            height: 30px;
+            overflow: hidden;
+            margin-top: 1.5rem;
+            border: 2px solid var(--border-light);
+        }
+
+        .progress-bar .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--dark-green));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--deep-navy);
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: width 0.5s ease;
+        }
+
+        /* Error Box */
+        .error-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.1));
+            border-left: 4px solid #EF4444;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .error-box strong {
+            color: #FCA5A5;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.05rem;
+        }
+
+        .error-box ul li {
+            color: var(--text-secondary);
+        }
+
+        .error-box ul li strong {
+            display: inline;
+            color: #FCA5A5;
+        }
+
+        /* Responsive Design for Debugging Sections */
+        @media (max-width: 768px) {
+            .question-container {
+                padding: 1.5rem;
+            }
+
+            .question-number,
+            .difficulty,
+            .bug-type {
+                font-size: 0.8rem;
+                padding: 0.5rem 1rem;
+            }
+
+            .code-block pre {
+                font-size: 0.85rem;
+            }
+
+            .show-solution-btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+     <div class="progress-indicator"><div class="progress-fill" id="progressBar"></div></div>
+    <button class="mobile-menu-toggle"><span></span><span></span><span></span></button>
+    
+      <!-- Vertical Navigation Bar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🍃</span>
+            <h2>myPathshala</h2>
+            <p class="logo-subtitle">MongoDB Mastery</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Complete Learning Path with All Sections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Home/Overview -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 1: Home & Overview</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html" data-page="home">🏠 Home</a></li>
+                        <li><a href="what-is-mongodb.html" data-page="what-mongo">📚 What is MongoDB?</a></li>
+                        <li><a href="why-mongodb.html" data-page="why-mongo">💡 Why MongoDB?</a></li>
+                        <li><a href="problems-mongodb-solves.html" data-page="problems">🎯 Problems MongoDB Solves</a></li>
+                        <li><a href="learning-roadmap.html" data-page="roadmap">🗺️ Learning Roadmap</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: NoSQL Foundations -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌐</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 2: NoSQL Foundations</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="database-evolution.html" data-page="db-evolution">📜 Evolution of Databases</a></li>
+                        <li><a href="nosql-types.html" data-page="nosql-types">🔄 Types of NoSQL Databases</a></li>
+                        <li><a href="distributed-systems.html" data-page="distributed" >🌍 Distributed Systems</a></li>
+                        <li><a href="cap-theorem.html" data-page="cap">⚖️ CAP Theorem</a></li>
+                        <li><a href="base-vs-acid.html" data-page="base-acid">⚗️ BASE vs ACID</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: MongoDB Architecture -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 3: Architecture</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="document-model.html" data-page="doc-model">📄 Document Data Model</a></li>
+                        <li><a href="wiredtiger.html" data-page="wiredtiger">💾 WiredTiger Storage</a></li>
+                        <li><a href="read-write-path.html" data-page="rw-path">🔄 Read/Write Path</a></li>
+                        <li><a href="replica-set-components.html" data-page="replica">🔁 Replica Sets</a></li>
+                        <li><a href="mongodb-ecosystem.html" data-page="ecosystem">🛠️ Ecosystem Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Installation & Setup -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 4: Installation</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="install-windows.html" data-page="install-win">🪟 Windows</a></li>
+                        <li><a href="install-mac.html" data-page="install-mac">🍎 macOS</a></li>
+                        <li><a href="install-linux.html" data-page="install-linux">🐧 Linux</a></li>
+                        <li><a href="install-compass.html" data-page="compass">🧭 Compass</a></li>
+                        <li><a href="install-mongosh.html" data-page="mongosh">💻 mongosh</a></li>
+                        <li><a href="setup-atlas.html" data-page="atlas">☁️ Atlas</a></li>
+                        <li><a href="local-cloud-connection.html" data-page="connection">🔗 Connections</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: MongoDB Basics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌱</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 5: Basics</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="databases-collections.html" data-page="db-coll">📂 Databases & Collections</a></li>
+                        <li><a href="documents-bson.html" data-page="bson-types">📝 Documents & BSON</a></li>
+                        <li><a href="crud-operations.html" data-page="crud">✏️ CRUD Operations</a></li>
+                        <li><a href="query-operators.html" data-page="operators">🔍 Query Operators</a></li>
+                        <li><a href="sorting-pagination.html" data-page="sort-page">📑 Sorting & Pagination</a></li>
+                         <li><a href="practical-example.html" data-page="practical-example">📑 Practical Example</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Intermediate -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌿</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 6: Intermediate</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="embedded-arrays.html" data-page="embedded">📦 Embedded Documents</a></li>
+                        <li><a href="indexing.html" data-page="indexing">🚀 Indexing</a></li>
+                        <li><a href="aggregation-framework.html" data-page="aggregation">📊 Aggregation</a></li>
+                        <li><a href="schema-design.html" data-page="schema">🎨 Schema Design</a></li>
+                        <li><a href="schema-governance.html" data-page="governance">📋 Governance</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: Advanced -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 7: Advanced</div>
+                            <div class="path-section-progress">0 / 7 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="replication.html" data-page="replication">🔁 Replication</a></li>
+                        <li><a href="sharding.html" data-page="sharding">⚡ Sharding</a></li>
+                        <li><a href="transactions.html" data-page="transactions">💳 Transactions</a></li>
+                        <li><a href="performance-optimization.html" data-page="performance">⚡ Performance</a></li>
+                        <li><a href="security.html" data-page="security">🔒 Security</a></li>
+                        <li><a href="backup-restore.html" data-page="backup">💾 Backup & Restore</a></li>
+                        <li><a href="observability.html" data-page="observability">📈 Observability</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Distributed Systems -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🌍</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 8: Distributed</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="why-distributed-databases.html" data-page="why-dist">🌐 Why Distributed?</a></li>
+                        <li><a href="mongodb-distributed.html" data-page="mongo-dist">🔄 MongoDB Distributed</a></li>
+                        <li><a href="mysql-vs-mongodb-distributed.html" data-page="compare-dist">⚖️ MySQL vs MongoDB</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Use Cases -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💼</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 9: Use Cases</div>
+                            <div class="path-section-progress">0 / 3 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="when-to-use-mongodb.html" data-page="when-use">✅ When to Use</a></li>
+                        <li><a href="when-not-to-use-mongodb.html" data-page="when-not">❌ When NOT to Use</a></li>
+                        <li><a href="database-comparisons.html" data-page="comparisons">⚖️ Comparisons</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Programming -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 10: Programming</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="mongodb-python.html" data-page="python">🐍 Python</a></li>
+                        <li><a href="mongodb-nodejs.html"  data-page="nodejs">🟢 Node.js</a></li>
+                        <li><a href="mongodb-java.html"  data-page="java">☕ Java</a></li>
+                        <li><a href="mongodb-go.html" data-page="go">🔷 Go</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 11: Projects</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-student-management.html" data-page="proj-student">📚 Student System</a></li>
+                        <li><a href="project-bookstore.html" data-page="proj-bookstore">📖 Bookstore</a></li>
+                        <li><a href="project-ecommerce.html" data-page="proj-ecommerce">🛒 E-commerce</a></li>
+                        <li><a href="project-food-delivery.html" data-page="proj-food">🍕 Food Delivery</a></li>
+                        <li><a href="project-chat-app.html" data-page="proj-chat">💬 Chat App</a></li>
+                        <li><a href="project-iot-platform.html" data-page="proj-iot">📡 IoT Platform</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Practice Zone -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 12: Practice</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html" data-page="mcqs">📝 MCQs</a></li>
+                        <li><a href="practice-query-tasks.html" data-page="query-tasks">🔍 Query Tasks</a></li>
+                        <li><a href="practice-output-prediction.html" data-page="output">🎯 Output Prediction</a></li>
+                        <li><a href="practice-debugging.html"  class="active" data-page="debugging">🐛 Debugging</a></li>
+                        <li><a href="practice-assignments.html" data-page="assignments">📋 Assignments</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Interview Prep -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 13: Interview</div>
+                            <div class="path-section-progress">0 / 4 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html" data-page="interview">💼 100+ Questions</a></li>
+                        <li><a href="interview-scenarios.html" data-page="scenarios">🎭 Scenarios</a></li>
+                        <li><a href="interview-distributed.html" data-page="dist-interview">🌐 Distributed Cases</a></li>
+                        <li><a href="interview-mongodb-vs-sql.html" data-page="sql-interview">⚖️ MongoDB vs SQL</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Downloads -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📥</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Section 14: Downloads</div>
+                            <div class="path-section-progress">0 / 5 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-commands.html" data-page="cmd-cheat" >📄 Commands</a></li>
+                        <li><a href="cheatsheet-aggregation.html" data-page="agg-cheat">📊 Aggregation</a></li>
+                        <li><a href="cheatsheet-indexing.html" data-page="index-cheat">🚀 Indexing</a></li>
+                        <li><a href="cheatsheet-schema-patterns.html" data-page="schema-cheat">🎨 Schema Patterns</a></li>
+                        <li><a href="cheatsheet-sharding.html" data-page="shard-cheat">⚡ Sharding</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+      
+    <main class="main-content">
+
+            <section class="page-hero">
+                <div class="container">
+                    <div class="page-hero-content">
+                        <span class="hero-badge"><i class="fas fa-book"></i> Section 11: Projects</span>
+                        <h1>🐛 Query Debugging Practice</h1>
+                        <p>Find and Fix 50 Broken MongoDB Queries - Master Debugging!s</p>
+                    </div>
+                </div>
+            </section>
+    
+            <div class="breadcrumb">
+                 <div class="container">
+                    <a href="index.html">Home</a><span class="separator">›</span>
+                    <a href="#connection">Section 12 :Practice</a>
+                    <span class="separator">›</span>
+                    <span class="current">Debugging</span>
+                </div>
+            </div>
+
+    <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 Table of Contents</h3>
+                        <ul>
+                            <li><a href="#intro" class="nav-btn" style="color: white;">Introduction</a></li>
+                            <li><a href="#syntax" class="nav-btn" style="color: white;">Syntax Errors (1-10)</a></li>
+                            <li><a href="#logic" class="nav-btn" style="color: white;">Logic Errors (11-20)</a></li>
+                            <li><a href="#operators" class="nav-btn" style="color: white;">Operators (21-30)</a></li>
+                            <li><a href="#aggregation" class="nav-btn" style="color: white;">Aggregation (31-40)</a></li>
+                            <li><a href="#updates" class="nav-btn" style="color: white;">Updates (41-50)</a></li>
+                        </ul>
+                    </aside>
+                </div>    
+       
+                <div class="col-lg-9">
+
+                    <section id="intro">
+                        <h2>🎓 About Debugging Practice</h2>
+                        <p style="margin-bottom: 15px;">Debugging broken queries is a critical real-world skill. These 50 questions will sharpen your MongoDB debugging abilities through hands-on practice.</p>
+
+                        <div class="error-box">
+                            <strong>🐛 Bug Categories:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li><strong>Syntax Errors (1-10):</strong> Missing brackets, wrong quotes, incorrect operators</li>
+                                <li><strong>Logic Errors (11-20):</strong> Query runs but returns wrong results</li>
+                                <li><strong>Operator Misuse (21-30):</strong> Using wrong operator for the task</li>
+                                <li><strong>Aggregation Bugs (31-40):</strong> Pipeline mistakes and stage order issues</li>
+                                <li><strong>Update Errors (41-50):</strong> Wrong update syntax and operator usage</li>
+                            </ul>
+                        </div>
+
+                        <div class="info-box">
+                            <strong>💡 How to Practice:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li><strong>Read carefully:</strong> Study the data and intended goal</li>
+                                <li><strong>Spot the bug:</strong> Identify what's wrong with the query</li>
+                                <li><strong>Fix mentally:</strong> Think about the correct syntax/logic</li>
+                                <li><strong>Check solution:</strong> Compare your fix with the answer</li>
+                                <li><strong>Understand why:</strong> Read the explanation to prevent future errors</li>
+                            </ul>
+                        </div>
+
+                        <div class="progress-tracker">
+                            <h3 style="color: #00ED64;">Your Progress</h3>
+                            <div class="quiz-stats">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="attempted">0</div>
+                                    <div class="stat-label">Debugged</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="total">50</div>
+                                    <div class="stat-label">Total Bugs</div>
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress">0%</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="syntax">
+                        <h2>⚠️ Syntax Errors (1-10)</h2>
+                        <p style="margin-bottom:20px;">These queries have syntax problems that prevent them from running.</p>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #1</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: students</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,name:'Alice',grade:'A'},{_id:2,name:'Bob',grade:'B'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find students with grade A</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.students.find({grade:'A'})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Invalid token</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check quote marks</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(1)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-1">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.students.find({grade:"A"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use double quotes for strings in MongoDB</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #2</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,name:'Laptop',price:1200},{_id:2,name:'Mouse',price:25}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find products price > 50</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.find({price:{$gt 50}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unexpected number</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check operator syntax</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(2)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-2">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.find({price:{$gt:50}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing colon after $gt operator</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #3</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: orders</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,customer:'Alice',total:150}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find orders for Alice with projection</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.orders.find({customer:"Alice"},{customer:1,total:1,_id:0}</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: missing )</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Count parentheses</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(3)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-3">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.orders.find({customer:"Alice"},{customer:1,total:1,_id:0})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing closing parenthesis</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #4</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: employees</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'John',dept:'IT',salary:80000}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find IT employees, sort by salary desc</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.employees.find({dept:"IT"}).sort{salary:-1}</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unexpected {</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check method chaining</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(4)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-4">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.employees.find({dept:"IT"}).sort({salary:-1})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing parentheses around sort()</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #5</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: books</h4>
+                                <div class="code-block">
+                                    <pre>[{title:'MongoDB',pages:320},{title:'Node',pages:280}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find books 300-400 pages</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.books.find({pages:{$gte:300,$lte 400}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unexpected number</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Compare $gte vs $lte syntax</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(5)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-5">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.books.find({pages:{$gte:300,$lte:400}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing colon after $lte</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #6</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{username:'alice',status:'active'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find active users</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.find({status:"active")</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: missing }</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check curly braces</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(6)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-6">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.find({status:"active"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing closing brace</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #7</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: inventory</h4>
+                                <div class="code-block">
+                                    <pre>[{item:'apple',qty:50,price:2.5}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find qty>20 AND price<3</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.inventory.find({qty:{$gt:20}price:{$lt:3}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unexpected identifier</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>What separates conditions?</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(7)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-7">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.inventory.find({qty:{$gt:20},price:{$lt:3}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing comma between conditions</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #8</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{title:'Hello',likes:10}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Update likes to 30</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.updateOne({_id:1},{set:{likes:30}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: No update</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check operator name</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(8)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-8">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.updateOne({_id:1},{$set:{likes:30}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing $ before set</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #9</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: tasks</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'A',tags:['urgent','work']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find tasks with urgent tag</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.tasks.find({tags:"urgent")</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: missing }</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Match braces</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(9)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-9">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.tasks.find({tags:"urgent"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Missing closing brace</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #10</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Syntax Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: sales</h4>
+                                <div class="code-block">
+                                    <pre>[{product:'A',amount:100}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find amount 100 OR 200</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.sales.find({amount:{$or:[100,200]}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns nothing</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$or placement</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(10)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-10">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.sales.find({$or:[{amount:100},{amount:200}]})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$or is top-level, not inside field. Or use {amount:{$in:[100,200]}}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <section id="logic">
+                        <h2>🧩 Logic Errors (11-20)</h2>
+                        <p style="margin-bottom:20px;">These queries run without errors but return incorrect results.</p>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #11</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'Laptop',price:1200,inStock:true},{name:'Mouse',price:25,inStock:false}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find inStock OR price<100</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.find({inStock:true,price:{$lt:100}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Wrong results</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Multiple conditions use AND</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(11)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-11">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.find({$or:[{inStock:true},{price:{$lt:100}}]})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $or for OR logic</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #12</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: students</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'Alice',scores:[85,90,88]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find students with score 90</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.students.find({scores:90})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Works but implicit</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Be more explicit</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(12)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-12">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.students.find({scores:{$eq:90}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $eq or $in for clarity</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #13</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: orders</h4>
+                                <div class="code-block">
+                                    <pre>[{customer:'Alice',total:150},{customer:'Bob',total:50},{customer:'Charlie',total:200}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find top 2 by total</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.orders.find().limit(2).sort({total:-1})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Wrong order</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Sort before limit!</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(13)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-13">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.orders.find().sort({total:-1}).limit(2)</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>CRITICAL: sort() before limit()</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #14</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{age:25,city:'NYC'},{age:30,city:'LA'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find age 25 in LA</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.find({age:25}).find({city:"LA"})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Cannot chain find</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>One find() call</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(14)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-14">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.find({age:25,city:"LA"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Multiple conditions in one find()</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #15</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: items</h4>
+                                <div class="code-block">
+                                    <pre>[{qty:5,tags:['a','b']},{qty:10,tags:['b','c']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find qty>=5 AND tag b</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.items.find({qty:{$gte:5},tags:["b"]})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns nothing</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Array equality vs contains</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(15)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-15">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.items.find({qty:{$gte:5},tags:"b"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>tags:["b"] checks equality, tags:"b" checks contains</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #16</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: employees</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'John',dept:'IT'},{name:'Sarah',dept:'HR'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find NOT in IT</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.employees.find({dept:{$not:"IT"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: $not needs regex</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$not vs $ne</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(16)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-16">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.employees.find({dept:{$ne:"IT"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $ne for not equal</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #17</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{views:100,likes:20},{views:50,likes:30}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find views>75 OR likes>25</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.find({views:{$gt:75},likes:{$gt:25}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns only 1</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>AND vs OR</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(17)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-17">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.find({$or:[{views:{$gt:75}},{likes:{$gt:25}}]})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Comma = AND, use $or</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #18</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: records</h4>
+                                <div class="code-block">
+                                    <pre>[{score:'95'},{score:85}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find score>90</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.records.find({score:{$gt:90}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Misses string</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check data types</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(18)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-18">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.records.find({score:{$gt:"90"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Match types: "95" vs 95</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #19</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: accounts</h4>
+                                <div class="code-block">
+                                    <pre>[{balance:100},{balance:200}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Get average balance</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.accounts.find({}).avg("balance")</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Not a function</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use aggregation</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(19)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-19">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.accounts.aggregate([{$group:{_id:null,avg:{$avg:"$balance"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $avg in aggregation</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #20</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Logic Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: inventory</h4>
+                                <div class="code-block">
+                                    <pre>[{item:'A',qty:[5,10,15]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find ANY qty>12</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.inventory.find({qty:{$gt:12}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Works but implicit</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Be explicit for arrays</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(20)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-20">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.inventory.find({qty:{$elemMatch:{$gt:12}}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $elemMatch for clarity</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <section id="operators">
+                        <h2>🔧 Operator Mistakes (21-30)</h2>
+                        <p style="margin-bottom:20px;">Using the wrong operator for the task.</p>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #21</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: inventory</h4>
+                                <div class="code-block">
+                                    <pre>[{item:'Apple',tags:['fruit','fresh']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find BOTH fruit AND fresh tags</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.inventory.find({tags:{$in:["fruit","fresh"]}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns wrong items</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$in vs $all</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(21)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-21">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.inventory.find({tags:{$all:["fruit","fresh"]}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$in=ANY(OR), $all=ALL(AND)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #22</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'Widget',discount:null},{name:'Gizmo'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find missing discount field</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.find({discount:null})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Matches null too</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>null vs missing</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(22)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-22">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.find({discount:{$exists:false}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $exists for missing fields</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #23</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'Alice',age:25},{name:'Bob',age:30}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find age 25,30, or 35</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.find({age:{$all:[25,30,35]}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns nothing</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$all is for arrays</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(23)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-23">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.find({age:{$in:[25,30,35]}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $in for value matching</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #24</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{title:'Hello',content:'World'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find title contains "ello"</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.find({title:{$like:"%ello%"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unknown operator</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>MongoDB pattern matching</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(24)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-24">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.find({title:{$regex:/ello/}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $regex, not $like</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #25</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: sales</h4>
+                                <div class="code-block">
+                                    <pre>[{items:[{name:'x'}]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find items array size=1</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.sales.find({items:{$size:{$eq:1}}}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: $size no operators</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$size takes number</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(25)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-25">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.sales.find({items:{$size:1}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$size:number, not object</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #26</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: books</h4>
+                                <div class="code-block">
+                                    <pre>[{title:'Book A',author:'Smith'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find author NOT Smith</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.books.find({author:{$not:"Smith"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: $not needs operator</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $ne</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(26)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-26">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.books.find({author:{$ne:"Smith"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$ne for not equal</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #27</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: items</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'A',tags:['red','blue']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find EXACTLY tags [red,blue]</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.items.find({tags:{$all:["red","blue"]}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Matches subsets</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$all vs equality</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(27)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-27">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.items.find({tags:["red","blue"]})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$all checks contains, use equality for exact</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #28</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{specs:{weight:5,color:'red'}}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find specs.weight>3</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.find({specs:{weight:{$gt:3}}}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns nothing</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use dot notation</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(28)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-28">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.find({"specs.weight":{$gt:3}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Dot notation for nested fields</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #29</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: records</h4>
+                                <div class="code-block">
+                                    <pre>[{value:'abc'},{value:'ABC'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find "abc" case-insensitive</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.records.find({value:"abc"})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Case-sensitive</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use regex with i flag</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(29)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-29">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.records.find({value:{$regex:/^abc$/i}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use /pattern/i for case-insensitive</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #30</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Wrong Operator</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{friends:['Bob','Charlie']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Find users with Bob as friend</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.find({friends:{$contains:"Bob"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Unknown $contains</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>No $contains in MongoDB</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(30)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-30">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.find({friends:"Bob"})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Arrays match automatically</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <section id="aggregation">
+                        <h2>📊 Aggregation Pipeline Bugs (31-40)</h2>
+                        <p style="margin-bottom:20px;">Debug complex aggregation pipeline errors.</p>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #31</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Pipeline Order</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: sales</h4>
+                                <div class="code-block">
+                                    <pre>[{product:'A',amount:100,status:'completed'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Sum by product for completed only</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.sales.aggregate([{$group:{_id:"$product",total:{$sum:"$amount"}}},{$match:{status:"completed"}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: status lost after $group</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Filter before grouping</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(31)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-31">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.sales.aggregate([{$match:{status:"completed"}},{$group:{_id:"$product",total:{$sum:"$amount"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$match BEFORE $group to filter early and use indexes</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #32</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: orders</h4>
+                                <div class="code-block">
+                                    <pre>[{customer:'Alice',items:3,total:150}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Add 10% tax</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.orders.aggregate([{$project:{totalWithTax:{$multiply:["$total",1.1]}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Loses customer</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Include needed fields</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(32)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-32">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.orders.aggregate([{$project:{customer:1,total:1,totalWithTax:{$multiply:["$total",1.1]}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$project excludes fields unless specified</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #33</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: sales</h4>
+                                <div class="code-block">
+                                    <pre>[{date:'2024-01-15',amount:100}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Group by month</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.sales.aggregate([{$group:{_id:{$month:"date"},total:{$sum:"$amount"}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Expects Date</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Convert to Date</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(33)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-33">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.sales.aggregate([{$group:{_id:{$month:{$toDate:"$date"}},total:{$sum:"$amount"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $toDate for string dates</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #34</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{name:'A',price:100,qty:5}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Calculate value (price*qty)</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.aggregate([{$project:{value:{$multiply:["price","qty"]}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns null</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Need $ for fields</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(34)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-34">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.aggregate([{$project:{value:{$multiply:["$price","$qty"]}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>In aggregation use $fieldName</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #35</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: orders</h4>
+                                <div class="code-block">
+                                    <pre>[{items:[{name:'A',qty:2},{name:'B',qty:3}]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Sum all item quantities</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.orders.aggregate([{$project:{total:{$sum:"$items.qty"}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Returns array</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>$unwind first</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(35)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-35">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.orders.aggregate([{$unwind:"$items"},{$group:{_id:"$_id",total:{$sum:"$items.qty"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$unwind array before summing</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #36</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{firstName:'John',lastName:'Doe'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Create fullName</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.aggregate([{$project:{fullName:"$firstName"+" "+"$lastName"}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Wrong concat</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $concat</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(36)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-36">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.aggregate([{$project:{fullName:{$concat:["$firstName"," ","$lastName"]}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $concat for strings</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #37</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{title:'A',views:100},{title:'B',views:200}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Top 3 by views</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.aggregate([{$limit:3},{$sort:{views:-1}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Random 3</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Sort before limit</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(37)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-37">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.aggregate([{$sort:{views:-1}},{$limit:3}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Always sort then limit</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #38</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: inventory</h4>
+                                <div class="code-block">
+                                    <pre>[{item:'A',qty:[5,10,15]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Average of qty array</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.inventory.aggregate([{$project:{avg:{$avg:"$qty"}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Should work in 5.0+</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Works in modern MongoDB</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(38)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-38">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.inventory.aggregate([{$project:{avg:{$avg:"$qty"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Modern MongoDB supports $avg on arrays</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #39</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: sales</h4>
+                                <div class="code-block">
+                                    <pre>[{product:'A',sales:[{month:1,amt:100}]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Count sales entries</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.sales.aggregate([{$group:{_id:"$product",count:{$count:"$sales"}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: $count no args</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $sum or $size</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(39)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-39">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.sales.aggregate([{$project:{product:1,count:{$size:"$sales"}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $size in $project</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #40</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Aggregation Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: orders</h4>
+                                <div class="code-block">
+                                    <pre>[{customer:'Alice',total:100}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Filter total > average</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.orders.aggregate([{$match:{total:{$gt:{$avg:"$total"}}}}])</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Cannot use $avg in $match</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Calculate first</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(40)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-40">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.orders.aggregate([{$group:{_id:null,avg:{$avg:"$total"},docs:{$push:"$$ROOT"}}},{$unwind:"$docs"},{$match:{$expr:{$gt:["$docs.total","$avg"]}}}])</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Calculate value first, then $match with $expr</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+                    <section id="updates">
+                        <h2>✏️ Update Operation Errors (41-50)</h2>
+                        <p style="margin-bottom:20px;">Fix broken update queries.</p>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #41</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: counters</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,views:100,likes:50}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Increment views+1, likes+2</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.counters.updateOne({_id:1},{$inc:{views:1},$inc:{likes:2}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Duplicate $inc</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>One operator object</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(41)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-41">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.counters.updateOne({_id:1},{$inc:{views:1,likes:2}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Put fields in one $inc</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #42</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,name:'Alice',age:25}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Update age to 26</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.updateOne({_id:1},{age:26})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Replaces doc</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $set</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(42)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-42">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.updateOne({_id:1},{$set:{age:26}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Without operators, replaces doc</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #43</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,tags:['a','b']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Add tag c to array</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.updateOne({_id:1},{$set:{tags:"c"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Replaces array</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $push</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(43)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-43">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.updateOne({_id:1},{$push:{tags:"c"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $push to append</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #44</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,price:100,qty:10}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Multiply price*1.1, decrement qty</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.updateOne({_id:1},{$mul:{price:1.1},$dec:{qty:1}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: No $dec</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $inc with negative</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(44)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-44">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.updateOne({_id:1},{$mul:{price:1.1},$inc:{qty:-1}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>No $dec, use $inc:-1</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #45</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: items</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,tags:['a','b','c']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Remove tag b</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.items.updateOne({_id:1},{$pop:{tags:"b"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: $pop removes first/last</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $pull</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(45)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-45">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.items.updateOne({_id:1},{$pull:{tags:"b"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$pull removes by value</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #46</span>
+                            <span class="difficulty easy">Easy</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,name:'Alice'}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Set age only if not exists</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.updateOne({_id:1},{$set:{age:25}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Overwrites</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Check first or upsert</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(46)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-46">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.updateOne({_id:1,age:{$exists:false}},{$set:{age:25}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Query for !exists first</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #47</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: posts</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,tags:['a','b']}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Add c only if not present</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.posts.updateOne({_id:1},{$push:{tags:"c"}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Creates duplicate</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $addToSet</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(47)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-47">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.posts.updateOne({_id:1},{$addToSet:{tags:"c"}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>$addToSet prevents duplicates</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #48</span>
+                            <span class="difficulty medium">Medium</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: records</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,data:{a:1,b:2}}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Update data.a to 10</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.records.updateOne({_id:1},{$set:{data:{a:10}}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Replaces data</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use dot notation</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(48)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-48">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.records.updateOne({_id:1},{$set:{"data.a":10}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use "data.a" for nested</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #49</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: users</h4>
+                                <div class="code-block">
+                                    <pre>[{_id:1,scores:[10,20,30]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Increment scores[1] by 5</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.users.updateOne({_id:1},{$inc:{scores[1]:5}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Syntax error</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Dot notation</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(49)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-49">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.users.updateOne({_id:1},{$inc:{"scores.1":5}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use "array.index"</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-container">
+                            <span class="question-number">Bug #50</span>
+                            <span class="difficulty hard">Hard</span>
+                            <span class="bug-type">Update Error</span>
+                            
+                            <div class="data-display">
+                                <h4>Collection: products</h4>
+                                <div class="code-block">
+                                    <pre>[{items:[{name:'A',qty:5},{name:'B',qty:10}]}]</pre>
+                                </div>
+                            </div>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">🎯 Goal:</h4>
+                            <p>Increment qty for name=B</p>
+
+                            <h4 style="color:#ef4444;margin-top:20px;">❌ Broken Query:</h4>
+                            <div class="code-block error">
+                                <span class="error-label">This query has a bug!</span>
+                                <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                <pre>db.products.updateOne({_id:1,"items.name":"B"},{$inc:{"items.qty":2}})</pre>
+                            </div>
+
+                            <div class="error-indicator">Error: Updates all</div>
+
+                            <div class="hint-box">
+                                <h5>💡 Hint:</h5>
+                                <p>Use $ positional</p>
+                            </div>
+                            
+                            <button class="show-solution-btn" onclick="toggleSolution(50)">Show Solution</button>
+                            
+                            <div class="solution-section" id="solution-50">
+                                <h4 style="color:#00ED64;">✓ Correct Query:</h4>
+                                <div class="code-block correct">
+                                    <span class="code-label">Fixed Version</span>
+                                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                                    <pre>db.products.updateOne({_id:1,"items.name":"B"},{$inc:{"items.$.qty":2}})</pre>
+                                </div>
+                                <div class="explanation">
+                                    <h5>📖 What Was Wrong:</h5>
+                                    <p>Use $ for matched element</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
+
+
+                    <div class="success-box">
+                        <h3 style="color:#00ED64;margin-bottom:15px;">🎉 Debugging Mastery!</h3>
+                        <p>The ability to quickly spot and fix bugs is what separates junior developers from seniors. Keep practicing these patterns and you'll become a MongoDB debugging expert!</p>
+                        <p style="margin-top:10px;"><strong>Pro Tips:</strong></p>
+                        <ul style="margin-left:20px;margin-top:5px;">
+                            <li>Always check bracket/parenthesis matching first</li>
+                            <li>Read error messages carefully - they often tell you exactly what's wrong</li>
+                            <li>Test complex queries in stages - build up from simple to complex</li>
+                            <li>Use explain() to understand why a query isn't returning expected results</li>
+                            <li>Practice debugging daily - it's the fastest way to master MongoDB</li>
+                        </ul>
+                    </div>
+
+                    <div class="page-navigation">
+                                <a href="practice-output-prediction.html" class="nav-button prev">
+                                    <span class="nav-icon">←</span>
+                                    <div class="nav-text">
+                                        <div class="nav-label">Previous</div>
+                                        <div class="nav-title">Output Prediction</div>
+                                    </div>
+                                </a>
+                                <a href="practice-assignments.html" class="nav-button next">
+                                    <div class="nav-text">
+                                        <div class="nav-label">Next</div>
+                                        <div class="nav-title">Assignments</div>
+                                    </div>
+                                    <span class="nav-icon">→</span>
+                                </a>
+                    </div>
+
+                </div>
+            </div>
+    </div>
+
+</main>
+  
+<button class="scroll-top" id="scrollTop"><i class="fas fa-arrow-up"></i></button>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js" onerror="this.remove()"></script>
+    <script>
+        let solvedBugs = new Set();
+
+        function toggleSolution(bugNum) {
+            const solutionSection = document.getElementById(`solution-${bugNum}`);
+            const button = event.target;
+            
+            if (solutionSection.classList.contains('show')) {
+                solutionSection.classList.remove('show');
+                button.textContent = 'Show Solution';
+                button.classList.remove('active');
+            } else {
+                solutionSection.classList.add('show');
+                button.textContent = 'Hide Solution';
+                button.classList.add('active');
+                
+                if (!solvedBugs.has(bugNum)) {
+                    solvedBugs.add(bugNum);
+                    updateProgress();
+                }
+            }
+        }
+
+        function updateProgress() {
+            const attempted = solvedBugs.size;
+            const total = 50;
+            const percentage = Math.round((attempted / total) * 100);
+
+            document.getElementById('attempted').textContent = attempted;
+            document.getElementById('progress').textContent = percentage + '%';
+            document.getElementById('progress').style.width = percentage + '%';
+        }
+
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling;
+            const code = codeBlock.textContent;
+
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = '✓ Copied!';
+                button.style.background = '#10B981';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                button.textContent = '❌ Failed';
+                setTimeout(() => {
+                    button.textContent = '📋 Copy';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        updateProgress();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Practice Cassandra Performance Optimization - Real-world Tuning Scenarios!">
+    <title>Practice Performance Tuning | CassandraHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+<style>.progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        } 
+:root{--accent-teal:#0d9488;--accent-purple:#8b5cf6;--accent-perf:#f59e0b;--code-bg:#1e293b;--code-darker:#0f172a;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--border-light:#334155;--success-green:#059669;--warning-orange:#d97706;--error-red:#dc2626}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;font-size:16px;line-height:1.7;color:var(--text-primary);background:#020617;overflow-x:hidden}html{scroll-behavior:smooth}::-webkit-scrollbar{width:12px}::-webkit-scrollbar-track{background:#020617}::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#475569,var(--accent-teal));border-radius:6px}.progress-indicator{position:fixed;top:0;left:0;width:100%;height:4px;background:rgba(37,99,235,.1);z-index:9999}.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent-purple),var(--accent-teal));width:0;transition:width .2s ease;box-shadow:0 0 10px rgba(139,92,246,.4)}.mobile-menu-toggle{display:none;position:fixed;top:1rem;left:1rem;z-index:10000;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;width:50px;height:50px;border-radius:12px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 10px 30px rgba(139,92,246,.3)}.mobile-menu-toggle span{width:25px;height:3px;background:#fff;border-radius:2px;transition:all .3s}.sidebar{position:fixed;left:0;top:0;width:320px;height:100vh;background:linear-gradient(180deg,var(--code-bg),var(--code-darker));border-right:1px solid var(--border-light);overflow-y:auto;padding:2rem 0;z-index:1000;transition:transform .3s ease;box-shadow:5px 0 20px rgba(0,0,0,.3)}.sidebar.hidden{transform:translateX(-100%)}.logo{padding:0 1.5rem;margin-bottom:2rem;text-align:center}.logo-icon{font-size:3rem;margin-bottom:.5rem;animation:float 3s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}.logo h2{font-size:1.75rem;font-weight:800;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.25rem}.logo-subtitle{font-size:.85rem;color:var(--text-secondary);font-weight:500}.search-box{position:relative;padding:0 1.5rem;margin-bottom:2rem}.search-box input{width:100%;padding:.85rem 1rem .85rem 2.75rem;background:var(--code-darker);border:2px solid var(--border-light);border-radius:12px;color:var(--text-primary);font-size:.9rem;transition:all .3s ease}.search-box input:focus{outline:0;border-color:var(--accent-teal);box-shadow:0 0 0 3px rgba(13,148,136,.1)}.search-icon{position:absolute;left:2.25rem;top:50%;transform:translateY(-50%);font-size:1.1rem;color:var(--text-secondary)}.learning-path-section{padding:0 1rem}.path-section{margin-bottom:1rem}.path-section-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem;background:var(--code-darker);border-radius:10px;cursor:pointer;transition:all .3s ease;border:1px solid transparent}.path-section-header:hover{background:rgba(139,92,246,.15);border-color:var(--accent-purple);transform:translateX(5px)}.path-section-title{display:flex;align-items:center;gap:.75rem;flex:1}.path-section-icon{font-size:1.3rem}.path-section-info{flex:1}.path-section-name{font-size:.95rem;font-weight:600;color:var(--text-primary)}.path-section-progress{font-size:.75rem;color:var(--text-secondary);margin-top:.2rem}.path-section-toggle{color:var(--text-secondary);transition:transform .3s ease;font-size:1.2rem}.path-section.expanded .path-section-toggle{transform:rotate(180deg)}.path-section-content{max-height:0;overflow:hidden;transition:max-height .4s ease}.path-section.expanded .path-section-content{max-height:2000px}.path-section-links{list-style:none;padding:.5rem 0 0 2.5rem;margin:0}.path-section-links li{margin-bottom:.5rem}.path-section-links a{color:var(--text-secondary);text-decoration:none;font-size:.875rem;transition:all .3s ease;display:block;padding:.6rem .8rem;border-radius:8px;position:relative}.path-section-links a.active,.path-section-links a:hover{color:var(--accent-teal);background:rgba(13,148,136,.1);transform:translateX(5px)}.main-content{margin-left:320px;min-height:100vh;transition:margin-left .3s ease}.page-hero{background:linear-gradient(135deg,#f59e0b 0,#d97706 25%,#b45309 50%,#92400e 100%);padding:6rem 0 5rem;position:relative;overflow:hidden;border-bottom:3px solid var(--accent-perf)}.page-hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 20% 50%,rgba(245,158,11,.2) 0,transparent 50%),radial-gradient(circle at 80% 80%,rgba(217,119,6,.2) 0,transparent 50%)}.page-hero-content{position:relative;z-index:2;color:#fff;text-align:center}.hero-badge{display:inline-flex;align-items:center;gap:.75rem;padding:.65rem 1.5rem;background:rgba(245,158,11,.3);border:2px solid rgba(245,158,11,.5);border-radius:50px;color:#fff;font-size:.875rem;font-weight:700;letter-spacing:.5px;margin-bottom:2rem;backdrop-filter:blur(10px)}.page-hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;line-height:1.1;margin-bottom:1.5rem;text-shadow:0 5px 20px rgba(0,0,0,.3)}.gradient-text{background:linear-gradient(135deg,#fff 0,#e2e8f0 50%,#fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.page-hero p{font-size:clamp(1.1rem,2.5vw,1.5rem);color:rgba(255,255,255,.9);max-width:900px;margin:0 auto 2.5rem;line-height:1.6;text-shadow:0 2px 10px rgba(0,0,0,.2)}.breadcrumb-modern{background:var(--code-darker);padding:1.25rem 0;font-size:.9rem;border-bottom:1px solid var(--border-light);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}.breadcrumb-modern a{color:var(--text-secondary);text-decoration:none;transition:color .3s;font-weight:500}.breadcrumb-modern a:hover{color:var(--accent-teal)}.breadcrumb-modern .separator{margin:0 .75rem;color:#64748b}.breadcrumb-modern .current{color:var(--text-primary);font-weight:600}.perf-container{max-width:1200px;margin:0 auto;padding:3rem 0}.perf-card{background:linear-gradient(135deg,rgba(71,85,105,.1),rgba(71,85,105,.05));border:2px solid var(--border-light);border-radius:16px;padding:2.5rem;margin-bottom:3rem;transition:all .3s ease}.perf-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;flex-wrap:wrap;gap:1rem}.perf-number{background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;padding:.5rem 1.5rem;border-radius:8px;font-weight:700;font-size:1.1rem}.impact-tag{padding:.5rem 1rem;border-radius:8px;font-weight:600;font-size:.9rem}.impact-tag.high{background:rgba(239,68,68,.2);color:#ef4444;border:2px solid #ef4444}.impact-tag.medium{background:rgba(245,158,11,.2);color:#f59e0b;border:2px solid #f59e0b}.impact-tag.low{background:rgba(59,130,246,.2);color:#3b82f6;border:2px solid #3b82f6}.perf-title{font-size:1.8rem;font-weight:700;color:var(--text-primary);margin-bottom:1.5rem}.perf-description{color:var(--text-secondary);line-height:1.8;margin-bottom:2rem;font-size:1.05rem}.metrics-box{background:var(--code-darker);border:2px solid var(--border-light);border-radius:12px;padding:1.5rem;margin-bottom:2rem}.metrics-title{color:var(--accent-perf);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;font-size:1.1rem}.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem}.metric-item{text-align:center;padding:1rem;background:rgba(71,85,105,.1);border-radius:8px}.metric-value{font-size:2rem;font-weight:800;color:#ef4444;margin-bottom:.5rem}.metric-label{font-size:.9rem;color:var(--text-secondary)}.code-block{background:var(--code-darker);border:2px solid var(--border-light);border-radius:12px;padding:1.5rem;margin-bottom:2rem;overflow-x:auto}.code-title{color:var(--accent-teal);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}.code-content{font-family:'JetBrains Mono',monospace;color:var(--text-secondary);font-size:.9rem;line-height:1.8}.keyword{color:#ff6b9d;font-weight:600}.type{color:#a78bfa}.string{color:#ffd93d}.comment{color:#7f8c8d;font-style:italic}.number{color:#6bcf7f}.diagnostic-box{background:rgba(245,158,11,.1);border-left:4px solid var(--warning-orange);border-radius:8px;padding:1.5rem;margin-bottom:2rem}.diagnostic-title{color:var(--warning-orange);font-weight:700;margin-bottom:.75rem}.diagnostic-list{color:var(--text-secondary);margin-left:1.5rem;line-height:1.8}.action-buttons{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}.btn-optimize{background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;padding:.85rem 2rem;border-radius:10px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 5px 15px rgba(139,92,246,.4)}.btn-optimize:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(139,92,246,.5)}.optimization-box{background:rgba(5,150,105,.1);border-left:4px solid var(--success-green);border-radius:12px;padding:2rem;display:none;animation:slideDown .3s ease}@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}.optimization-box.show{display:block}.optimization-title{color:var(--success-green);font-weight:700;margin-bottom:1rem;font-size:1.2rem}.optimization-section{margin-bottom:1.5rem}.optimization-section h4{color:var(--text-primary);margin-bottom:.75rem;font-size:1.05rem}.explanation-text{color:var(--text-secondary);line-height:1.8;margin-bottom:1rem}.optimized-code{background:var(--code-darker);padding:1rem;border-radius:8px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);margin-top:.5rem;overflow-x:auto;font-size:.9rem;line-height:1.8}.comparison-table{width:100%;border-collapse:collapse;margin-top:1rem}.comparison-table th{background:rgba(139,92,246,.2);padding:.75rem;text-align:left;border-bottom:2px solid var(--accent-purple);color:var(--accent-purple);font-weight:600}.comparison-table td{padding:.75rem;border-bottom:1px solid var(--border-light);color:var(--text-secondary)}.comparison-table td:first-child{font-weight:600;color:var(--text-primary)}.improvement{color:var(--success-green);font-weight:700}.benefits-box{background:rgba(13,148,136,.1);border-left:4px solid var(--accent-teal);border-radius:8px;padding:1.5rem;margin-top:1.5rem}.benefits-title{color:var(--accent-teal);font-weight:700;margin-bottom:.75rem}.benefits-list{color:var(--text-secondary);margin-left:1.5rem;line-height:1.8}.scroll-top{position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:linear-gradient(135deg,var(--accent-purple),var(--accent-teal));color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.75rem;cursor:pointer;opacity:0;visibility:hidden;transition:all .4s ease;box-shadow:0 10px 30px rgba(139,92,246,.3);z-index:1000}.scroll-top.visible{opacity:1;visibility:visible}.scroll-top:hover{transform:translateY(-8px);box-shadow:0 20px 40px rgba(139,92,246,.4)}@media (max-width:992px){.mobile-menu-toggle{display:flex}.sidebar{transform:translateX(-100%)}.sidebar.active{transform:translateX(0)}.main-content{margin-left:0}.perf-container{padding:2rem 1rem}.perf-card{padding:1.5rem}.action-buttons{flex-direction:column}.action-buttons button{width:100%}.metrics-grid{grid-template-columns:1fr}}@media (max-width:768px){.page-hero{padding:4rem 0 3rem}.perf-title{font-size:1.5rem}.perf-header{flex-direction:column;align-items:flex-start}}</style>
+</head>
+<body>
+<div class="progress-indicator"><div class="progress-fill" id="progressBar"></div></div>
+<button class="mobile-menu-toggle" id="mobileMenuToggle"><span></span><span></span><span></span></button>
+<nav class="sidebar" id="sidebar">
+<div class="logo"><span class="logo-icon">⚡</span><h2>CassandraHub</h2><p class="logo-subtitle">Performance Tuning</p></div>
+<div class="search-box"><input type="text" placeholder="Search topics..."><span class="search-icon">🔍</span></div>
+ <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html" class="active">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+</nav>
+<main class="main-content">
+<section class="page-hero">
+<div class="container">
+<div class="page-hero-content" data-aos="fade-up">
+<span class="hero-badge"><i class="fas fa-tachometer-alt"></i> Optimization</span>
+<h1><span class="gradient-text">Performance Tuning</span></h1>
+<p>Optimize Cassandra for maximum speed and efficiency!</p>
+</div>
+</div>
+</section>
+<div class="breadcrumb-modern">
+<div class="container">
+<a href="index.html"><i class="fas fa-home"></i> Home</a>
+<span class="separator">›</span>
+<span class="current">Performance Tuning</span>
+</div>
+</div>
+
+<div class="container perf-container">
+
+<!-- Scenario 1: Slow Read Queries -->
+<div class="perf-card" data-aos="fade-up">
+<div class="perf-header">
+<div class="perf-number">Scenario #1</div>
+<div class="impact-tag high">High Impact</div>
+</div>
+<div class="perf-title">🐌 Slow Read Queries (P95 = 200ms)</div>
+<div class="perf-description">
+Your user dashboard queries are slow. Users complain about lag when viewing their order history. P95 latency is 200ms, but should be under 50ms.
+</div>
+
+<div class="metrics-box">
+<div class="metrics-title"><i class="fas fa-chart-line"></i> Current Metrics</div>
+<div class="metrics-grid">
+<div class="metric-item">
+<div class="metric-value">200ms</div>
+<div class="metric-label">P95 Read Latency</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">15ms</div>
+<div class="metric-label">Target Latency</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">5000/s</div>
+<div class="metric-label">Read Requests</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">82%</div>
+<div class="metric-label">Cache Hit Rate</div>
+</div>
+</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Current Query</div>
+<div class="code-content"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_user
+<span class="keyword">WHERE</span> user_id = ?
+<span class="keyword">LIMIT</span> <span class="number">100</span>;
+
+<span class="comment">-- Table has 20+ columns including large text fields</span>
+<span class="comment">-- Fetching unnecessary data!</span></div>
+</div>
+
+<div class="diagnostic-box">
+<div class="diagnostic-title">🔍 Performance Analysis</div>
+<ul class="diagnostic-list">
+<li>Query selects ALL columns (SELECT *)</li>
+<li>Large TEXT columns (order_details, shipping_address)</li>
+<li>Low cache hit rate (82%)</li>
+<li>No prepared statements used</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-optimize" onclick="toggleOptimization(1)">
+<i class="fas fa-bolt"></i> Show Optimizations
+</button>
+</div>
+
+<div class="optimization-box" id="optimization-1">
+<div class="optimization-title">⚡ Performance Optimizations</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 1: Select Only Needed Columns</h4>
+<div class="optimized-code"><span class="comment">-- Before: SELECT * fetches all 20+ columns</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders_by_user ...
+
+<span class="comment">-- After: Select only what you need</span>
+<span class="keyword">SELECT</span> order_id, order_date, total_amount, status
+<span class="keyword">FROM</span> orders_by_user
+<span class="keyword">WHERE</span> user_id = ?
+<span class="keyword">LIMIT</span> <span class="number">100</span>;</div>
+<p class="explanation-text"><strong>Impact:</strong> Reduces data transfer by 60-70%, improves cache efficiency.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 2: Use Prepared Statements</h4>
+<div class="optimized-code"><span class="comment">// Python - prepare once, execute many</span>
+prepared = session.prepare(<span class="string">"""
+    SELECT order_id, order_date, total_amount, status
+    FROM orders_by_user WHERE user_id = ?
+"""</span>)
+
+<span class="comment"># Reuse prepared statement (faster!)</span>
+result = session.execute(prepared, [user_id])</div>
+<p class="explanation-text"><strong>Impact:</strong> 10-30% latency improvement from query plan caching.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 3: Increase Row Cache</h4>
+<div class="optimized-code"><span class="comment">-- Enable row cache for hot tables</span>
+<span class="keyword">ALTER TABLE</span> orders_by_user 
+<span class="keyword">WITH</span> caching = {
+    <span class="string">'keys'</span>: <span class="string">'ALL'</span>,
+    <span class="string">'rows_per_partition'</span>: <span class="string">'100'</span>
+};</div>
+<p class="explanation-text"><strong>Impact:</strong> Cache hit rate improves from 82% → 95%.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 4: Add Indexes to Application</h4>
+<div class="optimized-code"><span class="comment">// Create index on application side</span>
+<span class="keyword">const</span> orderCache = <span class="keyword">new</span> Map();
+
+<span class="keyword">function</span> getOrders(userId) {
+    <span class="keyword">if</span> (orderCache.has(userId)) {
+        <span class="keyword">return</span> orderCache.get(userId);
+    }
+    <span class="keyword">const</span> orders = cassandra.execute(query, [userId]);
+    orderCache.set(userId, orders);
+    <span class="keyword">return</span> orders;
+}</div>
+<p class="explanation-text"><strong>Impact:</strong> Eliminates DB calls for frequently accessed data.</p>
+</div>
+
+<table class="comparison-table">
+<thead>
+<tr><th>Metric</th><th>Before</th><th>After</th><th>Improvement</th></tr>
+</thead>
+<tbody>
+<tr><td>P95 Latency</td><td>200ms</td><td class="improvement">12ms</td><td class="improvement">94% faster</td></tr>
+<tr><td>Data Transfer</td><td>50KB/query</td><td class="improvement">8KB/query</td><td class="improvement">84% less</td></tr>
+<tr><td>Cache Hit Rate</td><td>82%</td><td class="improvement">95%</td><td class="improvement">+13%</td></tr>
+<tr><td>Throughput</td><td>5000 req/s</td><td class="improvement">15000 req/s</td><td class="improvement">3x higher</td></tr>
+</tbody>
+</table>
+
+<div class="benefits-box">
+<div class="benefits-title">✅ Key Takeaways</div>
+<ul class="benefits-list">
+<li>SELECT only columns you need (avoid SELECT *)</li>
+<li>Always use prepared statements for repeated queries</li>
+<li>Enable row cache for frequently read partitions</li>
+<li>Add application-level caching for hot data</li>
+<li>Monitor P95/P99 latencies, not just averages</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Scenario 2: Write Throughput -->
+<div class="perf-card" data-aos="fade-up">
+<div class="perf-header">
+<div class="perf-number">Scenario #2</div>
+<div class="impact-tag high">High Impact</div>
+</div>
+<div class="perf-title">📝 Low Write Throughput (500 writes/sec)</div>
+<div class="perf-description">
+Your IoT application needs to ingest 10,000 sensor readings per second, but you're only achieving 500 writes/sec. The application is making individual INSERT statements for each reading.
+</div>
+
+<div class="metrics-box">
+<div class="metrics-title"><i class="fas fa-chart-line"></i> Current Metrics</div>
+<div class="metrics-grid">
+<div class="metric-item">
+<div class="metric-value">500/s</div>
+<div class="metric-label">Current Writes/Sec</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">10000/s</div>
+<div class="metric-label">Target Writes/Sec</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">50ms</div>
+<div class="metric-label">Write Latency</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">98%</div>
+<div class="metric-label">CPU Usage</div>
+</div>
+</div>
+</div>
+
+<div class="code-block">
+<div class="code-title"><i class="fas fa-code"></i> Current Code (Slow)</div>
+<div class="code-content"><span class="comment"># Processing one at a time - BAD!</span>
+<span class="keyword">for</span> reading <span class="keyword">in</span> sensor_readings:
+    session.execute(<span class="string">"""
+        INSERT INTO sensor_data (sensor_id, timestamp, value)
+        VALUES (?, ?, ?)
+    """</span>, (reading.id, reading.time, reading.value))
+    
+<span class="comment"># Network roundtrip for EACH insert = slow!</span></div>
+</div>
+
+<div class="diagnostic-box">
+<div class="diagnostic-title">🔍 Performance Analysis</div>
+<ul class="diagnostic-list">
+<li>Individual writes - no batching</li>
+<li>Network latency (5ms) × 10,000 = 50 seconds!</li>
+<li>No concurrent writes</li>
+<li>Synchronous execution blocks on each write</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-optimize" onclick="toggleOptimization(2)">
+<i class="fas fa-bolt"></i> Show Optimizations
+</button>
+</div>
+
+<div class="optimization-box" id="optimization-2">
+<div class="optimization-title">⚡ Performance Optimizations</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 1: Batch Statements</h4>
+<div class="optimized-code"><span class="keyword">from</span> cassandra.query <span class="keyword">import</span> BatchStatement
+
+batch = BatchStatement()
+prepared = session.prepare(<span class="string">"""
+    INSERT INTO sensor_data (sensor_id, timestamp, value)
+    VALUES (?, ?, ?)
+"""</span>)
+
+<span class="comment"># Batch 100 inserts together</span>
+<span class="keyword">for</span> reading <span class="keyword">in</span> readings[:<span class="number">100</span>]:
+    batch.add(prepared, (reading.id, reading.time, reading.value))
+
+session.execute(batch)  <span class="comment"># Single network call!</span></div>
+<p class="explanation-text"><strong>Impact:</strong> 100 writes in 1 roundtrip vs 100 roundtrips. 20x faster!</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 2: Async + Concurrent Execution</h4>
+<div class="optimized-code"><span class="keyword">from</span> cassandra.concurrent <span class="keyword">import</span> execute_concurrent_with_args
+
+prepared = session.prepare(<span class="string">"""
+    INSERT INTO sensor_data (sensor_id, timestamp, value)
+    VALUES (?, ?, ?)
+"""</span>)
+
+<span class="comment"># Execute 100 queries concurrently</span>
+parameters = [(r.id, r.time, r.value) <span class="keyword">for</span> r <span class="keyword">in</span> readings]
+execute_concurrent_with_args(
+    session, 
+    prepared, 
+    parameters,
+    concurrency=<span class="number">100</span>
+)</div>
+<p class="explanation-text"><strong>Impact:</strong> 100 concurrent requests = ~100x faster than serial.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 3: Tune Write Settings</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml tuning</span>
+concurrent_writes: <span class="number">128</span>      <span class="comment"># Default: 32, increase for write-heavy</span>
+memtable_flush_writers: <span class="number">4</span>   <span class="comment"># Parallel flushes</span>
+commitlog_sync: periodic    <span class="comment"># vs batch (faster)</span>
+commitlog_sync_period_in_ms: <span class="number">10</span>
+
+<span class="comment"># Consistency level tuning</span>
+consistency_level = ONE  <span class="comment"># Faster writes (vs QUORUM)</span></div>
+<p class="explanation-text"><strong>Impact:</strong> Increases write capacity by 2-3x.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 4: Unlogged Batches</h4>
+<div class="optimized-code"><span class="comment">-- For same partition, use UNLOGGED</span>
+<span class="keyword">BEGIN UNLOGGED BATCH</span>
+    <span class="keyword">INSERT INTO</span> sensor_data (...) <span class="keyword">VALUES</span> (...);
+    <span class="keyword">INSERT INTO</span> sensor_data (...) <span class="keyword">VALUES</span> (...);
+    <span class="keyword">INSERT INTO</span> sensor_data (...) <span class="keyword">VALUES</span> (...);
+<span class="keyword">APPLY BATCH</span>;
+
+<span class="comment">-- Skip distributed log = faster</span>
+<span class="comment">-- Only use if all inserts go to same partition!</span></div>
+<p class="explanation-text"><strong>Impact:</strong> 30-50% faster than logged batches.</p>
+</div>
+
+<table class="comparison-table">
+<thead>
+<tr><th>Metric</th><th>Before</th><th>After</th><th>Improvement</th></tr>
+</thead>
+<tbody>
+<tr><td>Write Throughput</td><td>500/s</td><td class="improvement">12,000/s</td><td class="improvement">24x higher</td></tr>
+<tr><td>Write Latency</td><td>50ms</td><td class="improvement">5ms</td><td class="improvement">10x faster</td></tr>
+<tr><td>CPU Usage</td><td>98%</td><td class="improvement">45%</td><td class="improvement">53% less</td></tr>
+<tr><td>Network Calls</td><td>10,000</td><td class="improvement">100</td><td class="improvement">99% fewer</td></tr>
+</tbody>
+</table>
+
+<div class="benefits-box">
+<div class="benefits-title">✅ Key Takeaways</div>
+<ul class="benefits-list">
+<li>Batch 50-100 writes together (not too large!)</li>
+<li>Use async + concurrent execution for parallel writes</li>
+<li>Tune concurrent_writes based on workload</li>
+<li>Use consistency ONE for writes when acceptable</li>
+<li>UNLOGGED batches for same-partition writes only</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Scenario 3: Memory Pressure -->
+<div class="perf-card" data-aos="fade-up">
+<div class="perf-header">
+<div class="perf-number">Scenario #3</div>
+<div class="impact-tag high">High Impact</div>
+</div>
+<div class="perf-title">💾 High GC Pauses (5+ second pauses)</div>
+<div class="perf-description">
+Your nodes experience 5-10 second GC pauses during peak hours, causing timeouts and impacting availability. Heap is 16GB with frequent full GCs.
+</div>
+
+<div class="metrics-box">
+<div class="metrics-title"><i class="fas fa-chart-line"></i> Current Metrics</div>
+<div class="metrics-grid">
+<div class="metric-item">
+<div class="metric-value">5-10s</div>
+<div class="metric-label">GC Pause Time</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">16GB</div>
+<div class="metric-label">Heap Size</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">92%</div>
+<div class="metric-label">Heap Usage</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">50+</div>
+<div class="metric-label">Full GCs/hour</div>
+</div>
+</div>
+</div>
+
+<div class="diagnostic-box">
+<div class="diagnostic-title">🔍 Performance Analysis</div>
+<ul class="diagnostic-list">
+<li>Heap constantly at 90%+ usage</li>
+<li>Frequent full GCs (stop-the-world)</li>
+<li>Memtables not flushing fast enough</li>
+<li>Using CMS GC (old generation collector)</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-optimize" onclick="toggleOptimization(3)">
+<i class="fas fa-bolt"></i> Show Optimizations
+</button>
+</div>
+
+<div class="optimization-box" id="optimization-3">
+<div class="optimization-title">⚡ Performance Optimizations</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 1: Switch to G1GC</h4>
+<div class="optimized-code"><span class="comment"># jvm.options - Before (CMS)</span>
+-XX:+UseConcMarkSweepGC
+-XX:+CMSParallelRemarkEnabled
+
+<span class="comment"># After (G1GC - better for large heaps)</span>
+-XX:+UseG1GC
+-XX:G1RSetUpdatingPauseTimePercent=<span class="number">5</span>
+-XX:MaxGCPauseMillis=<span class="number">500</span>
+-XX:InitiatingHeapOccupancyPercent=<span class="number">70</span></div>
+<p class="explanation-text"><strong>Impact:</strong> GC pauses drop from 5-10s → 200-500ms.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 2: Right-size Heap</h4>
+<div class="optimized-code"><span class="comment"># cassandra-env.sh</span>
+<span class="comment"># Before: Too large (16GB)</span>
+MAX_HEAP_SIZE=<span class="string">"16G"</span>
+
+<span class="comment"># After: Optimal for G1GC (8-12GB)</span>
+MAX_HEAP_SIZE=<span class="string">"10G"</span>
+HEAP_NEWSIZE=<span class="string">"2G"</span>
+
+<span class="comment"># Rule: 1/4 to 1/2 of system RAM, max 12GB</span></div>
+<p class="explanation-text"><strong>Why:</strong> Larger heaps = longer GC pauses. Let OS cache do the work!</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 3: Tune Memtable Settings</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml</span>
+memtable_heap_space_in_mb: <span class="number">2048</span>
+memtable_offheap_space_in_mb: <span class="number">2048</span>
+memtable_cleanup_threshold: <span class="number">0.6</span>
+
+<span class="comment"># Flush more aggressively</span>
+memtable_flush_writers: <span class="number">4</span>
+concurrent_compactors: <span class="number">4</span></div>
+<p class="explanation-text"><strong>Impact:</strong> Reduces heap pressure by flushing earlier.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 4: Reduce Cache Sizes</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml</span>
+key_cache_size_in_mb: <span class="number">100</span>     <span class="comment"># Was: 500 (too large)</span>
+row_cache_size_in_mb: <span class="number">0</span>       <span class="comment"># Disable if causing pressure</span>
+
+<span class="comment"># Let OS page cache handle caching</span></div>
+<p class="explanation-text"><strong>Why:</strong> OS cache is more efficient than JVM heap cache.</p>
+</div>
+
+<table class="comparison-table">
+<thead>
+<tr><th>Metric</th><th>Before</th><th>After</th><th>Improvement</th></tr>
+</thead>
+<tbody>
+<tr><td>GC Pause Time</td><td>5-10s</td><td class="improvement">200-500ms</td><td class="improvement">95% faster</td></tr>
+<tr><td>Heap Usage</td><td>92%</td><td class="improvement">65%</td><td class="improvement">Healthier</td></tr>
+<tr><td>Full GCs/hour</td><td>50+</td><td class="improvement">2-3</td><td class="improvement">94% fewer</td></tr>
+<tr><td>Availability</td><td>95%</td><td class="improvement">99.9%</td><td class="improvement">More reliable</td></tr>
+</tbody>
+</table>
+
+<div class="benefits-box">
+<div class="benefits-title">✅ Key Takeaways</div>
+<ul class="benefits-list">
+<li>Use G1GC for heaps > 6GB (better pause times)</li>
+<li>Keep heap between 8-12GB maximum</li>
+<li>Tune memtable settings to reduce heap pressure</li>
+<li>Monitor GC logs with nodetool gcstats</li>
+<li>Let OS page cache handle caching when possible</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Scenario 4: Network Optimization -->
+<div class="perf-card" data-aos="fade-up">
+<div class="perf-header">
+<div class="perf-number">Scenario #4</div>
+<div class="impact-tag medium">Medium Impact</div>
+</div>
+<div class="perf-title">🌐 High Network Transfer (500MB/sec)</div>
+<div class="perf-description">
+Your cross-datacenter replication is saturating network links. Transferring 500MB/sec between datacenters, causing high bandwidth costs and replication lag.
+</div>
+
+<div class="metrics-box">
+<div class="metrics-title"><i class="fas fa-chart-line"></i> Current Metrics</div>
+<div class="metrics-grid">
+<div class="metric-item">
+<div class="metric-value">500MB/s</div>
+<div class="metric-label">Network Transfer</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">$2500/mo</div>
+<div class="metric-label">Bandwidth Cost</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">30s</div>
+<div class="metric-label">Replication Lag</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">None</div>
+<div class="metric-label">Compression</div>
+</div>
+</div>
+</div>
+
+<div class="diagnostic-box">
+<div class="diagnostic-title">🔍 Performance Analysis</div>
+<ul class="diagnostic-list">
+<li>No compression enabled on internode traffic</li>
+<li>Using QUORUM across datacenters (slow!)</li>
+<li>Full hints transfer on node recovery</li>
+<li>Inefficient compaction strategy</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-optimize" onclick="toggleOptimization(4)">
+<i class="fas fa-bolt"></i> Show Optimizations
+</button>
+</div>
+
+<div class="optimization-box" id="optimization-4">
+<div class="optimization-title">⚡ Performance Optimizations</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 1: Enable Compression</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml</span>
+<span class="comment"># Internode compression (DC to DC)</span>
+internode_compression: dc
+
+<span class="comment"># Client-server compression</span>
+client_encryption_options:
+    enabled: <span class="keyword">true</span>
+    compression: lz4
+
+<span class="comment"># SSTable compression</span>
+<span class="keyword">ALTER TABLE</span> users <span class="keyword">WITH</span> compression = {
+    <span class="string">'sstable_compression'</span>: <span class="string">'LZ4Compressor'</span>,
+    <span class="string">'chunk_length_kb'</span>: <span class="number">64</span>
+};</div>
+<p class="explanation-text"><strong>Impact:</strong> 60-80% reduction in network transfer.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 2: Use LOCAL_QUORUM</h4>
+<div class="optimized-code"><span class="comment">// Before: QUORUM (waits for all DCs)</span>
+consistency_level = QUORUM;
+
+<span class="comment">// After: LOCAL_QUORUM (local DC only)</span>
+consistency_level = LOCAL_QUORUM;
+
+<span class="comment">// Async replication to other DCs</span>
+<span class="comment">// Much faster for writes!</span></div>
+<p class="explanation-text"><strong>Impact:</strong> 5-10x faster writes, lower latency.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 3: Tune Streaming Throttle</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml</span>
+<span class="comment"># Limit streaming bandwidth</span>
+stream_throughput_outbound_megabits_per_sec: <span class="number">200</span>
+inter_dc_stream_throughput_outbound_megabits_per_sec: <span class="number">50</span>
+
+<span class="comment"># Prevents saturating network links</span></div>
+<p class="explanation-text"><strong>Why:</strong> Prevents repair/bootstrap from overwhelming network.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 4: Optimize Table Schema</h4>
+<div class="optimized-code"><span class="comment">-- Use appropriate data types (smaller = less transfer)</span>
+<span class="keyword">CREATE TABLE</span> events (
+    event_id <span class="type">uuid</span>,
+    timestamp <span class="type">bigint</span>,      <span class="comment">-- vs timestamp (smaller)</span>
+    event_type <span class="type">tinyint</span>,    <span class="comment">-- vs text (much smaller!)</span>
+    data <span class="type">blob</span> <span class="comment">-- compressed JSON</span>
+);</div>
+<p class="explanation-text"><strong>Impact:</strong> 40-50% smaller data size.</p>
+</div>
+
+<table class="comparison-table">
+<thead>
+<tr><th>Metric</th><th>Before</th><th>After</th><th>Improvement</th></tr>
+</thead>
+<tbody>
+<tr><td>Network Transfer</td><td>500MB/s</td><td class="improvement">120MB/s</td><td class="improvement">76% less</td></tr>
+<tr><td>Bandwidth Cost</td><td>$2500/mo</td><td class="improvement">$600/mo</td><td class="improvement">$1900 saved</td></tr>
+<tr><td>Replication Lag</td><td>30s</td><td class="improvement">5s</td><td class="improvement">83% faster</td></tr>
+<tr><td>Write Latency</td><td>150ms</td><td class="improvement">20ms</td><td class="improvement">87% faster</td></tr>
+</tbody>
+</table>
+
+<div class="benefits-box">
+<div class="benefits-title">✅ Key Takeaways</div>
+<ul class="benefits-list">
+<li>Enable internode compression for DC-to-DC traffic</li>
+<li>Use LOCAL_QUORUM instead of QUORUM for multi-DC</li>
+<li>Throttle streaming to prevent network saturation</li>
+<li>Choose efficient data types (tinyint vs text)</li>
+<li>Enable SSTable compression (LZ4 is fast)</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Scenario 5: Compaction Tuning -->
+<div class="perf-card" data-aos="fade-up">
+<div class="perf-header">
+<div class="perf-number">Scenario #5</div>
+<div class="impact-tag medium">Medium Impact</div>
+</div>
+<div class="perf-title">🔧 Compaction Causing Performance Spikes</div>
+<div class="perf-description">
+Every few hours, your cluster experiences performance degradation. Read latency spikes to 500ms+ during these periods. Investigation shows major compactions running.
+</div>
+
+<div class="metrics-box">
+<div class="metrics-title"><i class="fas fa-chart-line"></i> Current Metrics</div>
+<div class="metrics-grid">
+<div class="metric-item">
+<div class="metric-value">500ms</div>
+<div class="metric-label">Latency Spikes</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">STCS</div>
+<div class="metric-label">Compaction Strategy</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">80%</div>
+<div class="metric-label">Disk I/O During Spike</div>
+</div>
+<div class="metric-item">
+<div class="metric-value">4 hours</div>
+<div class="metric-label">Compaction Duration</div>
+</div>
+</div>
+</div>
+
+<div class="diagnostic-box">
+<div class="diagnostic-title">🔍 Performance Analysis</div>
+<ul class="diagnostic-list">
+<li>Using SizeTieredCompactionStrategy (STCS)</li>
+<li>Large compactions (50GB+) run periodically</li>
+<li>High disk I/O during compaction</li>
+<li>Read amplification = 20+ SSTables per read</li>
+</ul>
+</div>
+
+<div class="action-buttons">
+<button class="btn-optimize" onclick="toggleOptimization(5)">
+<i class="fas fa-bolt"></i> Show Optimizations
+</button>
+</div>
+
+<div class="optimization-box" id="optimization-5">
+<div class="optimization-title">⚡ Performance Optimizations</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 1: Switch to Leveled Compaction</h4>
+<div class="optimized-code"><span class="comment">-- For read-heavy workloads</span>
+<span class="keyword">ALTER TABLE</span> users 
+<span class="keyword">WITH</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'LeveledCompactionStrategy'</span>,
+    <span class="string">'sstable_size_in_mb'</span>: <span class="number">160</span>
+};
+
+<span class="comment">-- Benefits:</span>
+<span class="comment">-- - Smaller, more frequent compactions</span>
+<span class="comment">-- - Lower read amplification (fewer SSTables)</span>
+<span class="comment">-- - More predictable performance</span></div>
+<p class="explanation-text"><strong>Impact:</strong> Read amplification drops from 20 → 5 SSTables.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 2: Time-Window for Time-Series</h4>
+<div class="optimized-code"><span class="comment">-- For time-series data (IoT, logs, metrics)</span>
+<span class="keyword">ALTER TABLE</span> sensor_readings
+<span class="keyword">WITH</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'TimeWindowCompactionStrategy'</span>,
+    <span class="string">'compaction_window_size'</span>: <span class="string">'24'</span>,
+    <span class="string">'compaction_window_unit'</span>: <span class="string">'HOURS'</span>
+};
+
+<span class="comment">-- Only compacts data within time windows</span>
+<span class="comment">-- Perfect for time-series with TTL</span></div>
+<p class="explanation-text"><strong>Impact:</strong> Eliminates massive compactions for time-series.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 3: Tune Compaction Throughput</h4>
+<div class="optimized-code"><span class="comment"># cassandra.yaml</span>
+compaction_throughput_mb_per_sec: <span class="number">64</span>  <span class="comment"># Default: 16</span>
+concurrent_compactors: <span class="number">4</span>             <span class="comment"># Default: 1</span>
+
+<span class="comment"># Or disable throttling entirely on fast SSDs:</span>
+compaction_throughput_mb_per_sec: <span class="number">0</span>  <span class="comment"># No limit</span></div>
+<p class="explanation-text"><strong>Why:</strong> Finish compactions faster, reduce duration.</p>
+</div>
+
+<div class="optimization-section">
+<h4>🎯 Optimization 4: Adjust Compaction Strategy</h4>
+<div class="optimized-code"><span class="comment">-- Fine-tune STCS if keeping it</span>
+<span class="keyword">ALTER TABLE</span> events
+<span class="keyword">WITH</span> compaction = {
+    <span class="string">'class'</span>: <span class="string">'SizeTieredCompactionStrategy'</span>,
+    <span class="string">'min_threshold'</span>: <span class="number">4</span>,     <span class="comment">-- Compact sooner</span>
+    <span class="string">'max_threshold'</span>: <span class="number">32</span>,    <span class="comment">-- More SSTables per compaction</span>
+    <span class="string">'bucket_high'</span>: <span class="number">1.5</span>,      <span class="comment">-- Tighter buckets</span>
+    <span class="string">'bucket_low'</span>: <span class="number">0.5</span>
+};</div>
+<p class="explanation-text"><strong>Impact:</strong> More frequent, smaller compactions.</p>
+</div>
+
+<table class="comparison-table">
+<thead>
+<tr><th>Metric</th><th>Before (STCS)</th><th>After (LCS)</th><th>Improvement</th></tr>
+</thead>
+<tbody>
+<tr><td>Read Latency Spike</td><td>500ms</td><td class="improvement">50ms</td><td class="improvement">90% better</td></tr>
+<tr><td>Read Amplification</td><td>20 SSTables</td><td class="improvement">5 SSTables</td><td class="improvement">75% fewer</td></tr>
+<tr><td>Compaction Duration</td><td>4 hours</td><td class="improvement">15 min</td><td class="improvement">94% faster</td></tr>
+<tr><td>Performance Spikes</td><td>Every 3 hours</td><td class="improvement">None</td><td class="improvement">Eliminated</td></tr>
+</tbody>
+</table>
+
+<div class="benefits-box">
+<div class="benefits-title">✅ Key Takeaways</div>
+<ul class="benefits-list">
+<li>LCS for read-heavy workloads (lower read amplification)</li>
+<li>TWCS for time-series data with TTL</li>
+<li>Increase concurrent_compactors on multi-core systems</li>
+<li>Monitor compaction with nodetool compactionstats</li>
+<li>Choose strategy based on workload characteristics</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="page-navigation">
+    <a href="practice-debugging.html" class="nav-button" data-aos="fade-right">
+        <i class="nav-icon fas fa-arrow-left"></i>
+        <div class="nav-text">
+            <div class="nav-label">Previous</div>
+            <div class="nav-title">Practice Debugging</div>
+        </div>
+    </a>
+    <a href="practice-architecture.html" class="nav-button next" data-aos="fade-left">
+        <i class="nav-icon fas fa-arrow-right"></i>
+        <div class="nav-text">
+            <div class="nav-label">Next</div>
+            <div class="nav-title">Practice Architecture</div>
+        </div>
+    </a>
+</div>
+
+ <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+</div>
+
+<button class="scroll-top" id="scrollTop"><i class="fas fa-arrow-up"></i></button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+function toggleOptimization(scenarioId) {
+    const optimizationBox = document.getElementById(`optimization-${scenarioId}`);
+    optimizationBox.classList.toggle('show');
+    
+    if (optimizationBox.classList.contains('show')) {
+        optimizationBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+AOS.init({duration:800,easing:'ease-in-out',once:true});
+window.addEventListener('scroll',()=>{
+const winScroll=document.body.scrollTop||document.documentElement.scrollTop;
+const height=document.documentElement.scrollHeight-document.documentElement.clientHeight;
+document.getElementById('progressBar').style.width=(winScroll/height)*100+'%';
+});
+const mobileMenuToggle=document.getElementById('mobileMenuToggle');
+const sidebar=document.getElementById('sidebar');
+mobileMenuToggle.addEventListener('click',()=>{sidebar.classList.toggle('active');});
+document.addEventListener('click',(e)=>{
+if(window.innerWidth<=992){
+if(!sidebar.contains(e.target)&&!mobileMenuToggle.contains(e.target)){
+sidebar.classList.remove('active');
+}}
+});
+function toggleSection(element){element.closest('.path-section').classList.toggle('expanded');}
+const scrollTopBtn=document.getElementById('scrollTop');
+window.addEventListener('scroll',()=>{scrollTopBtn.classList.toggle('visible',window.pageYOffset>300);});
+scrollTopBtn.addEventListener('click',()=>{window.scrollTo({top:0,behavior:'smooth'});});
+</script>
+</body>
+</html>

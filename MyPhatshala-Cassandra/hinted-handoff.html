@@ -1,0 +1,3842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Cassandra Hinted Handoff Guide - Master write availability, hint storage, replay mechanisms, and failure recovery with animations!">
+    <meta name="keywords" content="cassandra hinted handoff, hints, write availability, failure recovery, eventual consistency">
+    <title>Cassandra Hinted Handoff: Expert Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+         html { scroll-behavior: smooth; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--darker-navy); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden { transform: translateX(-100%); }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .learning-path-section { padding: 0 1rem; }
+        .path-section { margin-bottom: 1rem; }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon { font-size: 1.3rem; }
+        .path-section-info { flex: 1; }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle { transform: rotate(180deg); }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content { max-height: 2000px; }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li { margin-bottom: 0.5rem; }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 25%, #f97316 50%, #d97706 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--error-red);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(220, 38, 38, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(217, 119, 6, 0.2) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(220, 38, 38, 0.3);
+            border: 2px solid rgba(220, 38, 38, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover { color: var(--accent-teal); }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul { list-style: none; padding: 0; margin: 0; }
+        .toc-floating li { margin-bottom: 0.75rem; }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        .story-box {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-purple);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '➖';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-purple);
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.danger {
+            border-left-color: var(--error-red);
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong { color: var(--text-primary); }
+        .info-box ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .step-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .step-number {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .step-content {
+            padding-left: 70px;
+        }
+
+        .step-content h3 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .code-block {
+            background: var(--code-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-light);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            color: var(--text-secondary);
+        }
+
+        .code-block .keyword { color: #ff6b9d; font-weight: 600; }
+        .code-block .string { color: #ffd93d; }
+        .code-block .number { color: #6bcf7f; }
+        .code-block .comment { color: #7f8c8d; font-style: italic; }
+        .code-block .type { color: #a78bfa; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p { color: var(--text-secondary); line-height: 1.7; }
+        .comparison-card ul { color: var(--text-secondary); margin-left: 1.5rem; }
+
+        .timeline {
+            position: relative;
+            padding: 2rem 0;
+            margin: 2rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-purple), var(--accent-teal));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 70px;
+            margin-bottom: 3rem;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: 18px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--code-bg);
+            z-index: 2;
+        }
+
+        .timeline-content {
+            background: rgba(139, 92, 246, 0.05);
+            border-left: 3px solid var(--accent-purple);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .timeline-content h4 {
+            margin-top: 0;
+            color: var(--accent-purple);
+        }
+
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-purple);
+        }
+
+        .nav-text { flex: 1; }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        @media (max-width: 992px) {
+            .mobile-menu-toggle { display: flex; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toc-floating { display: none; }
+            .page-navigation { flex-direction: column; }
+            .nav-button { max-width: 100%; }
+            .nav-button.next { margin-left: 0; }
+            .comparison-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero { padding: 4rem 0 3rem; }
+            section { padding: 3rem 0; }
+            .story-box { padding: 2rem; }
+            .step-card { padding: 1.5rem; }
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+            .step-content { padding-left: 55px; }
+        }
+        :root {
+            --primary-green: #10b981;
+            --dark-green: #059669;
+            --muted-green: #047857;
+            --accent-teal: #0d9488;
+            --accent-purple: #8b5cf6;
+            --accent-indigo: #6366f1;
+            --accent-cyan: #06b6d4;
+            --accent-orange: #f59e0b;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #10b981;
+            --success-emerald: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-green), var(--accent-cyan));
+            border-radius: 6px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(16, 185, 129, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-green), var(--accent-cyan));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--primary-green), var(--accent-cyan));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-green), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--primary-green);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #10b981 0%, #059669 25%, #06b6d4 50%, #0d9488 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--primary-green);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.2) 0%, transparent 50%);
+            animation: heroGlow 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(16, 185, 129, 0.3);
+            border: 2px solid rgba(16, 185, 129, 0.5);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-cyan);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-green), var(--accent-cyan));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-cyan);
+            border-left-color: var(--accent-cyan);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.08));
+            border-left: 5px solid var(--primary-green);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '💾';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--primary-green);
+            margin-top: 0;
+        }
+
+        /* SVG Container */
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .svg-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-green);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box.expert {
+            border-left-color: var(--accent-indigo);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comparison-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .comparison-card:hover::before {
+            opacity: 1;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Interactive Console */
+        .live-console {
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            animation: consoleGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes consoleGlow {
+            from { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); }
+            to { box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3); }
+        }
+
+        .console-header {
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .console-title {
+            color: white;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .console-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .console-btn.primary {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+        }
+
+        .console-btn.primary:hover {
+            background: #0891b2;
+        }
+
+        .console-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.9;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            background: var(--code-darker);
+        }
+
+        .console-log {
+            margin-bottom: 0.75rem;
+            padding: 0.6rem;
+            border-radius: 6px;
+            border-left: 3px solid transparent;
+            animation: logFadeIn 0.3s ease-out;
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        @keyframes logFadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-hint {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+            border-left-color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .log-store {
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.15);
+            border-left-color: #8b5cf6;
+        }
+
+        .log-replay {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            border-left-color: #10b981;
+            font-weight: 600;
+        }
+
+        .log-success {
+            color: #059669;
+            background: rgba(5, 150, 105, 0.15);
+            border-left-color: #059669;
+            font-weight: 700;
+            animation: successPulse 1s ease-in-out;
+        }
+
+        @keyframes successPulse {
+            0%, 100% { background: rgba(5, 150, 105, 0.15); }
+            50% { background: rgba(5, 150, 105, 0.25); }
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(16, 185, 129, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .question-number {
+            background: var(--primary-green);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--primary-green);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--primary-green);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--primary-green);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-green), var(--accent-cyan));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .console-controls {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Distributed Databases</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+      <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html" class="active">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Hero Section -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-exchange-alt"></i>
+                        Section 3: Data Flow & Operations
+                    </span>
+                    <h1>Cassandra <span class="gradient-text">Hinted Handoff</span></h1>
+                    <p>Master write availability during failures! Deep dive into hint storage, replay mechanisms, TTLs, and the automatic recovery process that ensures eventual consistency even when nodes are down.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="section-3-overview.html">Section 3: Data Flow</a>
+                <span class="separator">›</span>
+                <span class="current">Hinted Handoff</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                
+                <!-- Floating Table of Contents -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#what-is-hinted">💾 What is Hinted Handoff?</a></li>
+                            <li><a href="#how-it-works">⚙️ How It Works</a></li>
+                            <li><a href="#hint-storage">📦 Hint Storage</a></li>
+                            <li><a href="#replay-process">🔄 Replay Process</a></li>
+                            <li><a href="#configuration">⚙️ Configuration</a></li>
+                            <li><a href="#live-simulator">🖥️ Live Simulator</a></li>
+                            <li><a href="#best-practices">✅ Best Practices</a></li>
+                            <li><a href="#interview-questions">💼 Interview Q&A (25)</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="col-lg-9">
+
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: The Unreliable Delivery Service</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Imagine you're sending packages through <strong style="color: var(--text-primary);">ShipFast Delivery</strong> - but recipients aren't always home. How do you ensure packages get delivered eventually?</p>
+
+                                <div style="background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(220, 38, 38, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #dc2626;">
+                                    <h3 style="color: #dc2626; margin-top: 0;">❌ THE BAD APPROACH: Give Up Immediately</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Problem:</strong> Driver rings doorbell → nobody home → package returned to sender</p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+📦 Package for Alice at 123 Main St:<br/>
+├─ Attempt 1 (Monday 10am) → No answer ❌<br/>
+├─ Return to sender<br/>
+└─ Alice never gets her package! 😡<br/><br/>
+📦 Package for Bob at 456 Oak Ave:<br/>
+├─ Attempt 1 (Tuesday 2pm) → No answer ❌<br/>
+├─ Return to sender<br/>
+└─ Bob never gets his package! 😡<br/><br/>
+<strong style="color: #dc2626;">Result:</strong><br/>
+• Customers angry (didn't get packages)<br/>
+• Senders frustrated (wasted shipping)<br/>
+• Business loses customers!
+                                    </div>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #10b981;">
+                                    <h3 style="color: #10b981; margin-top: 0;">✅ THE BRILLIANT APPROACH: Leave a Note & Retry</h3>
+                                    
+                                    <p style="color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Solution:</strong> Driver can't deliver → leaves NOTE at nearest postal depot → retries later</p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #10b981;">📦 Package for Alice at 123 Main St:</strong><br/>
+<strong>Attempt 1 (Monday 10am):</strong><br/>
+├─ Ring doorbell → No answer ❌<br/>
+├─ Driver writes NOTE: "Package for 123 Main St"<br/>
+├─ Leaves note at Depot #5 (nearest)<br/>
+└─ Continues deliveries to other addresses ✅<br/><br/>
+<strong>Alice returns home (Monday 6pm):</strong><br/>
+├─ Depot #5 sees Alice is back (lights on!)<br/>
+├─ Driver reads NOTE: "Package for 123 Main St"<br/>
+├─ Delivers package successfully! 📦 → 🏠<br/>
+└─ Alice gets her package! ✅<br/><br/>
+<strong>TTL (Time To Live) = 3 hours:</strong><br/>
+If Alice doesn't return within 3 hours:<br/>
+├─ NOTE expires and is thrown away<br/>
+├─ Package returns to sender<br/>
+└─ Sender can resend or contact Alice directly
+                                    </div>
+
+                                    <h4 style="color: #10b981; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">Why It's BRILLIANT:</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Temporary Failure = OK:</strong> Driver doesn't give up after one attempt</li>
+                                        <li><strong style="color: var(--text-primary);">Automatic Retry:</strong> When Alice returns, package delivered automatically</li>
+                                        <li><strong style="color: var(--text-primary);">No Blocking:</strong> Driver continues other deliveries (doesn't wait)</li>
+                                        <li><strong style="color: var(--text-primary);">Depot Nearby:</strong> Notes stored at NEAREST depot (low overhead)</li>
+                                        <li><strong style="color: var(--text-primary);">TTL Protection:</strong> Notes don't pile up forever (3-hour limit)</li>
+                                        <li><strong style="color: var(--text-primary);">Eventually Delivered:</strong> Alice gets package when she returns!</li>
+                                    </ul>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #6366f1;">
+                                    <h3 style="color: #6366f1; margin-top: 0;">🎯 This is EXACTLY Cassandra's Hinted Handoff!</h3>
+                                    
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Package = Write (INSERT/UPDATE)</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Alice's House = Target Replica Node</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Nobody Home = Node Down/Unreachable</strong></li>
+                                        <li><strong style="color: var(--text-primary);">NOTE = Hint (stored mutation)</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Postal Depot = Coordinator Node</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Alice Returns = Node Comes Back Online</strong></li>
+                                        <li><strong style="color: var(--text-primary);">Delivery Retry = Hint Replay</strong></li>
+                                        <li><strong style="color: var(--text-primary);">3-Hour TTL = max_hint_window (default 3 hours)</strong></li>
+                                    </ul>
+
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; font-family: monospace; font-size: 0.9rem;">
+<strong style="color: #6366f1;">CASSANDRA HINTED HANDOFF:</strong><br/><br/>
+<strong>Client writes data (RF=3):</strong><br/>
+INSERT INTO users (id, name) VALUES ('alice', 'Alice Smith');<br/><br/>
+<strong>Coordinator identifies replicas:</strong><br/>
+Node 5 (PRIMARY), Node 12, Node 19<br/><br/>
+<strong>Problem: Node 19 is down! ❌</strong><br/>
+├─ Node 5: Write successful ✅<br/>
+├─ Node 12: Write successful ✅<br/>
+├─ Node 19: TIMEOUT ❌ (down for maintenance)<br/>
+└─ Coordinator stores HINT for Node 19<br/><br/>
+<strong>Hint stored on Coordinator:</strong><br/>
+"When Node 19 returns, write alice='Alice Smith'"<br/><br/>
+<strong>Node 19 returns (30 minutes later):</strong><br/>
+├─ Coordinator detects Node 19 is UP<br/>
+├─ Reads HINT: "Write alice='Alice Smith'"<br/>
+├─ Replays write to Node 19 ✅<br/>
+└─ All 3 replicas now have data! ✅<br/><br/>
+<strong style="color: #10b981;">Result: Write succeeded despite Node 19 failure!</strong><br/>
+Eventual consistency achieved automatically!
+                                    </div>
+
+                                    <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                        <strong style="color: #10b981;">ShipFast's delivery notes = Cassandra's Hinted Handoff!<br/>Same brilliance, zero data loss!</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What is Hinted Handoff Section -->
+                    <section id="what-is-hinted" data-aos="fade-up">
+                        <h2>💾 What is Hinted Handoff?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The mechanism that ensures writes succeed even when replica nodes are temporarily unavailable.</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-book-open" style="color: var(--primary-green);"></i> Complete Definition</h4>
+                            <p><strong style="color: var(--text-primary);">Hinted Handoff:</strong> When a replica node is unavailable during a write operation, the coordinator node temporarily stores the write (a "hint") and automatically replays it to the target node when it comes back online, ensuring eventual consistency without client intervention.</p>
+                            
+                            <p style="margin-top: 1.5rem;"><strong>Key Components:</strong></p>
+                            <ul>
+                                <li><strong>Hint:</strong> A stored mutation (write) meant for an unavailable node</li>
+                                <li><strong>Coordinator:</strong> Node that stores hints for failed replicas</li>
+                                <li><strong>Target Node:</strong> The unavailable replica that should have received the write</li>
+                                <li><strong>Hint Directory:</strong> On-disk storage for hints (separate from data)</li>
+                                <li><strong>Replay:</strong> Automatic delivery of hints when target node recovers</li>
+                                <li><strong>TTL:</strong> Time limit for hints (default 3 hours)</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why Hinted Handoff is Critical:</strong></p>
+                            <ul>
+                                <li><strong>Write Availability:</strong> Writes succeed even when replicas are down</li>
+                                <li><strong>No Client Retry:</strong> Automatic recovery without application changes</li>
+                                <li><strong>Eventual Consistency:</strong> Data eventually reaches all replicas</li>
+                                <li><strong>Performance:</strong> Faster writes (don't wait for slow/down nodes)</li>
+                                <li><strong>Operational Simplicity:</strong> Node maintenance without write failures</li>
+                            </ul>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Without Hinted Handoff</h3>
+                                <p><strong>Traditional databases</strong></p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+RF=3, Node 3 is down<br/><br/>
+Write arrives:<br/>
+├─ Node 1: Success ✅<br/>
+├─ Node 2: Success ✅<br/>
+├─ Node 3: DOWN ❌<br/>
+└─ QUORUM = 2/3 achieved<br/><br/>
+<strong style="color: #dc2626;">Problem:</strong><br/>
+Node 3 NEVER gets the data!<br/>
+Data inconsistent until manual repair!
+                                </div>
+                                <ul style="font-size: 0.9rem; margin-top: 1rem;">
+                                    <li><strong>Consistency:</strong> Permanent inconsistency</li>
+                                    <li><strong>Recovery:</strong> Manual repair required</li>
+                                    <li><strong>Operations:</strong> Complex</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border-color: #10b981;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>With Hinted Handoff</h3>
+                                <p><strong>Cassandra approach</strong></p>
+                                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem;">
+RF=3, Node 3 is down<br/><br/>
+Write arrives:<br/>
+├─ Node 1: Success ✅<br/>
+├─ Node 2: Success ✅<br/>
+├─ Node 3: DOWN ❌<br/>
+├─ QUORUM = 2/3 achieved<br/>
+└─ <strong style="color: #10b981;">Coordinator stores HINT</strong><br/><br/>
+Node 3 returns (later):<br/>
+├─ Coordinator detects UP<br/>
+├─ Replays hint automatically<br/>
+└─ Node 3 has data! ✅
+                                </div>
+                                <ul style="font-size: 0.9rem; margin-top: 1rem;">
+                                    <li><strong>Consistency:</strong> Automatic eventual consistency</li>
+                                    <li><strong>Recovery:</strong> Zero manual intervention</li>
+                                    <li><strong>Operations:</strong> Simple and automatic</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- How It Works Section -->
+                    <section id="how-it-works" data-aos="fade-up">
+                        <h2>⚙️ How Hinted Handoff Works: Step-by-Step</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete flow from write failure through hint storage to automatic replay.</p>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="600" y="35" font-family="Inter, sans-serif" font-size="26" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Complete Hinted Handoff Flow
+                                </text>
+
+                                <!-- PHASE 1: Write Attempt -->
+                                <g>
+                                    <rect x="50" y="80" width="1100" height="180" rx="12" fill="rgba(99, 102, 241, 0.1)" stroke="#6366f1" stroke-width="2"/>
+                                    <text x="600" y="110" font-size="18" fill="#6366f1" text-anchor="middle" font-weight="800">PHASE 1: Write Attempt (RF=3)</text>
+
+                                    <!-- Client -->
+                                    <rect x="80" y="140" width="140" height="90" rx="10" fill="#6366f1" stroke="#5b21b6" stroke-width="3"/>
+                                    <text x="150" y="170" font-size="14" fill="white" text-anchor="middle" font-weight="700">Client</text>
+                                    <text x="150" y="192" font-size="11" fill="white" text-anchor="middle">INSERT INTO users</text>
+                                    <text x="150" y="210" font-size="11" fill="white" text-anchor="middle">VALUES ('alice')</text>
+
+                                    <!-- Arrow to Coordinator -->
+                                    <path d="M 220 185 L 280 185" stroke="#6366f1" stroke-width="3" marker-end="url(#arrowIndigo)"/>
+                                    <text x="250" y="178" font-size="10" fill="#6366f1" font-weight="700">WRITE</text>
+
+                                    <!-- Coordinator -->
+                                    <rect x="280" y="140" width="140" height="90" rx="10" fill="#8b5cf6" stroke="#7c3aed" stroke-width="3"/>
+                                    <text x="350" y="170" font-size="14" fill="white" text-anchor="middle" font-weight="700">Coordinator</text>
+                                    <text x="350" y="192" font-size="11" fill="white" text-anchor="middle">Identifies replicas:</text>
+                                    <text x="350" y="210" font-size="10" fill="white" text-anchor="middle">N5, N12, N19</text>
+
+                                    <!-- Arrows to replicas -->
+                                    <path d="M 420 160 L 540 160" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                                    <path d="M 420 185 L 750 185" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                                    <path d="M 420 210 L 960 210" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowRed)" stroke-dasharray="5,3"/>
+
+                                    <!-- Node 5 (Success) -->
+                                    <circle cx="580" cy="160" r="35" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="580" y="158" font-size="12" fill="white" text-anchor="middle" font-weight="700">Node 5</text>
+                                    <text x="580" y="172" font-size="10" fill="white" text-anchor="middle">✅ OK</text>
+
+                                    <!-- Node 12 (Success) -->
+                                    <circle cx="790" cy="185" r="35" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="790" y="183" font-size="12" fill="white" text-anchor="middle" font-weight="700">Node 12</text>
+                                    <text x="790" y="197" font-size="10" fill="white" text-anchor="middle">✅ OK</text>
+
+                                    <!-- Node 19 (Down) -->
+                                    <circle cx="1000" cy="210" r="35" fill="#dc2626" stroke="#991b1b" stroke-width="3"/>
+                                    <text x="1000" y="208" font-size="12" fill="white" text-anchor="middle" font-weight="700">Node 19</text>
+                                    <text x="1000" y="222" font-size="10" fill="white" text-anchor="middle">❌ DOWN</text>
+                                </g>
+
+                                <!-- PHASE 2: Hint Storage -->
+                                <g>
+                                    <rect x="50" y="290" width="1100" height="200" rx="12" fill="rgba(245, 158, 11, 0.1)" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="600" y="320" font-size="18" fill="#f59e0b" text-anchor="middle" font-weight="800">PHASE 2: Hint Storage (Node 19 unavailable)</text>
+
+                                    <!-- Coordinator Decision -->
+                                    <rect x="280" y="350" width="440" height="110" rx="10" fill="rgba(245, 158, 11, 0.2)" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="500" y="375" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="700">Coordinator Logic:</text>
+                                    <text x="500" y="397" font-size="11" fill="#e2e8f0" text-anchor="middle">✅ QUORUM achieved (2/3 nodes)</text>
+                                    <text x="500" y="415" font-size="11" fill="#e2e8f0" text-anchor="middle">✅ Write successful to client</text>
+                                    <text x="500" y="433" font-size="11" fill="#e2e8f0" text-anchor="middle">💾 Store HINT for Node 19</text>
+                                    <text x="500" y="451" font-size="10" fill="#94a3b8" text-anchor="middle">Hint: "When N19 returns, write alice='Alice Smith'"</text>
+
+                                    <!-- Hint File -->
+                                    <rect x="780" y="350" width="350" height="110" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="955" y="375" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="700">Hint Directory:</text>
+                                    <text x="955" y="395" font-size="10" fill="#10b981" text-anchor="middle" font-family="monospace">/var/lib/cassandra/hints/</text>
+                                    <text x="955" y="413" font-size="10" fill="#e2e8f0" text-anchor="middle" font-family="monospace">hint_node19_1234567890.hints</text>
+                                    <text x="955" y="431" font-size="10" fill="#94a3b8" text-anchor="middle">Target: Node 19</text>
+                                    <text x="955" y="448" font-size="10" fill="#94a3b8" text-anchor="middle">TTL: 3 hours (default)</text>
+                                </g>
+
+                                <!-- PHASE 3: Node Recovery -->
+                                <g>
+                                    <rect x="50" y="520" width="1100" height="160" rx="12" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" stroke-width="2"/>
+                                    <text x="600" y="550" font-size="18" fill="#10b981" text-anchor="middle" font-weight="800">PHASE 3: Node Recovery & Hint Replay</text>
+
+                                    <!-- Node 19 Returns -->
+                                    <circle cx="200" cy="610" r="40" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="200" y="605" font-size="13" fill="white" text-anchor="middle" font-weight="700">Node 19</text>
+                                    <text x="200" y="622" font-size="11" fill="white" text-anchor="middle">BACK UP! ✅</text>
+
+                                    <!-- Arrow -->
+                                    <path d="M 240 610 L 340 610" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)"/>
+                                    <text x="290" y="600" font-size="10" fill="#10b981" font-weight="700">Gossip: N19 UP</text>
+
+                                    <!-- Coordinator Replays -->
+                                    <rect x="340" y="570" width="280" height="80" rx="10" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2"/>
+                                    <text x="480" y="595" font-size="12" fill="#10b981" text-anchor="middle" font-weight="700">Coordinator Action:</text>
+                                    <text x="480" y="613" font-size="11" fill="#e2e8f0" text-anchor="middle">1. Detects Node 19 is UP</text>
+                                    <text x="480" y="630" font-size="11" fill="#e2e8f0" text-anchor="middle">2. Reads hints for Node 19</text>
+                                    <text x="480" y="647" font-size="11" fill="#e2e8f0" text-anchor="middle">3. Replays all hints</text>
+
+                                    <!-- Arrow to replay -->
+                                    <path d="M 620 610 L 740 610" stroke="#10b981" stroke-width="3" marker-end="url(#arrowGreen)"/>
+                                    <text x="680" y="600" font-size="10" fill="#10b981" font-weight="700">REPLAY HINT</text>
+
+                                    <!-- Node 19 Final -->
+                                    <circle cx="800" cy="610" r="40" fill="#059669" stroke="#047857" stroke-width="3"/>
+                                    <text x="800" y="605" font-size="13" fill="white" text-anchor="middle" font-weight="700">Node 19</text>
+                                    <text x="800" y="622" font-size="11" fill="white" text-anchor="middle">HAS DATA ✅</text>
+
+                                    <!-- Success Message -->
+                                    <rect x="880" y="580" width="260" height="60" rx="8" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2"/>
+                                    <text x="1010" y="605" font-size="13" fill="#10b981" text-anchor="middle" font-weight="700">✅ Eventual Consistency</text>
+                                    <text x="1010" y="625" font-size="11" fill="#e2e8f0" text-anchor="middle">All 3 replicas now have data!</text>
+                                </g>
+
+                                <!-- Timeline -->
+                                <g>
+                                    <rect x="50" y="710" width="1100" height="150" rx="12" fill="rgba(139, 92, 246, 0.1)" stroke="#8b5cf6" stroke-width="2"/>
+                                    <text x="600" y="740" font-size="18" fill="#8b5cf6" text-anchor="middle" font-weight="800">Timeline Example</text>
+
+                                    <line x1="100" y1="790" x2="1100" y2="790" stroke="#8b5cf6" stroke-width="2"/>
+                                    
+                                    <!-- Time markers -->
+                                    <circle cx="150" cy="790" r="8" fill="#6366f1"/>
+                                    <text x="150" y="815" font-size="10" fill="#e2e8f0" text-anchor="middle" font-weight="700">T=0</text>
+                                    <text x="150" y="830" font-size="9" fill="#94a3b8" text-anchor="middle">Write arrives</text>
+                                    <text x="150" y="843" font-size="9" fill="#94a3b8" text-anchor="middle">Node 19 down</text>
+
+                                    <circle cx="400" cy="790" r="8" fill="#f59e0b"/>
+                                    <text x="400" y="815" font-size="10" fill="#e2e8f0" text-anchor="middle" font-weight="700">T=0.1s</text>
+                                    <text x="400" y="830" font-size="9" fill="#94a3b8" text-anchor="middle">Hint stored</text>
+                                    <text x="400" y="843" font-size="9" fill="#94a3b8" text-anchor="middle">Client gets OK</text>
+
+                                    <circle cx="700" cy="790" r="8" fill="#10b981"/>
+                                    <text x="700" y="815" font-size="10" fill="#e2e8f0" text-anchor="middle" font-weight="700">T=30min</text>
+                                    <text x="700" y="830" font-size="9" fill="#94a3b8" text-anchor="middle">Node 19 returns</text>
+                                    <text x="700" y="843" font-size="9" fill="#94a3b8" text-anchor="middle">Hint replayed</text>
+
+                                    <circle cx="1000" cy="790" r="8" fill="#059669"/>
+                                    <text x="1000" y="815" font-size="10" fill="#e2e8f0" text-anchor="middle" font-weight="700">T=30.1min</text>
+                                    <text x="1000" y="830" font-size="9" fill="#94a3b8" text-anchor="middle">Consistent!</text>
+                                    <text x="1000" y="843" font-size="9" fill="#94a3b8" text-anchor="middle">All 3 replicas</text>
+                                </g>
+
+                                <!-- Markers -->
+                                <defs>
+                                    <marker id="arrowIndigo" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#6366f1" />
+                                    </marker>
+                                    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#10b981" />
+                                    </marker>
+                                    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                        <polygon points="0 0, 10 5, 0 10" fill="#dc2626" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-graduation-cap" style="color: var(--primary-green);"></i> Expert: Detailed Process Breakdown</h4>
+                            
+                            <p><strong>Step 1: Write Request</strong></p>
+                            <ul>
+                                <li>Client sends write to any node (becomes coordinator)</li>
+                                <li>Coordinator calculates partition key hash → token</li>
+                                <li>Determines replica nodes using token ring (e.g., Node 5, 12, 19)</li>
+                                <li>Attempts to write to all RF replicas in parallel</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Step 2: Failure Detection</strong></p>
+                            <ul>
+                                <li>Write to Node 5: Success (50ms) ✅</li>
+                                <li>Write to Node 12: Success (45ms) ✅</li>
+                                <li>Write to Node 19: TIMEOUT after 2 seconds ❌</li>
+                                <li>QUORUM (2/3) achieved → Write successful from client perspective</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Step 3: Hint Creation</strong></p>
+                            <ul>
+                                <li>Coordinator creates hint: Serialized mutation + target node ID + timestamp</li>
+                                <li>Hint stored in: /var/lib/cassandra/hints/hint_{target_node_id}_{timestamp}.hints</li>
+                                <li>Hint includes: Full mutation, TTL (3 hours), target node UUID</li>
+                                <li>Coordinator continues processing other requests (non-blocking)</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Step 4: Gossip Detection</strong></p>
+                            <ul>
+                                <li>Coordinator gossips with other nodes every 1 second</li>
+                                <li>When Node 19 returns: Gossip discovers it's UP</li>
+                                <li>Coordinator checks: "Do I have hints for Node 19?" → YES!</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Step 5: Hint Replay</strong></p>
+                            <ul>
+                                <li>Coordinator reads all hints for Node 19 from disk</li>
+                                <li>Sends hints to Node 19 (batch of mutations)</li>
+                                <li>Node 19 writes data to memtable and commit log</li>
+                                <li>On success: Coordinator deletes hint file</li>
+                                <li>On failure: Keeps hint, retries later</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Step 6: Cleanup</strong></p>
+                            <ul>
+                                <li>Successful replay: Delete hint file immediately</li>
+                                <li>TTL expired (>3 hours): Delete hint without replay</li>
+                                <li>Disk space: Hints use separate directory, limited to max_hint_window</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Hint Storage Section -->
+                    <section id="hint-storage" data-aos="fade-up">
+                        <h2>📦 Hint Storage: Under the Hood</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How hints are stored on disk and managed over time.</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-database" style="color: var(--primary-green);"></i> Storage Architecture</h4>
+                            
+                            <p><strong>Hint File Location:</strong></p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+/var/lib/cassandra/hints/<br/>
+├─ hint_node19_1701234567890.hints  (for Node 19)<br/>
+├─ hint_node23_1701234589012.hints  (for Node 23)<br/>
+└─ hint_node45_1701234601234.hints  (for Node 45)
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Hint File Structure:</strong></p>
+                            <ul>
+                                <li><strong>Target Node UUID:</strong> Which node should receive this hint</li>
+                                <li><strong>Mutation:</strong> Complete serialized write (partition key, clustering, columns, timestamp)</li>
+                                <li><strong>Creation Time:</strong> When hint was created (for TTL calculation)</li>
+                                <li><strong>Keyspace/Table:</strong> Where to apply the mutation</li>
+                                <li><strong>Hint ID:</strong> Unique identifier for deduplication</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Storage Characteristics:</strong></p>
+                            <ul>
+                                <li><strong>Separate Directory:</strong> Hints isolated from data files</li>
+                                <li><strong>Sequential Writes:</strong> Fast append-only writes</li>
+                                <li><strong>Per-Node Files:</strong> One file per target node</li>
+                                <li><strong>Size Limits:</strong> Configurable max_hints_file_size (128MB default)</li>
+                                <li><strong>Compression:</strong> Optionally compressed (LZ4)</li>
+                            </ul>
+                        </div>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <h3>Hint File Format</h3>
+                                <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+<strong style="color: #10b981;">Header:</strong><br/>
+Magic bytes: 0xC5A55A1D<br/>
+Version: 2<br/>
+Target node: a1b2c3d4-...<br/><br/>
+<strong style="color: #f59e0b;">Hint Entry 1:</strong><br/>
+Timestamp: 1701234567890<br/>
+Keyspace: users<br/>
+Table: user_profiles<br/>
+Partition: alice<br/>
+Mutation: [serialized]<br/>
+Size: 256 bytes<br/><br/>
+<strong style="color: #f59e0b;">Hint Entry 2:</strong><br/>
+Timestamp: 1701234567891<br/>
+Keyspace: users<br/>
+Table: user_sessions<br/>
+Partition: bob<br/>
+Mutation: [serialized]<br/>
+Size: 312 bytes<br/><br/>
+<strong style="color: #8b5cf6;">Footer:</strong><br/>
+Checksum: CRC32<br/>
+Total hints: 2
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <h3>Storage Management</h3>
+                                <ul style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li><strong>Creation:</strong> Hint file created when first write to unavailable node fails</li>
+                                    <li><strong>Append:</strong> Additional hints appended to same file for same target</li>
+                                    <li><strong>Rotation:</strong> New file when max_hints_file_size reached</li>
+                                    <li><strong>Replay:</strong> Read sequentially, batch send to target</li>
+                                    <li><strong>Deletion:</strong> Deleted after successful replay or TTL expiry</li>
+                                    <li><strong>Cleanup:</strong> Background thread removes expired hints</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem;"><strong style="color: var(--primary-green);">Performance Impact:</strong></p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>Negligible write overhead (~100μs per hint)</li>
+                                    <li>No impact on normal writes</li>
+                                    <li>Async replay (doesn't block queries)</li>
+                                    <li>Disk I/O: Sequential (fast!)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Storage Considerations</h4>
+                            
+                            <p><strong>Disk Space Management:</strong></p>
+                            <ul>
+                                <li><strong>Hints Directory Size:</strong> Can grow if nodes stay down for extended period</li>
+                                <li><strong>Monitoring:</strong> Watch disk usage in hints directory</li>
+                                <li><strong>TTL Protection:</strong> max_hint_window (3 hours) prevents unbounded growth</li>
+                                <li><strong>Manual Cleanup:</strong> Can delete hint files if target node permanently lost</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Example Disk Usage:</strong></p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+Scenario: Node down for 2 hours, 1000 writes/sec<br/><br/>
+Total writes missed: 1000 * 60 * 60 * 2 = 7.2M writes<br/>
+Average hint size: 512 bytes<br/>
+Total hints size: 7.2M * 512 bytes = 3.6GB<br/><br/>
+With compression (LZ4): ~1.8GB<br/>
+Replay time (10K hints/sec): ~12 minutes
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Configuration Section -->
+                    <section id="configuration" data-aos="fade-up">
+                        <h2>⚙️ Configuration & Tuning</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Complete guide to hinted handoff configuration parameters.</p>
+
+                        <div style="overflow-x: auto; margin: 2rem 0;">
+                            <table style="width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Parameter</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Default</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">Description</th>
+                                        <th style="padding: 1.2rem; text-align: left; color: white;">When to Change</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="background: rgba(255,255,255,0.02);">
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">hinted_handoff_enabled</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">true</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Enable/disable hinted handoff globally</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Never disable in production!</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">max_hint_window_in_ms</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">10800000 (3h)</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Maximum time to store hints (TTL)</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Increase for slow repairs, decrease to save disk</td>
+                                    </tr>
+                                    <tr style="background: rgba(255,255,255,0.02);">
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">max_hints_delivery_threads</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">2</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Threads for replaying hints</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Increase (4-8) for faster recovery on large clusters</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">max_hints_file_size_in_mb</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">128</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Max size of single hint file</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Increase (256-512) for high-write workloads</td>
+                                    </tr>
+                                    <tr style="background: rgba(255,255,255,0.02);">
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">hints_flush_period_in_ms</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">10000 (10s)</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">How often hints flushed to disk</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Decrease (5s) for faster recovery, increase to reduce I/O</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">hints_compression</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">LZ4</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Compression algorithm for hints</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">LZ4 (fast) or Snappy (better compression)</td>
+                                    </tr>
+                                    <tr style="background: rgba(255,255,255,0.02);">
+                                        <td style="padding: 1rem; color: #10b981; font-family: monospace; font-weight: 700;">max_hints_size_per_host_in_mb</td>
+                                        <td style="padding: 1rem; color: #e2e8f0; font-family: monospace;">unlimited</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Max hints per target node</td>
+                                        <td style="padding: 1rem; color: #94a3b8;">Set limit (1024-4096MB) to prevent disk exhaustion</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="info-box expert" data-aos="fade-up">
+                            <h4><i class="fas fa-cog" style="color: var(--primary-green);"></i> Configuration in cassandra.yaml</h4>
+                            
+                            <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+<span style="color: #10b981;"># Hinted Handoff Configuration</span><br/>
+hinted_handoff_enabled: true<br/>
+max_hint_window_in_ms: 10800000  <span style="color: #94a3b8;"># 3 hours</span><br/>
+max_hints_delivery_threads: 2<br/>
+max_hints_file_size_in_mb: 128<br/>
+hints_flush_period_in_ms: 10000  <span style="color: #94a3b8;"># 10 seconds</span><br/>
+hints_directory: /var/lib/cassandra/hints<br/>
+hints_compression:<br/>
+&nbsp;&nbsp;class_name: LZ4Compressor<br/><br/>
+<span style="color: #10b981;"># Advanced Settings</span><br/>
+max_hints_size_per_host_in_mb: 4096  <span style="color: #94a3b8;"># 4GB per node</span><br/>
+hint_window_persistent_enabled: true<br/>
+batchlog_replay_throttle_in_kb: 1024
+                            </div>
+
+                            <p style="margin-top: 1.5rem;"><strong>Production Recommendations:</strong></p>
+                            <ul>
+                                <li><strong>Always Enabled:</strong> Keep hinted_handoff_enabled: true (critical for availability)</li>
+                                <li><strong>TTL Window:</strong> 3 hours (default) works for 99% of cases, increase to 6-12 hours for planned maintenance</li>
+                                <li><strong>Delivery Threads:</strong> 2-4 threads sufficient for most clusters, 8+ for very large clusters (500+ nodes)</li>
+                                <li><strong>File Size:</strong> 128MB fine for normal workloads, increase to 256-512MB for high-write systems</li>
+                                <li><strong>Compression:</strong> LZ4 (best balance of speed and compression)</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Live Simulator Section -->
+                    <section id="live-simulator" data-aos="fade-up">
+                        <h2>🖥️ Interactive Hinted Handoff Simulator</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Visualize how hints are created, stored, and replayed in real-time!</p>
+
+                        <div class="live-console" data-aos="fade-up">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    Hinted Handoff Simulator
+                                </div>
+                                <div class="console-controls">
+                                    <button class="console-btn primary" onclick="simulateWrite()">
+                                        <i class="fas fa-pen"></i> Simulate Write
+                                    </button>
+                                    <button class="console-btn" onclick="simulateNodeDown()">
+                                        <i class="fas fa-power-off"></i> Node Goes Down
+                                    </button>
+                                    <button class="console-btn" onclick="simulateNodeUp()">
+                                        <i class="fas fa-check-circle"></i> Node Comes Up
+                                    </button>
+                                    <button class="console-btn" onclick="clearHintConsole()">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="console-body" id="hintOutput">
+                                <div class="console-log" style="color: #94a3b8;">
+                                    <strong>💾 Hinted Handoff Simulator Ready!</strong><br/>
+                                    Simulate writes with node failures and watch hints being created and replayed.<br/><br/>
+                                    <strong>Try this sequence:</strong><br/>
+                                    1. Click "Simulate Write" (all nodes UP) → Normal replication<br/>
+                                    2. Click "Node Goes Down" → Node 3 marked as DOWN<br/>
+                                    3. Click "Simulate Write" → Hint created for Node 3<br/>
+                                    4. Click "Node Comes Up" → Hints automatically replayed!<br/><br/>
+                                    <strong>RF=3, Nodes: 1, 2, 3</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Best Practices Section -->
+                    <section id="best-practices" data-aos="fade-up">
+                        <h2>✅ Best Practices & Common Pitfalls</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Production-grade recommendations for hinted handoff.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border-color: #10b981;">
+                                <div class="comparison-icon">✅</div>
+                                <h3>Best Practices</h3>
+                                <ul style="font-size: 0.95rem; line-height: 1.9;">
+                                    <li><strong>Keep Enabled:</strong> Never disable hinted_handoff_enabled in production</li>
+                                    <li><strong>Monitor Hints:</strong> Track hint queue size (nodetool hints)</li>
+                                    <li><strong>Disk Space:</strong> Ensure 20-30% free space in hints directory</li>
+                                    <li><strong>TTL Window:</strong> Match max_hint_window to typical downtime + buffer</li>
+                                    <li><strong>Repair Regularly:</strong> Run nodetool repair weekly (hints ≠ repair)</li>
+                                    <li><strong>Graceful Maintenance:</strong> Use nodetool drain before shutting down nodes</li>
+                                    <li><strong>Alert on Buildup:</strong> Alert when hints directory >5GB</li>
+                                    <li><strong>Test Recovery:</strong> Simulate node failures in staging</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border-color: #dc2626;">
+                                <div class="comparison-icon">❌</div>
+                                <h3>Common Pitfalls</h3>
+                                <ul style="font-size: 0.95rem; line-height: 1.9;">
+                                    <li><strong>Disabling Handoff:</strong> Turning off hints = lost writes during failures</li>
+                                    <li><strong>Ignoring Disk Space:</strong> Hints directory fills up = new hints rejected</li>
+                                    <li><strong>Relying Only on Hints:</strong> Hints expire after TTL, still need repair</li>
+                                    <li><strong>Long Downtime:</strong> Node down >3 hours = hints lost, manual repair needed</li>
+                                    <li><strong>No Monitoring:</strong> Hint buildup goes unnoticed until disk full</li>
+                                    <li><strong>Wrong TTL:</strong> Too short = data loss, too long = disk waste</li>
+                                    <li><strong>Insufficient Threads:</strong> Slow replay = hints accumulate</li>
+                                    <li><strong>No Testing:</strong> First failure in production reveals issues</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-chart-line" style="color: #10b981;"></i> Monitoring Hinted Handoff</h4>
+                            
+                            <p><strong>Key Metrics to Track:</strong></p>
+                            <ul>
+                                <li><strong>Hints Stored:</strong> Total number of hints currently on disk</li>
+                                <li><strong>Hints in Flight:</strong> Hints being replayed right now</li>
+                                <li><strong>Hints Dropped:</strong> Hints expired/discarded (should be zero!)</li>
+                                <li><strong>Replay Latency:</strong> Time to replay hints to recovered node</li>
+                                <li><strong>Disk Usage:</strong> Size of hints directory</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Useful Commands:</strong></p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+<span style="color: #10b981;"># View hints status</span><br/>
+nodetool hintstats<br/><br/>
+<span style="color: #10b981;"># View hints for specific node</span><br/>
+nodetool getsstables keyspace table key<br/><br/>
+<span style="color: #10b981;"># Manually trigger hint replay</span><br/>
+nodetool pausehandoff<br/>
+nodetool resumehandoff<br/><br/>
+<span style="color: #10b981;"># Check disk usage</span><br/>
+du -sh /var/lib/cassandra/hints/
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Interview Questions Section -->
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Interview Questions & Answers</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">
+                                Master these 25 essential questions on Cassandra Hinted Handoff - from beginner to expert level!
+                            </p>
+
+                            <!-- Question 1 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">What is Hinted Handoff and why is it important in Cassandra?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Hinted Handoff is a mechanism that ensures writes succeed even when replica nodes are temporarily unavailable by storing "hints" (failed writes) and automatically replaying them when the node recovers.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>How It Works:</strong></p>
+                                        <ul>
+                                            <li>Write arrives for RF=3 nodes (N1, N2, N3)</li>
+                                            <li>N3 is down/unreachable</li>
+                                            <li>Coordinator stores hint: "When N3 returns, apply this write"</li>
+                                            <li>Write succeeds with QUORUM (2/3)</li>
+                                            <li>When N3 comes back, coordinator automatically replays hints</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Why Critical:</strong></p>
+                                        <ul>
+                                            <li><strong>Write Availability:</strong> Writes don't fail due to temporary node issues</li>
+                                            <li><strong>Automatic Recovery:</strong> No manual intervention required</li>
+                                            <li><strong>Eventual Consistency:</strong> All replicas eventually get the data</li>
+                                            <li><strong>Operational Simplicity:</strong> Can perform maintenance without impacting writes</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 2 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">What is the default TTL for hints and why does it exist?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong>Default TTL:</strong> 3 hours (10,800,000 milliseconds)</p>
+                                        <p><strong>Parameter:</strong> max_hint_window_in_ms in cassandra.yaml</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Why TTL Exists:</strong></p>
+                                        <ul>
+                                            <li><strong>Disk Space Protection:</strong> Prevents hints from filling up disk if node stays down for extended period</li>
+                                            <li><strong>Bounded Storage:</strong> Limits maximum hints storage per node</li>
+                                            <li><strong>Reasonable Window:</strong> 3 hours covers typical maintenance windows and transient failures</li>
+                                            <li><strong>Forces Repair:</strong> After 3 hours, you should run nodetool repair instead of relying on hints</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>What Happens After TTL:</strong></p>
+                                        <ul>
+                                            <li>Hints older than 3 hours are automatically deleted</li>
+                                            <li>Down node won't receive those writes via hints</li>
+                                            <li>Must run nodetool repair to synchronize data</li>
+                                            <li>Read repair or anti-entropy repair will eventually fix inconsistencies</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>When to Increase TTL:</strong></p>
+                                        <ul>
+                                            <li>Planned maintenance longer than 3 hours</li>
+                                            <li>Slow node recovery expected</li>
+                                            <li>Delayed hardware replacement scenarios</li>
+                                            <li>Typical: Increase to 6-12 hours for planned downtime</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 3 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">3</span>
+                                    <span class="question-text">Where are hints stored on disk?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong>Location:</strong> /var/lib/cassandra/hints/ (configurable via hints_directory)</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>File Structure:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+/var/lib/cassandra/hints/<br/>
+├─ hint_a1b2c3d4-..._1701234567890.hints<br/>
+├─ hint_e5f6g7h8-..._1701234589012.hints<br/>
+└─ hint_i9j0k1l2-..._1701234601234.hints<br/><br/>
+Naming: hint_{target_node_uuid}_{timestamp}.hints
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Storage Characteristics:</strong></p>
+                                        <ul>
+                                            <li><strong>Separate Directory:</strong> Isolated from data files and commit logs</li>
+                                            <li><strong>Per-Node Files:</strong> One or more files per target node</li>
+                                            <li><strong>Sequential Writes:</strong> Append-only for fast writes</li>
+                                            <li><strong>File Rotation:</strong> New file when max_hints_file_size_in_mb (128MB default) reached</li>
+                                            <li><strong>Compression:</strong> LZ4 compression by default (configurable)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Important Notes:</strong></p>
+                                        <ul>
+                                            <li>Hints are stored on the COORDINATOR node, not on the target node</li>
+                                            <li>Each coordinator stores hints for nodes it tried to write to</li>
+                                            <li>Multiple coordinators may have hints for the same target node</li>
+                                            <li>Deleted after successful replay or TTL expiration</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 4 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">4</span>
+                                    <span class="question-text">How does Cassandra know when to replay hints?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Cassandra uses the Gossip protocol to detect when down nodes come back online and automatically triggers hint replay.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Detection Process:</strong></p>
+                                        <ol>
+                                            <li><strong>Continuous Gossip:</strong> Every node gossips with 1-3 random nodes every second</li>
+                                            <li><strong>State Updates:</strong> Nodes share state information (UP/DOWN) via gossip</li>
+                                            <li><strong>Recovery Detection:</strong> When a down node comes back up, gossip spreads this information</li>
+                                            <li><strong>Coordinator Check:</strong> Each coordinator checks "Do I have hints for this node?"</li>
+                                            <li><strong>Automatic Replay:</strong> If yes, coordinator automatically starts replaying hints</li>
+                                        </ol>
+
+                                        <p style="margin-top: 1rem;"><strong>Replay Triggers:</strong></p>
+                                        <ul>
+                                            <li><strong>Node Startup:</strong> When node restarts and rejoins cluster</li>
+                                            <li><strong>Network Recovery:</strong> When network partition heals</li>
+                                            <li><strong>Periodic Check:</strong> Background thread checks every 10 seconds (hints_flush_period_in_ms)</li>
+                                            <li><strong>Manual:</strong> Can manually trigger with nodetool resumehandoff</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Replay Behavior:</strong></p>
+                                        <ul>
+                                            <li>Hints replayed in batches (efficient bulk transfer)</li>
+                                            <li>Throttled to avoid overwhelming target node</li>
+                                            <li>max_hints_delivery_threads (default 2) controls parallelism</li>
+                                            <li>Successful replay → delete hint file</li>
+                                            <li>Failed replay → retry later (with exponential backoff)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 5 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">5</span>
+                                    <span class="question-text">Can hints replace the need for repair?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong style="color: #dc2626;">NO! Hints are NOT a replacement for repair.</strong></p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Why Hints ≠ Repair:</strong></p>
+                                        <ul>
+                                            <li><strong>TTL Limitation:</strong> Hints expire after 3 hours (default), repair has no time limit</li>
+                                            <li><strong>Single Coordinator:</strong> Only one coordinator stores hints for each write, if that coordinator fails, hints lost</li>
+                                            <li><strong>No Tombstone Propagation:</strong> Deleted data (tombstones) aren't hinted</li>
+                                            <li><strong>Partial Coverage:</strong> Hints only cover writes during downtime, not pre-existing inconsistencies</li>
+                                            <li><strong>Disk Space:</strong> Coordinators may drop hints if disk space exhausted</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>What Hints Do Well:</strong></p>
+                                        <ul>
+                                            <li>Handle transient failures (node restarts, brief network issues)</li>
+                                            <li>Maintain write availability during short downtimes</li>
+                                            <li>Reduce immediate inconsistency window</li>
+                                            <li>Speed up convergence for recent writes</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>When You MUST Run Repair:</strong></p>
+                                        <ul>
+                                            <li>Node down > max_hint_window (3 hours)</li>
+                                            <li>Node permanently failed and replaced</li>
+                                            <li>Data corruption detected</li>
+                                            <li>Regular maintenance (weekly recommended)</li>
+                                            <li>After major network partition</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Best Practice:</strong></p>
+                                        <p>Run <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px;">nodetool repair</code> weekly on all nodes regardless of hints. Treat hints as an optimization, not a guarantee.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Questions 6-25 continue with similar detailed formatting -->
+                            <!-- For brevity, I'll add 5 more detailed questions and summarize the rest -->
+
+                            <!-- Question 6 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">6</span>
+                                    <span class="question-text">What happens if the coordinator node fails before replaying hints?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong style="color: #d97706;">The hints stored on that coordinator are lost!</strong> This is a fundamental limitation of hinted handoff.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Scenario:</strong></p>
+                                        <ul>
+                                            <li>Node A (coordinator) writes to nodes B, C, D (RF=3)</li>
+                                            <li>Node D is down → Node A stores hint for D</li>
+                                            <li>Node A crashes before D recovers</li>
+                                            <li>Hint is lost → Node D never receives this write via hints</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Why This Is OK:</strong></p>
+                                        <ul>
+                                            <li><strong>QUORUM Still Met:</strong> Write succeeded to B and C (2/3)</li>
+                                            <li><strong>Read Repair:</strong> Next read will trigger read repair to D</li>
+                                            <li><strong>Anti-Entropy Repair:</strong> Scheduled repair will sync D</li>
+                                            <li><strong>Multiple Coordinators:</strong> Different writes use different coordinators (distributed risk)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Mitigation:</strong></p>
+                                        <ul>
+                                            <li>Use RF=3 minimum (more replicas = more redundancy)</li>
+                                            <li>Run regular repairs (weekly)</li>
+                                            <li>Monitor coordinator health</li>
+                                            <li>Use consistency level QUORUM or higher</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 7 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">7</span>
+                                    <span class="question-text">How do hints affect write performance?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong style="color: #10b981;">Minimal impact!</strong> Hints are designed to be lightweight and non-blocking.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Performance Characteristics:</strong></p>
+                                        <ul>
+                                            <li><strong>Write Overhead:</strong> ~100 microseconds per hint (negligible)</li>
+                                            <li><strong>Non-Blocking:</strong> Hint storage is asynchronous (doesn't delay client response)</li>
+                                            <li><strong>Sequential I/O:</strong> Hints written sequentially (fast disk operations)</li>
+                                            <li><strong>Memory Usage:</strong> Small buffer in memory, flushed every 10 seconds</li>
+                                            <li><strong>No Query Impact:</strong> Hint storage doesn't affect read/write path</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Write Flow with Hints:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem;">
+T=0ms:    Client sends write<br/>
+T=1ms:    Coordinator identifies replicas<br/>
+T=2ms:    Parallel writes to N1, N2, N3<br/>
+T=5ms:    N1 responds OK<br/>
+T=6ms:    N2 responds OK<br/>
+T=2002ms: N3 timeout (down)<br/>
+T=2002.1ms: Create hint (0.1ms)<br/>
+T=6ms:    Client receives SUCCESS (QUORUM achieved)<br/><br/>
+Note: Client doesn't wait for hint creation!
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Replay Performance:</strong></p>
+                                        <ul>
+                                            <li>Replay is throttled (doesn't overwhelm target)</li>
+                                            <li>Batched transfers (efficient network usage)</li>
+                                            <li>Background operation (doesn't impact foreground traffic)</li>
+                                            <li>Typical: 10K-50K hints/second replay rate</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Remaining questions 8-25 summarized for token efficiency -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">8</span>
+                                    <span class="question-text">Can you disable hinted handoff for specific keyspaces or tables?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> No, hinted handoff is a global cluster-level setting (hinted_handoff_enabled) and cannot be disabled per keyspace or table. It's all-or-nothing for the entire cluster. You can disable it globally but this is NOT recommended for production as it severely impacts write availability during node failures.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">9</span>
+                                    <span class="question-text">What is max_hints_delivery_threads and when should you increase it?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> max_hints_delivery_threads (default 2) controls how many threads are dedicated to replaying hints. Increase to 4-8 for large clusters (500+ nodes) or when you need faster hint replay after prolonged downtime. More threads = faster replay but more CPU/network usage. Monitor CPU during replay and adjust accordingly.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">10</span>
+                                    <span class="question-text">How do hints work with consistency levels like LOCAL_QUORUM?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Hints are created regardless of consistency level. With LOCAL_QUORUM (RF=3 in DC), if 1 local replica is down, hint created and write succeeds (2/3 local replicas). The hint ensures the down node eventually gets the data. Consistency level only determines how many acks needed for write success, but hints are always created for any failed replica write attempts.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Additional questions 11-25 in compact format -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">11</span>
+                                    <span class="question-text">How can you monitor hint buildup in production?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Use: (1) <code>nodetool hintstats</code> - shows hints per node, (2) <code>du -sh /var/lib/cassandra/hints/</code> - disk usage, (3) JMX metrics: org.apache.cassandra.metrics.StorageMetrics.TotalHints, (4) Set alerts when hints directory >5GB or hints age >30 minutes.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">12</span>
+                                    <span class="question-text">What happens if hints directory runs out of disk space?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> New hints are dropped (not stored). Writes still succeed if QUORUM met, but down node won't receive data via hints. Must run repair to sync. Set max_hints_size_per_host_in_mb to prevent unbounded growth. Monitor disk usage and alert at 80% capacity.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">13</span>
+                                    <span class="question-text">Are hints compressed?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Yes, by default hints are compressed using LZ4 (hints_compression parameter). LZ4 provides good compression (~50-70%) with minimal CPU overhead. Can also use Snappy or disable compression. Compression reduces disk usage significantly for text-heavy data.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">14</span>
+                                    <span class="question-text">Can hints be manually deleted?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Yes, you can manually delete hint files from /var/lib/cassandra/hints/ if target node permanently lost or to free space. However, you MUST run full repair afterward to ensure data consistency. Use <code>nodetool truncatehints</code> (Cassandra 4.0+) for safe deletion or stop Cassandra and rm hint files.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">15</span>
+                                    <span class="question-text">How do hints behave in multi-datacenter deployments?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> By default, hints only stored for nodes in SAME datacenter (hinted_handoff_enabled_by_dc). Cross-DC hints disabled to save WAN bandwidth. If remote DC node down, use repair instead of hints. Can enable cross-DC hints but not recommended due to network costs and latency.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Questions 16-25 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">16</span>
+                                    <span class="question-text">What is hints_flush_period_in_ms?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Controls how often hints are flushed from memory to disk (default 10 seconds). Lower value (5s) = faster recovery potential but more I/O. Higher value (30s) = less I/O but hints only persisted every 30s. If coordinator crashes before flush, recent hints lost. 10s is good balance.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">17</span>
+                                    <span class="question-text">Can you pause and resume hint replay?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Yes! Use <code>nodetool pausehandoff</code> to pause hint replay (useful during maintenance) and <code>nodetool resumehandoff</code> to restart. Pausing doesn't prevent new hints from being created, only stops replay to recovered nodes. Use during high-traffic periods to avoid replay overhead.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">18</span>
+                                    <span class="question-text">How long does it typically take to replay hints?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Depends on hint volume and network speed. Typical: 10K-50K hints/second. Example: Node down 1 hour with 1000 writes/sec = 3.6M hints. At 30K hints/sec = 2 minutes replay time. Large backlogs (node down 3 hours, high write rate) might take 10-30 minutes. Monitor with <code>nodetool hintstats</code>.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">19</span>
+                                    <span class="question-text">What happens during graceful node shutdown (nodetool drain)?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> <code>nodetool drain</code> flushes memtables, stops accepting writes, but hints still created by other nodes for this node during downtime. Drain doesn't prevent hint creation - it just ensures clean shutdown. When node restarts, other coordinators replay their hints to it. Always use drain before planned restarts.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">20</span>
+                                    <span class="question-text">Are deleted data (tombstones) sent via hints?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Yes! Tombstones (DELETE mutations) are treated like any other write. If node down during DELETE, hint created with tombstone. This ensures deleted data doesn't "resurrect" on recovered node. Critical for data correctness. Tombstones must reach all replicas before gc_grace_seconds expires.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">21</span>
+                                    <span class="question-text">How do hints interact with batch statements?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Each mutation in a batch can create separate hints. If batch has 10 mutations and 1 replica is down, 10 separate hints created. Batches themselves aren't stored as atomic units in hints. When replayed, hints applied individually. Batch semantics (logged/unlogged) don't affect hint creation.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">22</span>
+                                    <span class="question-text">What's the difference between hints and batchlog?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Hints handle individual failed replica writes. Batchlog handles failed LOGGED BATCH statements (ensures atomicity across partitions). Hints: temporary storage for failed writes to replicas. Batchlog: temporary storage for entire batches during coordinator failures. Both provide eventual consistency but for different failure scenarios.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">23</span>
+                                    <span class="question-text">Can hints cause out-of-order data issues?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> No! Cassandra uses timestamps for conflict resolution (Last Write Wins). Even if hints arrive out of order, the timestamp determines which value wins. Hint with older timestamp doesn't overwrite newer data. This is why client-side timestamps and NTP synchronization are critical.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">24</span>
+                                    <span class="question-text">How do you debug hint replay issues?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong> Check: (1) system.log for hint replay errors, (2) <code>nodetool hintstats</code> for replay progress, (3) Verify target node is UP via <code>nodetool status</code>, (4) Check network connectivity, (5) Verify disk space on both coordinator and target, (6) Review cassandra.yaml settings (max_hints_delivery_threads), (7) Use <code>nodetool pausehandoff</code> / <code>resumehandoff</code> to control replay.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">25</span>
+                                    <span class="question-text">Design a DR strategy that accounts for hint limitations.</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong>Comprehensive Strategy:</strong></p>
+                                        <ul>
+                                            <li><strong>Multi-DC Setup:</strong> RF=3 per DC, 3 DCs minimum (9 total copies)</li>
+                                            <li><strong>Consistency:</strong> Write EACH_QUORUM (ensures QUORUM in every DC), Read LOCAL_QUORUM</li>
+                                            <li><strong>Hint Configuration:</strong> max_hint_window=21600000 (6 hours) for extended maintenance windows</li>
+                                            <li><strong>Repair Schedule:</strong> Weekly full repair per DC (don't rely on hints alone)</li>
+                                            <li><strong>Monitoring:</strong> Alert when hints directory >10GB or hints age >1 hour</li>
+                                            <li><strong>Failover:</strong> If DC down >6 hours, run immediate repair when recovered (don't wait for weekly)</li>
+                                            <li><strong>Backup:</strong> Daily snapshots independent of hints (hints not backups!)</li>
+                                            <li><strong>Testing:</strong> Quarterly DR drills simulating DC failure and recovery</li>
+                                        </ul>
+                                        <p style="margin-top: 1rem;"><strong>Key Principle:</strong> Hints are optimization for short-term failures. Repair is guarantee for long-term consistency.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Summary -->
+                    <div class="story-box" data-aos="fade-up" style="margin-top: 4rem;">
+                        <h2 style="color: var(--primary-green);">🎓 Chapter Summary</h2>
+                        <div style="line-height: 1.9; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">You now understand Cassandra's Hinted Handoff mechanism!</strong></p>
+
+                            <h4 style="color: var(--primary-green); margin-top: 2rem;">Key Concepts:</h4>
+                            <ul>
+                                <li>Hints ensure writes succeed even when replicas temporarily unavailable</li>
+                                <li>Stored on coordinator node, replayed automatically when target recovers</li>
+                                <li>Default 3-hour TTL prevents unbounded disk growth</li>
+                                <li>Minimal performance impact, high availability benefit</li>
+                                <li>NOT a replacement for repair (complementary mechanism)</li>
+                                <li>Multi-DC deployments use same-DC hints only by default</li>
+                            </ul>
+
+                            <h4 style="color: var(--primary-green); margin-top: 2rem;">Production Best Practices:</h4>
+                            <ul>
+                                <li>Never disable hinted_handoff_enabled in production</li>
+                                <li>Run weekly repairs regardless of hints</li>
+                                <li>Monitor hints directory size (alert at 5-10GB)</li>
+                                <li>Increase max_hint_window for planned maintenance (6-12 hours)</li>
+                                <li>Use graceful shutdown (nodetool drain) before restarts</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="page-navigation">
+                        <a href="rack-awareness.html" class="nav-button">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Rack Awareness</div>
+                            </div>
+                        </a>
+                        <a href="consistency-levels.html" class="nav-button next">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next</div>
+                                <div class="nav-title">Consistency levels</div>
+                            </div>
+                        </a>
+                    </div>
+                    <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+            document.getElementById('scrollTop').classList.toggle('visible', winScroll > 300);
+        });
+
+        document.getElementById('mobileMenuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        document.getElementById('scrollTop').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        function toggleQuestion(card) {
+            card.classList.toggle('active');
+        }
+
+        // Hinted Handoff Simulator
+        let nodeStatus = { 1: 'UP', 2: 'UP', 3: 'UP' };
+        let hintsStored = [];
+
+        function clearHintConsole() {
+            document.getElementById('hintOutput').innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared...</div>';
+            hintsStored = [];
+        }
+
+        function addHintLog(msg, type = '') {
+            const output = document.getElementById('hintOutput');
+            const div = document.createElement('div');
+            div.className = `console-log log-${type}`;
+            div.innerHTML = msg;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function simulateWrite() {
+            clearHintConsole();
+            const writeId = Math.floor(Math.random() * 10000);
+            
+            addHintLog('<strong>═══ WRITE OPERATION STARTED ═══</strong>', '');
+            addHintLog(`Write ID: ${writeId}`, '');
+            addHintLog(`Data: INSERT INTO users (id, name) VALUES ('user${writeId}', 'Test User')`, '');
+            addHintLog('', '');
+            
+            addHintLog('<strong>Coordinator Action:</strong>', '');
+            addHintLog('Identifying replicas: Node 1, Node 2, Node 3 (RF=3)', '');
+            addHintLog('Consistency Level: QUORUM (2/3 required)', '');
+            addHintLog('', '');
+            
+            let successCount = 0;
+            let downNode = null;
+            
+            for (let i = 1; i <= 3; i++) {
+                if (nodeStatus[i] === 'UP') {
+                    addHintLog(`Node ${i}: Write successful ✅ (${10 + i*3}ms)`, 'replay');
+                    successCount++;
+                } else {
+                    addHintLog(`Node ${i}: TIMEOUT ❌ (node is DOWN)`, 'hint');
+                    downNode = i;
+                }
+            }
+            
+            addHintLog('', '');
+            
+            if (successCount >= 2) {
+                addHintLog(`<strong>✅ QUORUM ACHIEVED (${successCount}/3 nodes)</strong>`, 'success');
+                addHintLog('Client receives: SUCCESS', 'success');
+                
+                if (downNode) {
+                    addHintLog('', '');
+                    addHintLog(`<strong>💾 HINT CREATED FOR NODE ${downNode}</strong>`, 'hint');
+                    addHintLog(`Hint stored: "When Node ${downNode} returns, write user${writeId}='Test User'"`, 'store');
+                    addHintLog(`Hint file: /var/lib/cassandra/hints/hint_node${downNode}_${Date.now()}.hints`, 'store');
+                    addHintLog('TTL: 3 hours (10,800,000 ms)', 'store');
+                    hintsStored.push({ node: downNode, writeId: writeId });
+                    addHintLog(`<strong>Total hints stored: ${hintsStored.length}</strong>`, 'hint');
+                }
+            } else {
+                addHintLog(`<strong>❌ QUORUM FAILED (${successCount}/3 nodes)</strong>`, 'hint');
+                addHintLog('Client receives: ERROR - Unavailable', 'hint');
+            }
+        }
+
+        function simulateNodeDown() {
+            clearHintConsole();
+            const targetNode = Math.floor(Math.random() * 3) + 1;
+            nodeStatus[targetNode] = 'DOWN';
+            
+            addHintLog('<strong>⚠️ NODE FAILURE DETECTED</strong>', 'hint');
+            addHintLog(`Node ${targetNode} has gone DOWN`, 'hint');
+            addHintLog('Reason: Network partition / Hardware failure', 'hint');
+            addHintLog('', '');
+            addHintLog('<strong>Current Cluster Status:</strong>', '');
+            for (let i = 1; i <= 3; i++) {
+                addHintLog(`Node ${i}: ${nodeStatus[i]} ${nodeStatus[i] === 'DOWN' ? '❌' : '✅'}`, nodeStatus[i] === 'DOWN' ? 'hint' : 'replay');
+            }
+            addHintLog('', '');
+            addHintLog('<strong>Action:</strong> Future writes will create hints for this node', 'store');
+            addHintLog('Try "Simulate Write" to see hint creation!', 'store');
+        }
+
+        function simulateNodeUp() {
+            const downNodes = Object.keys(nodeStatus).filter(k => nodeStatus[k] === 'DOWN');
+            
+            if (downNodes.length === 0) {
+                clearHintConsole();
+                addHintLog('<strong>ℹ️ All nodes already UP!</strong>', '');
+                addHintLog('No nodes to recover.', '');
+                return;
+            }
+            
+            clearHintConsole();
+            const recoveringNode = downNodes[0];
+            nodeStatus[recoveringNode] = 'UP';
+            
+            addHintLog('<strong>🔄 NODE RECOVERY DETECTED</strong>', 'replay');
+            addHintLog(`Node ${recoveringNode} is now UP!`, 'replay');
+            addHintLog('Gossip protocol detected node recovery', 'replay');
+            addHintLog('', '');
+            
+            const nodeHints = hintsStored.filter(h => h.node == recoveringNode);
+            
+            if (nodeHints.length > 0) {
+                addHintLog('<strong>💾 HINT REPLAY INITIATED</strong>', 'hint');
+                addHintLog(`Found ${nodeHints.length} hint(s) for Node ${recoveringNode}`, 'hint');
+                addHintLog('', '');
+                
+                nodeHints.forEach((hint, idx) => {
+                    setTimeout(() => {
+                        addHintLog(`Replaying hint ${idx + 1}/${nodeHints.length}...`, 'store');
+                        addHintLog(`→ Node ${recoveringNode}: Write user${hint.writeId}='Test User'`, 'replay');
+                        
+                        if (idx === nodeHints.length - 1) {
+                            setTimeout(() => {
+                                addHintLog('', '');
+                                addHintLog('<strong>✅ HINT REPLAY COMPLETED!</strong>', 'success');
+                                addHintLog(`All ${nodeHints.length} hint(s) successfully applied to Node ${recoveringNode}`, 'success');
+                                addHintLog('Hint files deleted from coordinator', 'success');
+                                addHintLog('<strong>Cluster is now CONSISTENT! All replicas have data.</strong>', 'success');
+                                hintsStored = hintsStored.filter(h => h.node != recoveringNode);
+                            }, 200);
+                        }
+                    }, idx * 150);
+                });
+            } else {
+                addHintLog('<strong>ℹ️ No hints found for this node</strong>', '');
+                addHintLog('Node already consistent or no writes during downtime', '');
+            }
+            
+            setTimeout(() => {
+                addHintLog('', '');
+                addHintLog('<strong>Current Cluster Status:</strong>', '');
+                for (let i = 1; i <= 3; i++) {
+                    addHintLog(`Node ${i}: ${nodeStatus[i]} ✅`, 'replay');
+                }
+            }, nodeHints.length * 150 + 400);
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addHintLog('💾 <strong>Hinted Handoff Simulator Ready!</strong>', '');
+                addHintLog('All 3 nodes currently UP. Simulate failures and recovery!', '');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

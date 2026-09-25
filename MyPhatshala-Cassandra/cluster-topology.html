@@ -1,0 +1,2702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete Cassandra Cluster Topology Guide - Master datacenter design, rack awareness, multi-region deployments with stories, animations, and live examples!">
+    <meta name="keywords" content="cassandra cluster topology, datacenter design, rack awareness, multi-region cassandra, network topology">
+    <title>Cassandra Cluster Topology: Complete Guide 2025 | CassandraHub</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+         /* AdSense Containers */
+        .ad-container {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: rgba(139, 92, 246, 0.03);
+            border-radius: 16px;
+            border: 2px dashed var(--border-light);
+            text-align: center;
+        }
+
+        .ad-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        :root {
+            --primary-blue: #2563eb;
+            --dark-blue: #1e40af;
+            --muted-blue: #475569;
+            --accent-teal: #0d9488;
+            --deep-navy: #0f172a;
+            --darker-navy: #020617;
+            --code-bg: #1e293b;
+            --code-darker: #0f172a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-light: #334155;
+            --success-green: #059669;
+            --warning-orange: #d97706;
+            --error-red: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 16px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--darker-navy);
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--darker-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 6px;
+        }
+
+        /* Progress Bar */
+        .progress-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(37, 99, 235, 0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+            width: 0%;
+            transition: width 0.2s ease;
+            box-shadow: 0 0 10px rgba(13, 148, 136, 0.3);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 10000;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--code-bg), var(--code-darker));
+            border-right: 1px solid var(--border-light);
+            overflow-y: auto;
+            padding: 2rem 0;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            box-shadow: 5px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .logo {
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .logo h2 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .search-box {
+            position: relative;
+            padding: 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            background: var(--code-darker);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 2.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Learning Path */
+        .learning-path-section {
+            padding: 0 1rem;
+        }
+
+        .path-section {
+            margin-bottom: 1rem;
+        }
+
+        .path-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem;
+            background: var(--code-darker);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .path-section-header:hover {
+            background: rgba(13, 148, 136, 0.15);
+            border-color: var(--accent-teal);
+            transform: translateX(5px);
+        }
+
+        .path-section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .path-section-icon {
+            font-size: 1.3rem;
+        }
+
+        .path-section-info {
+            flex: 1;
+        }
+
+        .path-section-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .path-section-progress {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .path-section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .path-section.expanded .path-section-toggle {
+            transform: rotate(180deg);
+        }
+
+        .path-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .path-section.expanded .path-section-content {
+            max-height: 2000px;
+        }
+
+        .path-section-links {
+            list-style: none;
+            padding: 0.5rem 0 0 2.5rem;
+            margin: 0;
+        }
+
+        .path-section-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .path-section-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            display: block;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .path-section-links a:hover,
+        .path-section-links a.active {
+            color: var(--accent-teal);
+            background: rgba(13, 148, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 320px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        /* Hero Section */
+        .page-hero {
+            background: linear-gradient(135deg, #334155 0%, #1e293b 50%, #0f172a 100%);
+            padding: 6rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent-teal);
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(13, 148, 136, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(71, 85, 105, 0.1) 0%, transparent 50%);
+        }
+
+        .page-hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: rgba(13, 148, 136, 0.2);
+            border: 2px solid rgba(13, 148, 136, 0.4);
+            border-radius: 50px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #94a3b8 0%, #0d9488 50%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-hero p {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: var(--text-secondary);
+            max-width: 900px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.6;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-modern {
+            background: var(--code-darker);
+            padding: 1.25rem 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .breadcrumb-modern a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-modern a:hover {
+            color: var(--accent-teal);
+        }
+
+        .breadcrumb-modern .separator {
+            margin: 0 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb-modern .current {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        section {
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        h2 {
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 800;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 5px;
+            background: linear-gradient(90deg, var(--muted-blue), var(--accent-teal));
+            border-radius: 3px;
+        }
+
+        h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Floating TOC */
+        .toc-floating {
+            position: sticky;
+            top: 100px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .toc-floating h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .toc-floating ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .toc-floating li {
+            margin-bottom: 0.75rem;
+        }
+
+        .toc-floating a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: block;
+            padding-left: 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-floating a:hover,
+        .toc-floating a.active {
+            color: var(--accent-teal);
+            border-left-color: var(--accent-teal);
+            padding-left: 1.25rem;
+        }
+
+        /* Story Box */
+        .story-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.15), rgba(13, 148, 136, 0.08));
+            border-left: 5px solid var(--accent-teal);
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 3rem 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+
+        .story-box::before {
+            content: '🌍';
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 4rem;
+            opacity: 0.1;
+        }
+
+        .story-box h3 {
+            color: var(--accent-teal);
+            margin-top: 0;
+        }
+
+        /* SVG Container */
+        .svg-container {
+            background: var(--code-bg);
+            border-radius: 20px;
+            padding: 3rem;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 5px solid var(--muted-blue);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-light);
+        }
+
+        .info-box.success {
+            border-left-color: var(--success-green);
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.1), rgba(5, 150, 105, 0.05));
+        }
+
+        .info-box.warning {
+            border-left-color: var(--warning-orange);
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .info-box h4 {
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+        }
+
+        .info-box p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.7;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        .info-box ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Comparison Grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--accent-teal);
+            box-shadow: 0 10px 40px rgba(13, 148, 136, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .comparison-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .comparison-card h3 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .comparison-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .comparison-card ul {
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        /* Interactive Console */
+        .live-console {
+            background: var(--code-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 3rem 0;
+            border: 2px solid var(--border-light);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .console-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .console-title {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .console-btn {
+            background: var(--accent-teal);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .console-btn:hover {
+            background: #0d9488;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 148, 136, 0.3);
+        }
+
+        .console-body {
+            padding: 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .console-output {
+            color: var(--text-secondary);
+        }
+
+        .console-log {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .log-dc {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .log-rack {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .log-node {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .log-success {
+            color: #059669;
+            background: rgba(5, 150, 105, 0.1);
+            font-weight: 600;
+        }
+
+        .log-warning {
+            color: #d97706;
+            background: rgba(217, 119, 6, 0.1);
+        }
+
+        /* Interview Questions */
+        .interview-section {
+            margin: 4rem 0;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05));
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            border-color: var(--accent-teal);
+            box-shadow: 0 5px 20px rgba(13, 148, 136, 0.2);
+        }
+
+        .question-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(13, 148, 136, 0.05);
+            transition: all 0.3s;
+        }
+
+        .question-header:hover {
+            background: rgba(13, 148, 136, 0.1);
+        }
+
+        .question-number {
+            background: var(--accent-teal);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .question-toggle {
+            color: var(--accent-teal);
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .question-card.active .question-toggle {
+            transform: rotate(180deg);
+        }
+
+        .question-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .question-card.active .question-answer {
+            max-height: 5000px;
+        }
+
+        .answer-content {
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .answer-content strong {
+            color: var(--text-primary);
+        }
+
+        .answer-content ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Navigation Buttons */
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 4rem;
+            border-top: 3px solid var(--border-light);
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.75rem 2.25rem;
+            background: linear-gradient(135deg, var(--code-bg), var(--code-darker));
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.4s ease;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .nav-button:hover {
+            border-color: var(--accent-teal);
+            box-shadow: 0 15px 40px rgba(13, 148, 136, 0.3);
+            transform: translateY(-5px);
+            color: var(--text-primary);
+        }
+
+        .nav-button.next {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .nav-icon {
+            font-size: 2.5rem;
+            color: var(--accent-teal);
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        /* Scroll to Top */
+        .scroll-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--muted-blue), var(--accent-teal));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(13, 148, 136, 0.3);
+            z-index: 1000;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(13, 148, 136, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toc-floating {
+                display: none;
+            }
+
+            .page-navigation {
+                flex-direction: column;
+            }
+
+            .nav-button {
+                max-width: 100%;
+            }
+
+            .nav-button.next {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-hero {
+                padding: 4rem 0 3rem;
+            }
+
+            section {
+                padding: 3rem 0;
+            }
+
+            .story-box,
+            .svg-container {
+                padding: 2rem;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        /* Topology specific styles */
+        .datacenter-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+            border: 2px solid #3b82f6;
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .rack-card {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .node-badge {
+            display: inline-block;
+            background: var(--accent-teal);
+            color: white;
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Indicator -->
+    <div class="progress-indicator">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="logo">
+            <span class="logo-icon">🗄️</span>
+            <h2>CassandraHub</h2>
+            <p class="logo-subtitle">Master Core Architecture Concepts</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="page-search" placeholder="Search topics..." aria-label="Search content">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- ENHANCED Learning Path with DETAILED Subsections -->
+        <div class="learning-path-section">
+            
+            <!-- Section 1: Introduction & Getting Started -->
+            <div class="path-section expanded">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏠</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Getting Started</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="index.html">🏠 Welcome Home</a></li>
+                        <li><a href="what-is-cassandra.html" >📚 What is Cassandra?</a></li>
+                        <li><a href="why-cassandra.html">💡 Why Choose Cassandra?</a></li>
+                        <li><a href="nosql-basics.html">🌐 NoSQL Fundamentals</a></li>
+                        <li><a href="cap-theorem.html">⚖️ CAP Theorem Explained</a></li>
+                        <li><a href="cassandra-vs-others.html">⚔️ Cassandra vs MongoDB/MySQL</a></li>
+                        <li><a href="when-to-use.html">✅ When to Use Cassandra</a></li>
+                        <li><a href="learning-roadmap.html">🗺️ Complete Learning Path</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 2: Core Architecture - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Core Architecture</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="architecture-overview.html">🏛️ Architecture Overview</a></li>
+                        <li><a href="ring-topology.html">⭕ Ring Topology</a></li>
+                        <li><a href="peer-to-peer.html">👥 Peer-to-Peer Model</a></li>
+                        <li><a href="token-ranges.html">🎫 Token Ranges</a></li>
+                        <li><a href="virtual-nodes.html">📦 Virtual Nodes (Vnodes)</a></li>
+                        <li><a href="gossip-protocol.html">💬 Gossip Protocol</a></li>
+                        <li><a href="snitch.html">🔍 Snitch Strategy</a></li>
+                        <li><a href="partitioner.html">🔀 Partitioners</a></li>
+                        <li><a href="coordinator-node.html">🎯 Coordinator Node</a></li>
+                        <li><a href="seed-nodes.html">🌱 Seed Nodes</a></li>
+                        <li><a href="node-failure.html">💔 Handling Node Failures</a></li>
+                        <li><a href="cluster-topology.html" class="active">🗺️ Cluster Topology</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 3: Data Distribution & Replication - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔄</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Distribution</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="partitioning-basics.html">📊 Partitioning Basics</a></li>
+                        <li><a href="hash-function.html">🔢 Consistent Hashing</a></li>
+                        <li><a href="data-distribution.html">🌍 Data Distribution</a></li>
+                        <li><a href="replication-factor.html">📈 Replication Factor</a></li>
+                        <li><a href="replication-strategy.html">🎯 Replication Strategies</a></li>
+                        <li><a href="simple-strategy.html">&nbsp;&nbsp;&nbsp;→ Simple Strategy</a></li>
+                        <li><a href="network-topology.html">&nbsp;&nbsp;&nbsp;→ Network Topology</a></li>
+                        <li><a href="multi-datacenter.html">🌐 Multi-Datacenter Setup</a></li>
+                        <li><a href="rack-awareness.html">🏢 Rack Awareness</a></li>
+                        <li><a href="hinted-handoff.html">✉️ Hinted Handoff</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 4: Consistency & Availability - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚖️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Consistency & Tuning</div>
+                            <div class="path-section-progress">0 / 9 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="consistency-levels.html">📏 Consistency Levels</a></li>
+                        <li><a href="consistency-one.html">&nbsp;&nbsp;&nbsp;→ ONE</a></li>
+                        <li><a href="consistency-quorum.html">&nbsp;&nbsp;&nbsp;→ QUORUM</a></li>
+                        <li><a href="consistency-all.html">&nbsp;&nbsp;&nbsp;→ ALL</a></li>
+                        <li><a href="consistency-local.html">&nbsp;&nbsp;&nbsp;→ LOCAL_QUORUM</a></li>
+                        <li><a href="tunable-consistency.html">🎛️ Tunable Consistency</a></li>
+                        <li><a href="read-repair.html">🔧 Read Repair</a></li>
+                        <li><a href="eventual-consistency.html">⏰ Eventual Consistency</a></li>
+                        <li><a href="strong-consistency.html">💪 Strong Consistency</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 5: Read & Write Path - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚡</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Read & Write Path</div>
+                            <div class="path-section-progress">0 / 11 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="write-path.html">✍️ Write Path</a></li>
+                        <li><a href="commit-log.html">&nbsp;&nbsp;&nbsp;→ Commit Log</a></li>
+                        <li><a href="memtable.html">&nbsp;&nbsp;&nbsp;→ Memtable</a></li>
+                        <li><a href="sstable.html">&nbsp;&nbsp;&nbsp;→ SSTable</a></li>
+                        <li><a href="read-path.html">📖 Read Path</a></li>
+                        <li><a href="bloom-filter.html">&nbsp;&nbsp;&nbsp;→ Bloom Filter</a></li>
+                        <li><a href="row-cache.html">&nbsp;&nbsp;&nbsp;→ Row Cache</a></li>
+                        <li><a href="key-cache.html">&nbsp;&nbsp;&nbsp;→ Key Cache</a></li>
+                        <li><a href="compaction.html">🗜️ Compaction</a></li>
+                        <li><a href="tombstones.html">⚰️ Tombstones</a></li>
+                        <li><a href="gc-grace.html">🗑️ GC Grace Period</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 6: Data Modeling - DETAILED FOR BEGINNERS -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎨</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Data Modeling</div>
+                            <div class="path-section-progress">0 / 15 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="data-model-intro.html">📐 Modeling Introduction</a></li>
+                        <li><a href="query-driven-design.html">🎯 Query-Driven Design</a></li>
+                        <li><a href="partition-key.html">🔑 Partition Key</a></li>
+                        <li><a href="clustering-columns.html">📊 Clustering Columns</a></li>
+                        <li><a href="primary-key.html">🔐 Primary Key (Complete)</a></li>
+                        <li><a href="composite-keys.html">🧩 Composite Keys</a></li>
+                        <li><a href="wide-rows.html">📏 Wide Rows</a></li>
+                        <li><a href="skinny-rows.html">📌 Skinny Rows</a></li>
+                        <li><a href="denormalization.html">📦 Denormalization</a></li>
+                        <li><a href="collections-types.html">🗂️ Collection Types</a></li>
+                        <li><a href="static-columns.html">📍 Static Columns</a></li>
+                        <li><a href="counter-columns.html">🔢 Counter Columns</a></li>
+                        <li><a href="modeling-patterns.html">🎨 Common Patterns</a></li>
+                        <li><a href="anti-patterns.html">🚫 Anti-Patterns</a></li>
+                        <li><a href="data-modeling-tools.html">🛠️ Modeling Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 7: CQL (Cassandra Query Language) - SUPER DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">💻</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">CQL - Complete Guide</div>
+                            <div class="path-section-progress">0 / 20 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cql-intro.html">📝 CQL Introduction</a></li>
+                        <li><a href="cql-syntax.html">📖 CQL Syntax Basics</a></li>
+                        <li><a href="keyspaces.html">🗂️ Keyspaces</a></li>
+                        <li><a href="create-keyspace.html">&nbsp;&nbsp;&nbsp;→ CREATE KEYSPACE</a></li>
+                        <li><a href="alter-keyspace.html">&nbsp;&nbsp;&nbsp;→ ALTER KEYSPACE</a></li>
+                        <li><a href="drop-keyspace.html">&nbsp;&nbsp;&nbsp;→ DROP KEYSPACE</a></li>
+                        <li><a href="tables.html">📋 Tables</a></li>
+                        <li><a href="create-table.html">&nbsp;&nbsp;&nbsp;→ CREATE TABLE</a></li>
+                        <li><a href="alter-table.html">&nbsp;&nbsp;&nbsp;→ ALTER TABLE</a></li>
+                        <li><a href="drop-table.html">&nbsp;&nbsp;&nbsp;→ DROP TABLE</a></li>
+                        <li><a href="insert-data.html">➕ INSERT</a></li>
+                        <li><a href="select-data.html">🔍 SELECT</a></li>
+                        <li><a href="update-data.html">✏️ UPDATE</a></li>
+                        <li><a href="delete-data.html">🗑️ DELETE</a></li>
+                        <li><a href="batch-operations.html">📦 BATCH</a></li>
+                        <li><a href="cql-data-types.html">🔤 Data Types</a></li>
+                        <li><a href="user-defined-types.html">🎭 UDT</a></li>
+                        <li><a href="indexes.html">📑 Indexes</a></li>
+                        <li><a href="materialized-views.html">👁️ Materialized Views</a></li>
+                        <li><a href="cql-best-practices.html">⭐ CQL Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 8: Installation & Setup - DETAILED -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">⚙️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Installation & Setup</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="system-requirements.html">📋 System Requirements</a></li>
+                        <li><a href="install-windows.html">🪟 Windows Installation</a></li>
+                        <li><a href="install-mac.html">🍎 macOS Installation</a></li>
+                        <li><a href="install-linux.html">🐧 Linux Installation</a></li>
+                        <li><a href="docker-setup.html">🐳 Docker Setup</a></li>
+                        <li><a href="single-node-cluster.html">🖥️ Single Node Cluster</a></li>
+                        <li><a href="multi-node-cluster.html">🏢 Multi-Node Cluster</a></li>
+                        <li><a href="cqlsh-setup.html">💻 cqlsh Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 9: Performance & Optimization -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Performance Tuning</div>
+                            <div class="path-section-progress">0 / 10 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="performance-overview.html">⚡ Performance Overview</a></li>
+                        <li><a href="query-optimization.html">🔍 Query Optimization</a></li>
+                        <li><a href="compaction-strategies.html">🗜️ Compaction Strategies</a></li>
+                        <li><a href="caching-strategies.html">💾 Caching Strategies</a></li>
+                        <li><a href="jvm-tuning.html">☕ JVM Tuning</a></li>
+                        <li><a href="memory-management.html">🧠 Memory Management</a></li>
+                        <li><a href="disk-optimization.html">💿 Disk Optimization</a></li>
+                        <li><a href="network-tuning.html">🌐 Network Tuning</a></li>
+                        <li><a href="benchmarking.html">📊 Benchmarking</a></li>
+                        <li><a href="performance-monitoring.html">📈 Monitoring Tools</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 10: Operations & Maintenance -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔧</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Operations</div>
+                            <div class="path-section-progress">0 / 12 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="nodetool.html">🛠️ Nodetool Commands</a></li>
+                        <li><a href="backup-restore.html">💾 Backup & Restore</a></li>
+                        <li><a href="snapshot.html">📸 Snapshots</a></li>
+                        <li><a href="adding-nodes.html">➕ Adding Nodes</a></li>
+                        <li><a href="removing-nodes.html">➖ Removing Nodes</a></li>
+                        <li><a href="replacing-nodes.html">🔄 Replacing Nodes</a></li>
+                        <li><a href="repair.html">🔧 Repair Operations</a></li>
+                        <li><a href="rolling-restart.html">🔁 Rolling Restart</a></li>
+                        <li><a href="upgrading.html">⬆️ Upgrading Cassandra</a></li>
+                        <li><a href="log-management.html">📜 Log Management</a></li>
+                        <li><a href="monitoring.html">📊 Monitoring & Alerts</a></li>
+                        <li><a href="troubleshooting.html">🔍 Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 11: Security -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔒</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Security</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="authentication.html">🔐 Authentication</a></li>
+                        <li><a href="authorization.html">👮 Authorization</a></li>
+                        <li><a href="role-management.html">👥 Role Management</a></li>
+                        <li><a href="encryption-at-rest.html">🔒 Encryption at Rest</a></li>
+                        <li><a href="encryption-in-transit.html">🔐 Encryption in Transit</a></li>
+                        <li><a href="ssl-tls.html">🛡️ SSL/TLS Setup</a></li>
+                        <li><a href="audit-logging.html">📋 Audit Logging</a></li>
+                        <li><a href="security-best-practices.html">⭐ Security Best Practices</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 12: Drivers & Integration -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🔌</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Drivers & APIs</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="driver-overview.html">🔌 Driver Overview</a></li>
+                        <li><a href="python-driver.html">🐍 Python Driver</a></li>
+                        <li><a href="java-driver.html">☕ Java Driver</a></li>
+                        <li><a href="nodejs-driver.html">🟢 Node.js Driver</a></li>
+                        <li><a href="go-driver.html">🔷 Go Driver</a></li>
+                        <li><a href="spring-data.html">🍃 Spring Data</a></li>
+                        <li><a href="spark-integration.html">⚡ Apache Spark</a></li>
+                        <li><a href="kafka-integration.html">📨 Apache Kafka</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 13: Real-World Projects -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🏗️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Hands-On Projects</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="project-intro.html">🎯 Projects Overview</a></li>
+                        <li><a href="project-sensor-data.html">📡 IoT Sensor Platform</a></li>
+                        <li><a href="project-messaging.html">💬 Real-time Messaging</a></li>
+                        <li><a href="project-timeseries.html">⏰ Time Series Analytics</a></li>
+                        <li><a href="project-ecommerce.html">🛒 E-commerce Backend</a></li>
+                        <li><a href="project-social.html">👥 Social Network Feed</a></li>
+                        <li><a href="project-logging.html">📜 Logging System</a></li>
+                        <li><a href="project-recommendation.html">🎬 Recommendation Engine</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 14: Practice & Exercises -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">✍️</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Practice Zone</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="practice-mcqs.html">📝 Multiple Choice</a></li>
+                        <li><a href="practice-queries.html">🔍 Query Challenges</a></li>
+                        <li><a href="practice-modeling.html">🎨 Data Modeling Tasks</a></li>
+                        <li><a href="practice-debugging.html">🐛 Debug Scenarios</a></li>
+                        <li><a href="practice-performance.html">⚡ Performance Tuning</a></li>
+                        <li><a href="practice-architecture.html">🏗️ Architecture Design</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 15: Interview Preparation -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🎯</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Interview Prep</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="interview-questions.html">💼 Top 100 Questions</a></li>
+                        <li><a href="interview-architecture.html">🏗️ Architecture Questions</a></li>
+                        <li><a href="interview-data-modeling.html">🎨 Data Modeling</a></li>
+                        <li><a href="interview-scenarios.html">🎭 Real Scenarios</a></li>
+                        <li><a href="interview-system-design.html">🏗️ System Design</a></li>
+                        <li><a href="interview-tips.html">💡 Interview Tips</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 16: Advanced Topics -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">🚀</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Advanced Topics</div>
+                            <div class="path-section-progress">0 / 8 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="lightweight-transactions.html">⚖️ LWT (Paxos)</a></li>
+                        <li><a href="change-data-capture.html">📡 Change Data Capture</a></li>
+                        <li><a href="full-text-search.html">🔍 Full-Text Search</a></li>
+                        <li><a href="geospatial.html">🌍 Geospatial Data</a></li>
+                        <li><a href="graph-data.html">🕸️ Graph Data</a></li>
+                        <li><a href="analytics.html">📊 Analytics Workloads</a></li>
+                        <li><a href="migration-strategies.html">🔄 Migration Strategies</a></li>
+                        <li><a href="multi-cloud.html">☁️ Multi-Cloud Setup</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Section 17: Resources & Community -->
+            <div class="path-section">
+                <div class="path-section-header" onclick="toggleSection(this)">
+                    <div class="path-section-title">
+                        <span class="path-section-icon">📚</span>
+                        <div class="path-section-info">
+                            <div class="path-section-name">Resources</div>
+                            <div class="path-section-progress">0 / 6 completed</div>
+                        </div>
+                    </div>
+                    <span class="path-section-toggle">▼</span>
+                </div>
+                <div class="path-section-content">
+                    <ul class="path-section-links">
+                        <li><a href="cheatsheet-cql.html">📄 CQL Cheatsheet</a></li>
+                        <li><a href="cheatsheet-nodetool.html">🛠️ Nodetool Cheatsheet</a></li>
+                        <li><a href="cheatsheet-modeling.html">🎨 Modeling Guide</a></li>
+                        <li><a href="tools-ecosystem.html">🛠️ Tools & Utilities</a></li>
+                        <li><a href="books-courses.html">📚 Books & Courses</a></li>
+                        <li><a href="community.html">👥 Community & Support</a></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+        </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- Hero Section -->
+        <section class="page-hero">
+            <div class="container">
+                <div class="page-hero-content" data-aos="fade-up">
+                    <span class="hero-badge">
+                        <i class="fas fa-globe-americas"></i>
+                        Section 2: Core Architecture Concepts
+                    </span>
+                    <h1>Cassandra <span class="gradient-text">Cluster Topology</span></h1>
+                    <p>Master the art of designing resilient, globally-distributed Cassandra clusters! Learn datacenter layouts, rack awareness, and multi-region architectures that power the world's largest applications.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-modern">
+            <div class="container">
+                <a href="index.html"><i class="fas fa-home"></i> Home</a>
+                <span class="separator">›</span>
+                <a href="architecture-overview.html">Section 2: Architecture</a>
+                <span class="separator">›</span>
+                <span class="current">Cluster Topology</span>
+            </div>
+        </div>
+
+        <!-- Main Content with TOC -->
+        <div class="container" style="padding: 4rem 0;">
+            <div class="row">
+                
+                <!-- Floating Table of Contents -->
+                <div class="col-lg-3">
+                    <aside class="toc-floating">
+                        <h3>📑 On This Page</h3>
+                        <ul>
+                            <li><a href="#opening-story">📖 Opening Story</a></li>
+                            <li><a href="#what-is-topology">🗺️ What is Topology?</a></li>
+                            <li><a href="#datacenter-design">🏢 Datacenter Design</a></li>
+                            <li><a href="#rack-awareness">🗄️ Rack Awareness</a></li>
+                            <li><a href="#multi-region">🌍 Multi-Region</a></li>
+                            <li><a href="#live-topology">🖥️ Live Topology Builder</a></li>
+                            <li><a href="#interview-questions">💼 Interview Q&A</a></li>
+                        </ul>
+                    </aside>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="col-lg-9">
+
+                     <!-- AdSense - Top of Content -->
+                    <div class="ad-container" data-aos="fade-up">
+                        <div class="ad-label">Advertisement</div>
+                        <ins class="adsbygoogle"
+                            style="display:block"
+                            data-ad-client="ca-pub-XXXXXXXXXX"
+                            data-ad-slot="XXXXXXXXXX"
+                            data-ad-format="auto"
+                            data-full-width-responsive="true"></ins>
+                    </div>
+
+                    <!-- Opening Story -->
+                    <section id="opening-story" data-aos="fade-up">
+                        <div class="story-box">
+                            <h2>📖 The Story: The Global Delivery Company</h2>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p style="margin-bottom: 1.5rem;">Meet <strong style="color: var(--text-primary);">GlobalShip</strong> - a worldwide package delivery company that operates on 5 continents. They need a system that never goes down, even during hurricanes, earthquakes, or power outages.</p>
+
+                                <div style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #0d9488;">
+                                    <h3 style="color: #0d9488; margin-top: 0;">🌍 GlobalShip's Infrastructure Challenge</h3>
+                                    
+                                    <p style="margin-bottom: 1rem; color: var(--text-secondary);"><strong style="color: var(--text-primary);">The Problem:</strong> One massive warehouse in New York won't work!</p>
+                                    
+                                    <h4 style="color: #0d9488; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">Why Not?</h4>
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Hurricane hits NYC:</strong> Entire business stops! ❌</li>
+                                        <li><strong style="color: var(--text-primary);">Power outage:</strong> Can't track any packages! ❌</li>
+                                        <li><strong style="color: var(--text-primary);">Latency:</strong> Tokyo customers wait 200ms for data from NYC! ❌</li>
+                                        <li><strong style="color: var(--text-primary);">Network failure:</strong> Single cable cut = total disaster! ❌</li>
+                                    </ul>
+
+                                    <h4 style="color: #0d9488; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.75rem;">GlobalShip's Smart Solution: Geographic Distribution!</h4>
+                                    
+                                    <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1rem; border-left: 3px solid #059669;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Level 1: DATACENTERS (Continents)</strong></p>
+                                        <ul style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                            <li><strong style="color: var(--text-primary);">DC1:</strong> New York, USA 🇺🇸</li>
+                                            <li><strong style="color: var(--text-primary);">DC2:</strong> London, UK 🇬🇧</li>
+                                            <li><strong style="color: var(--text-primary);">DC3:</strong> Tokyo, Japan 🇯🇵</li>
+                                        </ul>
+                                        <p style="margin-top: 1rem; color: var(--text-secondary);">Each datacenter = Complete warehouse with full operations!</p>
+                                    </div>
+
+                                    <div style="background: rgba(245, 158, 11, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; border-left: 3px solid #f59e0b;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Level 2: RACKS (Buildings within Datacenter)</strong></p>
+                                        <ul style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                            <li><strong style="color: var(--text-primary);">NYC Datacenter:</strong></li>
+                                            <li>&nbsp;&nbsp;&nbsp;- Rack A: Building in Manhattan</li>
+                                            <li>&nbsp;&nbsp;&nbsp;- Rack B: Building in Brooklyn</li>
+                                            <li>&nbsp;&nbsp;&nbsp;- Rack C: Building in Queens</li>
+                                        </ul>
+                                        <p style="margin-top: 1rem; color: var(--text-secondary);">Each rack = Separate building with own power/network!</p>
+                                    </div>
+
+                                    <div style="background: rgba(16, 185, 129, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; border-left: 3px solid #10b981;">
+                                        <p style="margin: 0; color: var(--text-primary);"><strong>Level 3: NODES (Servers in Each Rack)</strong></p>
+                                        <ul style="margin-top: 0.5rem; color: var(--text-secondary);">
+                                            <li><strong style="color: var(--text-primary);">Rack A:</strong> Node 1, Node 2, Node 3</li>
+                                            <li><strong style="color: var(--text-primary);">Rack B:</strong> Node 4, Node 5, Node 6</li>
+                                            <li><strong style="color: var(--text-primary);">Rack C:</strong> Node 7, Node 8, Node 9</li>
+                                        </ul>
+                                        <p style="margin-top: 1rem; color: var(--text-secondary);">Each node = Individual server storing data!</p>
+                                    </div>
+
+                                    <p style="margin-top: 2rem; color: var(--text-primary);"><strong>Result:</strong> Hurricane destroys NYC? London and Tokyo keep running! 🎉</p>
+                                </div>
+
+                                <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05)); border-radius: 16px; padding: 2rem; margin: 2rem 0; border: 3px solid #3b82f6;">
+                                    <h3 style="color: #3b82f6; margin-top: 0;">🎯 This is EXACTLY Cassandra's Cluster Topology!</h3>
+                                    
+                                    <ul style="color: var(--text-secondary); line-height: 1.8;">
+                                        <li><strong style="color: var(--text-primary);">Datacenters = Geographic Regions</strong> (US-East, EU-West, Asia-Pacific)</li>
+                                        <li><strong style="color: var(--text-primary);">Racks = Fault Domains</strong> (separate power/network)</li>
+                                        <li><strong style="color: var(--text-primary);">Nodes = Cassandra Servers</strong> (actual machines)</li>
+                                        <li><strong style="color: var(--text-primary);">Replication = Copies across all levels</strong> (survive any failure!)</li>
+                                    </ul>
+
+                                    <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                        <strong style="color: #3b82f6;">GlobalShip's physical warehouses = Cassandra's virtual datacenters!<br/>Same principles, different scale!</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- What is Topology -->
+                    <section id="what-is-topology" data-aos="fade-up">
+                        <h2>🗺️ What is Cluster Topology?</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">The hierarchical layout of your Cassandra cluster across datacenters, racks, and nodes.</p>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-book-open" style="color: var(--accent-teal);"></i> Simple Definition</h4>
+                            <p><strong style="color: var(--text-primary);">Cluster Topology:</strong> The physical and logical organization of Cassandra nodes into a hierarchical structure of datacenters and racks to ensure high availability and fault tolerance.</p>
+                            
+                            <p style="margin-top: 1.5rem;"><strong>The 3-Level Hierarchy:</strong></p>
+                            <ul>
+                                <li><strong>Level 1 - Cluster:</strong> The entire Cassandra system (all nodes worldwide)</li>
+                                <li><strong>Level 2 - Datacenters:</strong> Geographic or logical groupings (e.g., US-East, EU-West)</li>
+                                <li><strong>Level 3 - Racks:</strong> Fault-isolated groups within datacenters</li>
+                                <li><strong>Level 4 - Nodes:</strong> Individual Cassandra servers</li>
+                            </ul>
+
+                            <p style="margin-top: 1.5rem;"><strong>Why Topology Matters:</strong></p>
+                            <ul>
+                                <li><strong>Disaster Recovery:</strong> Survive datacenter outages</li>
+                                <li><strong>Low Latency:</strong> Serve users from nearest datacenter</li>
+                                <li><strong>Fault Isolation:</strong> Rack failures don't take down cluster</li>
+                                <li><strong>Compliance:</strong> Keep data in specific regions (GDPR, etc.)</li>
+                            </ul>
+                        </div>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="500" y="30" font-family="Inter, sans-serif" font-size="24" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Cassandra Cluster Topology Hierarchy
+                                </text>
+
+                                <!-- Level 1: Cluster -->
+                                <rect x="50" y="70" width="900" height="600" rx="20" fill="none" stroke="#0d9488" stroke-width="4" stroke-dasharray="10,5"/>
+                                <text x="500" y="105" font-size="18" fill="#0d9488" text-anchor="middle" font-weight="800">🌐 CLUSTER: Global Cassandra Ring</text>
+
+                                <!-- Datacenter 1: US-EAST -->
+                                <g>
+                                    <rect x="80" y="130" width="260" height="500" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="3"/>
+                                    <text x="210" y="160" font-size="16" fill="#3b82f6" text-anchor="middle" font-weight="700">🏢 DC1: US-EAST</text>
+                                    
+                                    <!-- Rack A -->
+                                    <rect x="100" y="180" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="210" y="205" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack A</text>
+                                    <circle cx="140" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="140" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N1</text>
+                                    <circle cx="210" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="210" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N2</text>
+                                    <circle cx="280" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="280" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N3</text>
+                                    <text x="210" y="295" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 1</text>
+                                    
+                                    <!-- Rack B -->
+                                    <rect x="100" y="340" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="210" y="365" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack B</text>
+                                    <circle cx="140" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="140" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N4</text>
+                                    <circle cx="210" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="210" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N5</text>
+                                    <circle cx="280" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="280" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N6</text>
+                                    <text x="210" y="455" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 2</text>
+
+                                    <text x="210" y="595" font-size="11" fill="#94a3b8" text-anchor="middle">Location: Virginia</text>
+                                </g>
+
+                                <!-- Datacenter 2: EU-WEST -->
+                                <g>
+                                    <rect x="370" y="130" width="260" height="500" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="3"/>
+                                    <text x="500" y="160" font-size="16" fill="#3b82f6" text-anchor="middle" font-weight="700">🏢 DC2: EU-WEST</text>
+                                    
+                                    <!-- Rack A -->
+                                    <rect x="390" y="180" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="500" y="205" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack A</text>
+                                    <circle cx="430" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="430" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N7</text>
+                                    <circle cx="500" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="500" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N8</text>
+                                    <circle cx="570" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="570" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N9</text>
+                                    <text x="500" y="295" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 1</text>
+                                    
+                                    <!-- Rack B -->
+                                    <rect x="390" y="340" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="500" y="365" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack B</text>
+                                    <circle cx="430" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="430" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N10</text>
+                                    <circle cx="500" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="500" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N11</text>
+                                    <circle cx="570" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="570" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N12</text>
+                                    <text x="500" y="455" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 2</text>
+
+                                    <text x="500" y="595" font-size="11" fill="#94a3b8" text-anchor="middle">Location: London</text>
+                                </g>
+
+                                <!-- Datacenter 3: ASIA-PAC -->
+                                <g>
+                                    <rect x="660" y="130" width="260" height="500" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="3"/>
+                                    <text x="790" y="160" font-size="16" fill="#3b82f6" text-anchor="middle" font-weight="700">🏢 DC3: ASIA-PAC</text>
+                                    
+                                    <!-- Rack A -->
+                                    <rect x="680" y="180" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="790" y="205" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack A</text>
+                                    <circle cx="720" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="720" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N13</text>
+                                    <circle cx="790" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="790" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N14</text>
+                                    <circle cx="860" cy="240" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="860" y="248" font-size="12" fill="white" text-anchor="middle" font-weight="700">N15</text>
+                                    <text x="790" y="295" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 1</text>
+                                    
+                                    <!-- Rack B -->
+                                    <rect x="680" y="340" width="220" height="140" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                                    <text x="790" y="365" font-size="13" fill="#f59e0b" text-anchor="middle" font-weight="600">🗄️ Rack B</text>
+                                    <circle cx="720" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="720" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N16</text>
+                                    <circle cx="790" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="790" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N17</text>
+                                    <circle cx="860" cy="400" r="20" fill="#10b981" stroke="#059669" stroke-width="2"/>
+                                    <text x="860" y="408" font-size="12" fill="white" text-anchor="middle" font-weight="700">N18</text>
+                                    <text x="790" y="455" font-size="10" fill="#94a3b8" text-anchor="middle">Power: Circuit 2</text>
+
+                                    <text x="790" y="595" font-size="11" fill="#94a3b8" text-anchor="middle">Location: Tokyo</text>
+                                </g>
+
+                                <!-- Legend -->
+                                <text x="50" y="690" font-size="11" fill="#94a3b8">🌐 Cluster (18 nodes) → 🏢 Datacenters (3) → 🗄️ Racks (6) → ⚙️ Nodes (18)</text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up">
+                            <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Key Insight</h4>
+                            <p><strong>Topology is about FAILURE DOMAINS!</strong></p>
+                            <p style="margin-top: 1rem;">Each level protects against different types of failures:</p>
+                            <ul>
+                                <li><strong>Datacenter level:</strong> Protects against regional disasters (earthquakes, hurricanes)</li>
+                                <li><strong>Rack level:</strong> Protects against power/network failures in one area</li>
+                                <li><strong>Node level:</strong> Protects against individual server failures</li>
+                            </ul>
+                            <p style="margin-top: 1rem;">Cassandra automatically distributes replicas across these levels!</p>
+                        </div>
+                    </section>
+
+10
+                    <!-- Datacenter Design Section -->
+                    <section id="datacenter-design" data-aos="fade-up">
+                        <h2>🏢 Datacenter Design Strategies</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How to organize your cluster into logical or physical datacenters.</p>
+
+                        <div class="story-box">
+                            <h3 style="color: var(--accent-teal);">🌐 Netflix's 3-Datacenter Strategy</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">Scenario:</strong> Netflix streams to 200+ million users globally. They can't afford downtime!</p>
+
+                                <div style="background: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; border-left: 3px solid #3b82f6;">
+                                    <h4 style="color: #3b82f6; margin-top: 0;">Their Setup:</h4>
+                                    <ul>
+                                        <li><strong style="color: var(--text-primary);">DC1: US-EAST-1</strong> (Virginia) - 1,000 nodes</li>
+                                        <li><strong style="color: var(--text-primary);">DC2: US-WEST-2</strong> (Oregon) - 1,000 nodes</li>
+                                        <li><strong style="color: var(--text-primary);">DC3: EU-WEST-1</strong> (Ireland) - 500 nodes</li>
+                                    </ul>
+
+                                    <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Replication Strategy:</strong></p>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+NetworkTopologyStrategy = {<br/>
+&nbsp;&nbsp;'US-EAST-1': 3,  // 3 copies in Virginia<br/>
+&nbsp;&nbsp;'US-WEST-2': 3,  // 3 copies in Oregon<br/>
+&nbsp;&nbsp;'EU-WEST-1': 3   // 3 copies in Ireland<br/>
+}<br/><br/>
+Total copies per key: 9 replicas!<br/>
+Can lose ENTIRE datacenter and still serve!
+                                    </div>
+
+                                    <p style="margin-top: 1.5rem;"><strong style="color: var(--text-primary);">Why It Works:</strong></p>
+                                    <ul>
+                                        <li>Hurricane destroys Virginia → Oregon + Ireland continue!</li>
+                                        <li>US users get <5ms latency (nearest DC)</li>
+                                        <li>EU users served from Ireland (low latency)</li>
+                                        <li>Can deploy/upgrade one DC at a time (zero downtime!)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">Datacenter Naming Strategies</h3>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up">
+                                <div class="comparison-icon">🌍</div>
+                                <h3>Geographic Names</h3>
+                                <p style="color: #1f2937;"><strong>Best for:</strong> Multi-region deployments</p>
+                                <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: #1f2937;">
+DC1: us-east-1<br/>
+DC2: us-west-2<br/>
+DC3: eu-west-1<br/>
+DC4: ap-southeast-1<br/><br/>
+Clear, intuitive, maps to cloud regions
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="comparison-icon">🏭</div>
+                                <h3>Logical Names</h3>
+                                <p style="color: #1f2937;"><strong>Best for:</strong> Single location with logical separation</p>
+                                <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: #1f2937;">
+DC1: analytics<br/>
+DC2: online-app<br/>
+DC3: search<br/><br/>
+Separates workloads in same physical location
+                                </div>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">🔢</div>
+                                <h3>Simple Names</h3>
+                                <p style="color: #1f2937;"><strong>Best for:</strong> Testing/development</p>
+                                <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem; font-family: monospace; font-size: 0.85rem; color: #1f2937;">
+DC1: datacenter1<br/>
+DC2: datacenter2<br/><br/>
+Default names, simple but not descriptive
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box warning" data-aos="fade-up">
+                            <h4><i class="fas fa-exclamation-triangle" style="color: #d97706;"></i> Critical: Datacenter Names Cannot Change!</h4>
+                            <p>Once you set datacenter names in your cluster, <strong>you cannot rename them</strong> without rebuilding the entire cluster!</p>
+                            <p style="margin-top: 1rem;"><strong>Choose wisely from day one:</strong></p>
+                            <ul>
+                                <li>Use clear, descriptive names (us-east-1, not dc1)</li>
+                                <li>Follow your cloud provider's region naming</li>
+                                <li>Consider future expansion (leave room for more DCs)</li>
+                                <li>Document what each datacenter represents</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Rack Awareness Section -->
+                    <section id="rack-awareness" data-aos="fade-up">
+                        <h2>🗄️ Rack Awareness: Power & Network Isolation</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">How Cassandra distributes replicas across racks to survive power/network failures.</p>
+
+                        <div class="story-box" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));">
+                            <h3 style="color: #f59e0b;">⚡ The Power Outage Story</h3>
+                            <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                                <p><strong style="color: var(--text-primary);">True Story from Amazon:</strong> In 2017, a routine maintenance error in US-EAST-1 triggered cascading power failures.</p>
+
+                                <div style="background: rgba(220, 38, 38, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #dc2626;">
+                                    <h4 style="color: #dc2626; margin-top: 0;">❌ Without Rack Awareness:</h4>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+All 9 nodes on same power circuit (Rack A):<br/>
+Node 1, Node 2, Node 3, Node 4, Node 5,<br/>
+Node 6, Node 7, Node 8, Node 9<br/><br/>
+Power to Rack A fails → ALL 9 nodes die!<br/>
+RF=3 doesn't matter - all replicas lost!<br/>
+Result: <strong style="color: #dc2626;">COMPLETE OUTAGE! 💥</strong>
+                                    </div>
+                                </div>
+
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1.5rem; border-radius: 12px; margin: 2rem 0; border-left: 3px solid #059669;">
+                                    <h4 style="color: #059669; margin-top: 0;">✅ With Rack Awareness:</h4>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-top: 1rem;">
+Spread across 3 racks (3 power circuits):<br/>
+Rack A: Node 1, Node 2, Node 3<br/>
+Rack B: Node 4, Node 5, Node 6<br/>
+Rack C: Node 7, Node 8, Node 9<br/><br/>
+Power to Rack A fails → Only nodes 1-3 die<br/>
+But replicas exist on Rack B + Rack C!<br/>
+Result: <strong style="color: #059669;">Cluster keeps running! ✅</strong>
+                                    </div>
+                                </div>
+
+                                <p style="margin-top: 1.5rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                    <strong style="color: #f59e0b;">Rack awareness saved the day!<br/>Same hardware failure, different outcome!</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal);">How Rack Awareness Works</h3>
+
+                        <div class="svg-container" data-aos="zoom-in">
+                            <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Title -->
+                                <text x="450" y="30" font-family="Inter, sans-serif" font-size="22" font-weight="900" fill="#e2e8f0" text-anchor="middle">
+                                    Rack-Aware Replica Placement (RF=3)
+                                </text>
+
+                                <!-- Rack A -->
+                                <g>
+                                    <rect x="50" y="80" width="250" height="450" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="3"/>
+                                    <text x="175" y="115" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="700">🗄️ Rack A</text>
+                                    <text x="175" y="140" font-size="11" fill="#94a3b8" text-anchor="middle">Power: Circuit 1</text>
+                                    <text x="175" y="157" font-size="11" fill="#94a3b8" text-anchor="middle">Network: Switch 1</text>
+
+                                    <circle cx="175" cy="220" r="35" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="175" y="218" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="175" y="235" font-size="14" fill="white" text-anchor="middle" font-weight="700">1</text>
+                                    
+                                    <circle cx="175" cy="320" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="175" y="318" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="175" y="335" font-size="14" fill="white" text-anchor="middle" font-weight="700">2</text>
+                                    
+                                    <circle cx="175" cy="420" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="175" y="418" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="175" y="435" font-size="14" fill="white" text-anchor="middle" font-weight="700">3</text>
+
+                                    <text x="175" y="510" font-size="12" fill="#10b981" text-anchor="middle" font-weight="600">✅ 1 Replica Here</text>
+                                </g>
+
+                                <!-- Rack B -->
+                                <g>
+                                    <rect x="325" y="80" width="250" height="450" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="3"/>
+                                    <text x="450" y="115" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="700">🗄️ Rack B</text>
+                                    <text x="450" y="140" font-size="11" fill="#94a3b8" text-anchor="middle">Power: Circuit 2</text>
+                                    <text x="450" y="157" font-size="11" fill="#94a3b8" text-anchor="middle">Network: Switch 2</text>
+
+                                    <circle cx="450" cy="220" r="35" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="450" y="218" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="450" y="235" font-size="14" fill="white" text-anchor="middle" font-weight="700">4</text>
+                                    
+                                    <circle cx="450" cy="320" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="450" y="318" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="450" y="335" font-size="14" fill="white" text-anchor="middle" font-weight="700">5</text>
+                                    
+                                    <circle cx="450" cy="420" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="450" y="418" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="450" y="435" font-size="14" fill="white" text-anchor="middle" font-weight="700">6</text>
+
+                                    <text x="450" y="510" font-size="12" fill="#10b981" text-anchor="middle" font-weight="600">✅ 1 Replica Here</text>
+                                </g>
+
+                                <!-- Rack C -->
+                                <g>
+                                    <rect x="600" y="80" width="250" height="450" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="3"/>
+                                    <text x="725" y="115" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="700">🗄️ Rack C</text>
+                                    <text x="725" y="140" font-size="11" fill="#94a3b8" text-anchor="middle">Power: Circuit 3</text>
+                                    <text x="725" y="157" font-size="11" fill="#94a3b8" text-anchor="middle">Network: Switch 3</text>
+
+                                    <circle cx="725" cy="220" r="35" fill="#10b981" stroke="#059669" stroke-width="3"/>
+                                    <text x="725" y="218" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="725" y="235" font-size="14" fill="white" text-anchor="middle" font-weight="700">7</text>
+                                    
+                                    <circle cx="725" cy="320" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="725" y="318" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="725" y="335" font-size="14" fill="white" text-anchor="middle" font-weight="700">8</text>
+                                    
+                                    <circle cx="725" cy="420" r="35" fill="#64748b" stroke="#475569" stroke-width="3"/>
+                                    <text x="725" y="418" font-size="14" fill="white" text-anchor="middle" font-weight="700">Node</text>
+                                    <text x="725" y="435" font-size="14" fill="white" text-anchor="middle" font-weight="700">9</text>
+
+                                    <text x="725" y="510" font-size="12" fill="#10b981" text-anchor="middle" font-weight="600">✅ 1 Replica Here</text>
+                                </g>
+
+                                <!-- Legend -->
+                                <text x="450" y="575" font-size="13" fill="#0d9488" text-anchor="middle" font-weight="700">🎯 Result: RF=3, 1 replica per rack = Can survive ANY single rack failure!</text>
+                            </svg>
+                        </div>
+
+                        <div class="info-box" data-aos="fade-up">
+                            <h4><i class="fas fa-cog" style="color: var(--accent-teal);"></i> Configuring Rack Awareness</h4>
+                            <p><strong>In cassandra-rackdc.properties:</strong></p>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 1rem;">
+# Node 1 configuration<br/>
+dc=us-east-1<br/>
+rack=rack1<br/><br/>
+# Node 4 configuration<br/>
+dc=us-east-1<br/>
+rack=rack2<br/><br/>
+# Node 7 configuration<br/>
+dc=us-east-1<br/>
+rack=rack3
+                            </div>
+                            <p style="margin-top: 1rem;"><strong>Cassandra automatically:</strong></p>
+                            <ul>
+                                <li>Spreads replicas across different racks</li>
+                                <li>Avoids placing multiple replicas in same rack</li>
+                                <li>Uses rack info during rebalancing operations</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <!-- Multi-Region Section -->
+                    <section id="multi-region" data-aos="fade-up">
+                        <h2>🌍 Multi-Region Deployments</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Global architecture patterns for worldwide applications.</p>
+
+                        <div class="comparison-grid">
+                            <div class="comparison-card" data-aos="fade-up" style="border: 3px solid #10b981;">
+                                <div class="comparison-icon">🌎</div>
+                                <h3>Active-Active (Recommended)</h3>
+                                <p style="color: var(--text-primary);"><strong>All regions serve traffic</strong></p>
+                                <p style="margin-top: 1rem; color: var(--text-secondary);">Users connect to nearest datacenter for low latency. All DCs are equal.</p>
+                                
+                                <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #059669;">
+                                    <p style="margin: 0; font-size: 0.9rem;"><strong>Example:</strong></p>
+                                    <ul style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                        <li>NYC users → US-EAST</li>
+                                        <li>London users → EU-WEST</li>
+                                        <li>Tokyo users → ASIA-PAC</li>
+                                        <li>Latency: <20ms! ⚡</li>
+                                    </ul>
+                                </div>
+
+                                <p style="margin-top: 1rem;"><strong style="color: #059669;">Pros:</strong></p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>Lowest latency globally</li>
+                                    <li>Maximum availability</li>
+                                    <li>Lose entire region → others continue</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="100" style="border: 3px solid #f59e0b;">
+                                <div class="comparison-icon">🏢</div>
+                                <h3>Active-Passive</h3>
+                                <p style="color: var(--text-primary);"><strong>Primary + backup regions</strong></p>
+                                <p style="margin-top: 1rem; color: var(--text-secondary);">One primary serves all traffic. Others are standby for disaster recovery.</p>
+                                
+                                <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #f59e0b;">
+                                    <p style="margin: 0; font-size: 0.9rem;"><strong>Example:</strong></p>
+                                    <ul style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                        <li>Primary: US-EAST (active)</li>
+                                        <li>Backup: US-WEST (standby)</li>
+                                        <li>All traffic → US-EAST</li>
+                                        <li>Failover only if primary dies</li>
+                                    </ul>
+                                </div>
+
+                                <p style="margin-top: 1rem;"><strong style="color: #f59e0b;">Cons:</strong></p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>Wasted standby capacity</li>
+                                    <li>Higher latency for distant users</li>
+                                    <li>Manual failover often required</li>
+                                </ul>
+                            </div>
+
+                            <div class="comparison-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="comparison-icon">📊</div>
+                                <h3>Hybrid</h3>
+                                <p style="color: var(--text-primary);"><strong>Mix of both strategies</strong></p>
+                                <p style="margin-top: 1rem; color: var(--text-secondary);">Different workloads use different patterns based on requirements.</p>
+                                
+                                <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid #3b82f6;">
+                                    <p style="margin: 0; font-size: 0.9rem;"><strong>Example:</strong></p>
+                                    <ul style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                        <li>User data: Active-Active</li>
+                                        <li>Analytics: Active-Passive</li>
+                                        <li>Logs: Single datacenter</li>
+                                    </ul>
+                                </div>
+
+                                <p style="margin-top: 1rem;"><strong>Use when:</strong></p>
+                                <ul style="font-size: 0.9rem;">
+                                    <li>Different data types</li>
+                                    <li>Mixed compliance needs</li>
+                                    <li>Cost optimization required</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h3 style="color: var(--accent-teal); margin-top: 3rem;">Real-World Multi-Region Example: Apple iCloud</h3>
+
+                        <div class="datacenter-card" data-aos="fade-up">
+                            <h4 style="color: #3b82f6; margin-top: 0;">🍎 Apple iCloud Contact Sync</h4>
+                            <p><strong style="color: var(--text-primary);">Challenge:</strong> 2 billion devices need instant contact sync globally.</p>
+
+                            <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem;">
+                                <h5 style="color: var(--text-primary); margin-top: 0;">Their Setup:</h5>
+                                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem;">
+CREATE KEYSPACE contacts WITH replication = {<br/>
+&nbsp;&nbsp;'class': 'NetworkTopologyStrategy',<br/>
+&nbsp;&nbsp;'us-east': 3,      // North America<br/>
+&nbsp;&nbsp;'eu-west': 3,      // Europe<br/>
+&nbsp;&nbsp;'asia-pacific': 3  // Asia<br/>
+};<br/><br/>
+Total: 75,000+ nodes across 3 continents<br/>
+Each write replicated 9 times (3 per region)
+                                </div>
+
+                                <h5 style="color: var(--text-primary); margin-top: 1.5rem;">Performance:</h5>
+                                <ul>
+                                    <li><strong>Latency:</strong> 15ms average (LOCAL_QUORUM)</li>
+                                    <li><strong>Availability:</strong> 99.999% (5 nines!)</li>
+                                    <li><strong>Throughput:</strong> Millions of writes/sec</li>
+                                    <li><strong>Disaster Recovery:</strong> Can lose entire continent!</li>
+                                </ul>
+
+                                <p style="margin-top: 1.5rem; text-align: center; font-size: 1.1rem; color: var(--text-primary);">
+                                    <strong style="color: #3b82f6;">Result: You never notice when you edit a contact!<br/>That's the power of multi-region topology!</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Live Topology Builder -->
+                    <section id="live-topology" data-aos="fade-up">
+                        <h2>🖥️ Interactive Topology Builder</h2>
+                        <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Design your own cluster topology and see replica distribution!</p>
+
+                        <div class="live-console" data-aos="fade-up">
+                            <div class="console-header">
+                                <div class="console-title">
+                                    <i class="fas fa-sitemap"></i>
+                                    Cassandra Topology Designer
+                                </div>
+                                <div class="console-controls">
+                                    <select id="dcCount" style="background: var(--code-darker); color: var(--text-primary); border: 1px solid var(--border-light); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                                        <option value="1">1 Datacenter</option>
+                                        <option value="2">2 Datacenters</option>
+                                        <option value="3" selected>3 Datacenters</option>
+                                    </select>
+                                    <select id="rfValue" style="background: var(--code-darker); color: var(--text-primary); border: 1px solid var(--border-light); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; margin-left: 0.5rem;">
+                                        <option value="1">RF=1</option>
+                                        <option value="2">RF=2</option>
+                                        <option value="3" selected>RF=3</option>
+                                    </select>
+                                    <button class="console-btn" onclick="generateTopology()">
+                                        <i class="fas fa-play"></i> Generate
+                                    </button>
+                                    <button class="console-btn" onclick="clearTopologyConsole()" style="background: #64748b;">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="console-body" id="topologyOutput">
+                                <div class="console-log" style="color: #94a3b8;">
+                                    <strong>Ready to design your cluster topology!</strong><br/>
+                                    Select datacenter count and replication factor, then click "Generate" to see the topology.<br/><br/>
+                                    The simulator will show:<br/>
+                                    • Datacenter layout<br/>
+                                    • Rack distribution<br/>
+                                    • Replica placement<br/>
+                                    • Failure scenarios<br/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box success" data-aos="fade-up" style="margin-top: 2rem;">
+                            <h4><i class="fas fa-lightbulb" style="color: #059669;"></i> Production Topology Best Practices</h4>
+                            <ul>
+                                <li><strong>Minimum 3 datacenters</strong> for true fault tolerance</li>
+                                <li><strong>RF=3 per datacenter</strong> - industry standard</li>
+                                <li><strong>Odd number of nodes</strong> in each datacenter (avoid split-brain)</li>
+                                <li><strong>At least 3 racks</strong> per datacenter if possible</li>
+                                <li><strong>Use LOCAL_QUORUM</strong> for reads/writes in multi-DC</li>
+                            </ul>
+                        </div>
+                    </section>
+
+
+                    <!-- Interview Questions Section -->
+                    <section id="interview-questions" data-aos="fade-up">
+                        <div class="interview-section">
+                            <h2>💼 Interview Questions & Answers</h2>
+                            <p style="color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem;">Master these 30 essential cluster topology questions!</p>
+
+                            <!-- Question 1 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">1</span>
+                                    <span class="question-text">What is Cluster Topology in Cassandra?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>Cluster Topology is the hierarchical organization of Cassandra nodes into a structure of <strong>datacenters</strong>, <strong>racks</strong>, and <strong>nodes</strong> to provide fault tolerance and high availability.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>The 4-Level Hierarchy:</strong></p>
+                                        <ul>
+                                            <li><strong>Cluster:</strong> The complete Cassandra ring (all nodes globally)</li>
+                                            <li><strong>Datacenters:</strong> Geographic or logical groups (e.g., US-EAST, EU-WEST)</li>
+                                            <li><strong>Racks:</strong> Failure domains within datacenters (separate power/network)</li>
+                                            <li><strong>Nodes:</strong> Individual Cassandra servers</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Why It Matters:</strong></p>
+                                        <ul>
+                                            <li>Survive datacenter outages</li>
+                                            <li>Survive rack-level power failures</li>
+                                            <li>Low-latency access from anywhere</li>
+                                            <li>Automatic replica distribution</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 2 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">2</span>
+                                    <span class="question-text">What is a Datacenter in Cassandra context?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>A <strong>Datacenter (DC)</strong> in Cassandra is a logical grouping of nodes that typically represents either a physical datacenter (geographic location) or a logical separation (different workload types).</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Two Types:</strong></p>
+                                        
+                                        <p><strong>1. Physical Datacenters (Geographic):</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+DC1: us-east-1 (Virginia)<br/>
+DC2: eu-west-1 (Ireland)<br/>
+DC3: ap-southeast-1 (Singapore)<br/><br/>
+Use case: Global application, low latency
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>2. Logical Datacenters (Workload):</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+DC1: online-app (real-time traffic)<br/>
+DC2: analytics (batch processing)<br/>
+DC3: search (Solr indexing)<br/><br/>
+Use case: Same location, different workloads
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Key Features:</strong></p>
+                                        <ul>
+                                            <li>Each DC has independent replication factor</li>
+                                            <li>Can configure different RF per DC</li>
+                                            <li>LOCAL_QUORUM operates within single DC</li>
+                                            <li>Datacenters cannot be renamed after creation!</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 3 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">3</span>
+                                    <span class="question-text">Explain Rack Awareness and why it's important</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong>Rack Awareness</strong> is Cassandra's ability to distribute replicas across different racks to survive rack-level failures (power outages, network switch failures, etc.).</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>What is a "Rack"?</strong></p>
+                                        <p>A rack represents a <strong>failure domain</strong> - typically:</p>
+                                        <ul>
+                                            <li>Physical server racks sharing same power circuit</li>
+                                            <li>Servers connected to same network switch</li>
+                                            <li>Availability zones in cloud (AWS AZ-A, AZ-B, AZ-C)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Example Scenario:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+9 nodes, RF=3, 3 racks:<br/>
+Rack A: Node 1, 2, 3<br/>
+Rack B: Node 4, 5, 6<br/>
+Rack C: Node 7, 8, 9<br/><br/>
+For any key:<br/>
+- Replica 1 → Node in Rack A<br/>
+- Replica 2 → Node in Rack B<br/>
+- Replica 3 → Node in Rack C<br/><br/>
+Power fails to Rack A → Still have 2 replicas! ✅
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Configuration:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+# cassandra-rackdc.properties<br/>
+dc=us-east-1<br/>
+rack=rack1  # or rack2, rack3, etc.
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Best Practice:</strong> Use at least 3 racks per datacenter for optimal fault tolerance with RF=3.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 4 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">4</span>
+                                    <span class="question-text">What is NetworkTopologyStrategy and when do you use it?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p><strong>NetworkTopologyStrategy</strong> is the replication strategy that enables datacenter-aware and rack-aware replica placement.</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>How It Works:</strong></p>
+                                        <ul>
+                                            <li>Allows different RF per datacenter</li>
+                                            <li>Automatically distributes replicas across racks</li>
+                                            <li>Ensures replicas don't all go to same rack</li>
+                                            <li>Supports multi-datacenter deployments</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Example Configuration:</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+CREATE KEYSPACE users WITH replication = {<br/>
+&nbsp;&nbsp;'class': 'NetworkTopologyStrategy',<br/>
+&nbsp;&nbsp;'us-east-1': 3,    // 3 replicas in US<br/>
+&nbsp;&nbsp;'eu-west-1': 3,    // 3 replicas in EU<br/>
+&nbsp;&nbsp;'asia-pacific': 2  // 2 replicas in Asia<br/>
+};<br/><br/>
+Total replicas per key: 8 copies!
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>When to Use:</strong></p>
+                                        <ul>
+                                            <li>✅ <strong>ALWAYS use in production!</strong></li>
+                                            <li>✅ Even with single datacenter (future-proof)</li>
+                                            <li>✅ Any multi-datacenter setup</li>
+                                            <li>✅ When rack awareness needed</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Don't Use:</strong></p>
+                                        <ul>
+                                            <li>❌ SimpleStrategy (only for testing!)</li>
+                                            <li>❌ Never in production</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Question 5 -->
+                            <div class="question-card" onclick="toggleQuestion(this)">
+                                <div class="question-header">
+                                    <span class="question-number">5</span>
+                                    <span class="question-text">What happens if you lose an entire datacenter?</span>
+                                    <span class="question-toggle">▼</span>
+                                </div>
+                                <div class="question-answer">
+                                    <div class="answer-content">
+                                        <p><strong>Answer:</strong></p>
+                                        <p>If you lose an entire datacenter, the <strong>cluster continues operating</strong> using replicas in other datacenters - if you designed topology correctly!</p>
+                                        
+                                        <p style="margin-top: 1rem;"><strong>Scenario: 3-Datacenter Deployment</strong></p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
+Setup:<br/>
+DC1: US-EAST (3 nodes, RF=3)<br/>
+DC2: US-WEST (3 nodes, RF=3)<br/>
+DC3: EU-WEST (3 nodes, RF=3)<br/><br/>
+Total: 9 replicas per key (3 in each DC)
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Disaster: Hurricane destroys US-EAST!</strong></p>
+                                        <div style="background: rgba(220, 38, 38, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #dc2626;">
+                                            <p style="margin: 0;"><strong>Immediate Impact:</strong></p>
+                                            <ul>
+                                                <li>DC1 (US-EAST) completely offline ❌</li>
+                                                <li>3 replicas lost</li>
+                                                <li>But 6 replicas still exist! ✅</li>
+                                            </ul>
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>Cluster Response:</strong></p>
+                                        <div style="background: rgba(5, 150, 105, 0.1); padding: 1rem; border-radius: 8px; border-left: 3px solid #059669;">
+                                            <ul style="margin: 0;">
+                                                <li>✅ DC2 (US-WEST) continues serving</li>
+                                                <li>✅ DC3 (EU-WEST) continues serving</li>
+                                                <li>✅ QUORUM still achievable (2 out of 3 DCs)</li>
+                                                <li>✅ No data loss!</li>
+                                                <li>✅ Applications keep running!</li>
+                                            </ul>
+                                        </div>
+
+                                        <p style="margin-top: 1rem;"><strong>What About Consistency Levels?</strong></p>
+                                        <ul>
+                                            <li><strong>LOCAL_QUORUM:</strong> Still works (uses DC2 or DC3)</li>
+                                            <li><strong>QUORUM:</strong> Still works (6 replicas, need 5)</li>
+                                            <li><strong>EACH_QUORUM:</strong> FAILS! (needs quorum in ALL DCs)</li>
+                                            <li><strong>ALL:</strong> FAILS! (needs all 9 replicas)</li>
+                                        </ul>
+
+                                        <p style="margin-top: 1rem;"><strong>Recovery Steps:</strong></p>
+                                        <ol>
+                                            <li>Spin up new nodes in different datacenter</li>
+                                            <li>Run repair to sync data</li>
+                                            <li>Update applications to avoid dead DC</li>
+                                            <li>Eventually decommission dead DC</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Summary Section -->
+                    <div class="story-box" data-aos="fade-up" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(13, 148, 136, 0.05)); margin-top: 4rem;">
+                        <h2 style="color: var(--accent-teal);">🎓 Chapter Summary: Master Cluster Topology</h2>
+                        <div style="line-height: 1.9; font-size: 1.05rem; color: var(--text-secondary);">
+                            <p><strong style="color: var(--text-primary);">Congratulations! You now deeply understand Cassandra Cluster Topology!</strong></p>
+
+                            <h4 style="color: var(--accent-teal); margin-top: 2rem; margin-bottom: 1rem;">Key Concepts Mastered:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li><strong style="color: var(--text-primary);">Topology Hierarchy:</strong> Cluster → Datacenters → Racks → Nodes</li>
+                                <li><strong style="color: var(--text-primary);">Datacenters:</strong> Geographic or logical groupings for fault isolation</li>
+                                <li><strong style="color: var(--text-primary);">Rack Awareness:</strong> Distribute replicas across power/network failure domains</li>
+                                <li><strong style="color: var(--text-primary);">Multi-Region:</strong> Active-Active for global low latency</li>
+                                <li><strong style="color: var(--text-primary);">NetworkTopologyStrategy:</strong> ALWAYS use in production!</li>
+                            </ul>
+
+                            <h4 style="color: var(--accent-teal); margin-top: 2rem; margin-bottom: 1rem;">The GlobalShip Analogy Recap:</h4>
+                            <p>Remember GlobalShip's warehouse strategy? Don't put everything in one NYC warehouse - spread across continents (datacenters), separate buildings (racks), with redundant inventory (replicas). Hurricane hits NYC? London and Tokyo keep delivering!</p>
+
+                            <h4 style="color: var(--accent-teal); margin-top: 2rem; margin-bottom: 1rem;">Production Best Practices:</h4>
+                            <ul style="line-height: 1.9;">
+                                <li>✅ Use NetworkTopologyStrategy (ALWAYS!)</li>
+                                <li>✅ Minimum 3 datacenters for true fault tolerance</li>
+                                <li>✅ RF=3 per datacenter (industry standard)</li>
+                                <li>✅ At least 3 racks per datacenter</li>
+                                <li>✅ Use LOCAL_QUORUM for multi-DC reads/writes</li>
+                                <li>✅ Odd number of nodes per datacenter</li>
+                                <li>✅ Document your topology clearly</li>
+                            </ul>
+
+                            <p style="margin-top: 2rem; font-size: 1.1rem; text-align: center; color: var(--text-primary);">
+                                <strong style="color: var(--accent-teal);">🚀 You can now design globally distributed, fault-tolerant Cassandra clusters!</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="page-navigation">
+                        <a href="node-failure.html" class="nav-button" data-aos="fade-right">
+                            <i class="nav-icon fas fa-arrow-left"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Previous</div>
+                                <div class="nav-title">Node Failures</div>
+                            </div>
+                        </a>
+                        <a href="partitioning-basics.html" class="nav-button next" data-aos="fade-left">
+                            <i class="nav-icon fas fa-arrow-right"></i>
+                            <div class="nav-text">
+                                <div class="nav-label">Next Section</div>
+                                <div class="nav-title">Practice Basics</div>
+                            </div>
+                        </a>
+                    </div>
+                    <!-- AdSense Placeholder 1 -->
+                <div style="background: linear-gradient(135deg, rgba(71, 85, 105, 0.1), rgba(71, 85, 105, 0.05)); border: 2px dashed var(--border-light); border-radius: 16px; padding: 3rem; margin: 3rem 0; text-align: center;" data-aos="fade-up">
+                    <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                        <i class="fas fa-ad"></i> Advertisement
+                    </div>
+                    <div style="min-height: 250px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                        <p style="color: var(--text-muted); margin: 0;"> Responsive Ad </p>
+                    </div>
+                    <!-- Replace with actual AdSense code:
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                         data-ad-slot="XXXXXXXXXX"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                    -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Initialize AOS
+        AOS.init({duration: 800, easing: 'ease-in-out', once: true});
+
+        // Progress Bar
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            document.getElementById('progressBar').style.width = (winScroll / height) * 100 + '%';
+        });
+
+        // Mobile Menu Toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        // Toggle Section
+        function toggleSection(element) {
+            element.closest('.path-section').classList.toggle('expanded');
+        }
+
+        // Toggle Question
+        function toggleQuestion(card) {
+            card.classList.toggle('active');
+        }
+
+        // Scroll to Top
+        const scrollTopBtn = document.getElementById('scrollTop');
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // TOC Active Link
+        function highlightTOC() {
+            const sections = document.querySelectorAll('section[id]');
+            const tocLinks = document.querySelectorAll('.toc-floating a');
+            
+            let currentSection = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.pageYOffset >= (sectionTop - 200)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${currentSection}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        window.addEventListener('scroll', highlightTOC);
+
+        // Topology Builder Functions
+        function clearTopologyConsole() {
+            const output = document.getElementById('topologyOutput');
+            output.innerHTML = '<div class="console-log" style="color: #94a3b8;">Console cleared. Ready for new topology...</div>';
+        }
+
+        function addTopologyLog(message, type = '') {
+            const output = document.getElementById('topologyOutput');
+            const logDiv = document.createElement('div');
+            logDiv.className = `console-log log-${type}`;
+            logDiv.innerHTML = message;
+            output.appendChild(logDiv);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function generateTopology() {
+            const dcCount = parseInt(document.getElementById('dcCount').value);
+            const rfValue = parseInt(document.getElementById('rfValue').value);
+            
+            clearTopologyConsole();
+            
+            addTopologyLog('════════════════════════════════════════', '');
+            addTopologyLog(`<strong>CLUSTER TOPOLOGY GENERATED</strong>`, 'dc');
+            addTopologyLog('════════════════════════════════════════<br/>', '');
+            
+            addTopologyLog(`<strong>Configuration:</strong>`, '');
+            addTopologyLog(`  Datacenters: ${dcCount}`, '');
+            addTopologyLog(`  Replication Factor per DC: ${rfValue}`, '');
+            addTopologyLog(`  Total Nodes: ${dcCount * 9} (3 racks × 3 nodes per DC)<br/>`, '');
+            
+            const dcNames = ['US-EAST-1', 'EU-WEST-1', 'ASIA-PACIFIC'];
+            const locations = ['Virginia, USA 🇺🇸', 'Ireland, EU 🇪🇺', 'Singapore, Asia 🇸🇬'];
+            
+            for (let dc = 0; dc < dcCount; dc++) {
+                addTopologyLog(`<strong>═══ DATACENTER ${dc + 1}: ${dcNames[dc]} ═══</strong>`, 'dc');
+                addTopologyLog(`  Location: ${locations[dc]}`, '');
+                addTopologyLog(`  Replication Factor: ${rfValue}`, '');
+                addTopologyLog(`  Racks: 3 (A, B, C)<br/>`, '');
+                
+                for (let rack = 0; rack < 3; rack++) {
+                    const rackName = String.fromCharCode(65 + rack); // A, B, C
+                    const nodeStart = dc * 9 + rack * 3 + 1;
+                    
+                    addTopologyLog(`  🗄️ <strong>Rack ${rackName}:</strong>`, 'rack');
+                    addTopologyLog(`     Power: Circuit ${rack + 1} | Network: Switch ${rack + 1}`, '');
+                    addTopologyLog(`     Nodes: Node ${nodeStart}, Node ${nodeStart + 1}, Node ${nodeStart + 2}`, 'node');
+                    
+                    if (rack < rfValue) {
+                        addTopologyLog(`     <strong style="color: #10b981;">✅ This rack holds ${Math.ceil(rfValue / 3)} replica(s)</strong>`, '');
+                    }
+                    addTopologyLog('', '');
+                }
+                addTopologyLog('', '');
+            }
+            
+            addTopologyLog('<strong>REPLICA DISTRIBUTION EXAMPLE:</strong>', 'success');
+            addTopologyLog('For partition key "user_12345":', '');
+            
+            for (let dc = 0; dc < dcCount; dc++) {
+                addTopologyLog(`  ${dcNames[dc]}:`, '');
+                for (let r = 0; r < Math.min(rfValue, 3); r++) {
+                    const nodeNum = dc * 9 + r * 3 + 1;
+                    addTopologyLog(`    • Replica ${r + 1} → Node ${nodeNum} (Rack ${String.fromCharCode(65 + r)})`, 'node');
+                }
+            }
+            
+            addTopologyLog('<br/><strong>FAILURE SIMULATION:</strong>', 'warning');
+            addTopologyLog('❌ Power fails to Rack A in DC1:', 'warning');
+            addTopologyLog(`   Lost: 3 nodes (Node 1, 2, 3)`, '');
+            addTopologyLog(`   Remaining: ${(dcCount * 3 - 1) * rfValue} replicas across other racks/DCs`, 'success');
+            addTopologyLog(`   <strong style="color: #10b981;">✅ CLUSTER STILL OPERATIONAL!</strong>`, 'success');
+            
+            addTopologyLog('<br/>════════════════════════════════════════', '');
+            addTopologyLog(`<strong>Total Replicas per Key: ${dcCount * rfValue}</strong>`, 'success');
+            addTopologyLog(`<strong>Can survive: ${Math.floor((dcCount * rfValue - 1) / 2)} failures with QUORUM</strong>`, 'success');
+            addTopologyLog('════════════════════════════════════════', '');
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                addTopologyLog('👋 <strong>Welcome to Topology Builder!</strong>', '');
+                addTopologyLog('Select datacenter count and RF, then click "Generate" to visualize your cluster.', '');
+                addTopologyLog('<br/>Try different configurations to see how replicas are distributed!', '');
+            }, 500);
+        });
+    </script>
+</body>
+</html>
